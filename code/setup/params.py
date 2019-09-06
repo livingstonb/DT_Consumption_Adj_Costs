@@ -27,10 +27,9 @@ class Params:
 		self.freq = None
 
 		# path to income file
-		self.IncomeProcess = None
+		self.locIncomeProcess = None
 
 		# income grid sizes
-		self.nyF = None
 		self.nyP = None
 		self.nyT = None
 
@@ -119,6 +118,5 @@ class Params:
 		self.deathProb = 1 - (1 - self.deathProb) ^ (1/4)
 
 	def addIncomeParameters(self, income):
-		self.nyF = income.nyF
 		self.nyP = income.nyP
 		self.nyT = income.nyT

@@ -35,7 +35,7 @@ class Grid:
 
 		self.s['vec'] = sgrid
 		self.s['matrix'] = matlib.repmat(sgrid,1,
-				params.cGridPts,params.nyP,params.nyF)
+				params.cGridPts,params.nyP)
 
 	def createCashGrid(self, income):
 		# minimum of income along the yT dimension
@@ -46,12 +46,11 @@ class Grid:
 		xgrid = self.enforceMinGridSpacing(xgrid)
 
 		xgrid = matlib.repmat(xgrid,
-			.params.cGridPts*self.params.nyP*self.params.nyF,1)
+			.params.cGridPts*self.params.nyP,1)
 		self.x['matrix'] = xgrid.reshape((
 				self.params.xGridPts,
 				self.params.cGridPts,
-				self.params.nyP
-				self.params.nyF))
+				self.params.nyP))
 
 	def createAssetGrid(self):
 		agrid = np.linspace(0,1,self.params.aGridPts)
@@ -62,7 +61,7 @@ class Grid:
 
 		self.a['vec'] = agrid
 		self.a['matrix'] = matlib.repmat(agrid,
-			params.cGridPts*self.params.nyP*self.params.nyF,1)
+			params.cGridPts*self.params.nyP,1)
 
 	def enforceMinGridSpacing(self, grid_in):
 		grid_adj = grid_in
