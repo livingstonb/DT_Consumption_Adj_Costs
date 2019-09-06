@@ -8,6 +8,7 @@ sys.path.append(codedir)
 
 from setup.params import Params
 from setup.income import Income
+from model.model import Model
 from setup.grid import Grid
 
 # create params object
@@ -22,3 +23,7 @@ params.addIncomeParameters(income)
 
 # create grids
 grids = Grid(params,income)
+
+# initialize model
+model = Model(params,income,grids)
+model.solveEGP()
