@@ -57,17 +57,16 @@ class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.sMax = 150 # max of saving grid
-		self.nx = 100
-		self.nc = 100
+		self.nx = 35
 		self.sGridCurv = 0.2
 		self.aGridCurv = 0.2
 		self.borrowLim = 0
 		self.minGridSpacing = 0.001
 
 		# consumption grid
+		self.nc = 30
 		self.cMin = 0.001
 		self.cMax = 3
-		self.cGridPts = 100
 		self.cGridCurv = 0.3
 
 		# options
