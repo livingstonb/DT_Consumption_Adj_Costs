@@ -3,3 +3,5 @@
 input
 output
 temp
+*.DS_Store
+*.sublime-workspace

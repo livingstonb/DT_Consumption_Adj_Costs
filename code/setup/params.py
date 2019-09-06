@@ -13,7 +13,7 @@ class Params:
 	quarterly values.
 	"""
 
-	def __init__(self, params_dict):
+	def __init__(self, params_dict=None):
 
 		#-----------------------------------#
 		#        SET DEFAULT VALUES         #
@@ -24,7 +24,7 @@ class Params:
 		self.index = None
 
 		# 1 (annual) or 4 (quarterly)
-		self.freq = None
+		self.freq = 4
 
 		# path to income file
 		self.locIncomeProcess = None
@@ -88,11 +88,12 @@ class Params:
 		#        OVERRIDE DEFAULTS          #
 		#-----------------------------------#
 
-		for parameter, value in params_dict.items():
-			if hasattr(self,parameter):
-				setattr(self,parameter,value)
-			else:
-				raise Exception(f'"{parameter}" is not a valid parameter')
+		if params_dict:
+			for parameter, value in params_dict.items():
+				if hasattr(self,parameter):
+					setattr(self,parameter,value)
+				else:
+					raise Exception(f'"{parameter}" is not a valid parameter')
 
 		#-----------------------------------#
 		#     ADJUST TO QUARTERLY FREQ      #
@@ -112,10 +113,10 @@ class Params:
 		if self.freq == 1:
 			return
 
-		self.R = (1 + self.r) ^ (1/4)
+		self.R = (1 + self.r) ** (1/4)
 		self.r = self.R - 1
 		self.tSim = self.tSim * 4
-		self.deathProb = 1 - (1 - self.deathProb) ^ (1/4)
+		self.deathProb = 1 - (1 - self.deathProb) ** (1/4)
 
 	def addIncomeParameters(self, income):
 		self.nyP = income.nyP
