@@ -49,5 +49,6 @@ class Income:
 		self.yTcumdist = np.cumsum(self.yTdist)
 
 	def createOtherIncomeVariables(self):
+		# matrix of all income values, dimension nyP by nyT
 		self.ymat = np.matmul(self.yPgrid,self.yTgrid.T)
 

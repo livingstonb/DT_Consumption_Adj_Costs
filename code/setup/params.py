@@ -60,6 +60,7 @@ class Params:
 		self.nGridPts = 100
 		self.xGridPts = 100
 		self.aGridPts = 100
+		self.sGridPts = 100
 		self.sGridCurv = 0.2
 		self.aGridCurv = 0.2
 		self.borrowLim = 0
