@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+import numpy.matlib as matlib
 from misc import functions
 
 class Model:
@@ -21,8 +22,19 @@ class Model:
 		# create x, c vectors of length (nx*nc) for interpolator
 		self.xgridLong = self.grids.x['matrix'][:,:,1]
 
-	def solveEGP(self):
-		conGuess = self.makePolicyGuess()
+	def solve(self):
+		V = self.makeValueGuess(self.grids.c['matrix'])
+		utilNoSwitch = functions.utility(self.p.riskaver,self.grids.c['matrix'])
+
+		utilSwitch = np.max(utilNoSwitch,axis=2).reshape((self.p.nx,1,self.p.nyP))
+		utilSwitch = np.repeat(utilSwitch,self.p.nc,axis=1) - self.p.adjustCost
+
+		it = 0
+		cdiff = 1e5
+		while (it < self.p.maxIterVFI) and (cdiff > self.p.tolIterVFI):
+			it += 1
+
+			
 
 		self.compute_xprime_s()
 		self.compute_Emat()
@@ -35,13 +47,16 @@ class Model:
 		conGuess = returns * self.grids.x['matrix']
 		return conGuess
 
+	def makeValueGuess(self, conGuess):
+		vGuess = functions.utility(self.p.riskAver,conGuess)
+		return vGuess
+
 	def iterateBackward(self, conGuess):
 		it = 0
 		cdiff = 1e5
 		con = conGuess
 
 		dimTuple = (self.p.nx, self.p.nc, self.p.nyP)
-
 
 		while (it < self.p.maxIterEGP) and (cdiff > self.p.tolIterEGP):
 			it += 1
@@ -129,4 +144,66 @@ class Model:
 		sav = np.maximum(sav,self.p.borrowLim)
 		return sav
 
+class Simulator:
+	def __init__(self, params, income, grids, model):
+		self.income = income
+		self.grids = grids
+		self.model = model
 
+		self.periodsBeforeRedraw = 50
+
+		self.T = params.tSim
+		self.t = 1
+		self.randIndex = 0
+
+		# initial assets to desired mean
+		self.asim = params.wealthTarget * np.ones((self.nSim,))
+
+		# initialize consumption to equal income
+		self.csim = np.ones((self.nSim,))
+
+	def simulate(self):
+		self.makeRandomDraws()
+		while self.t <= self.T:
+
+			self.updateIncome()
+			self.updateCashForThisPeriod()
+
+			currentCash = self.xsim
+			self.updateAssetsForNextPeriod()
+			self.updateConsumptionForNextPeriod(currentCash)
+
+			if self.randIndex < self.periodsBeforeRedraw - 1:
+				self.randIndex += 1
+			else:
+				self.randIndex = 0
+				self.makeRandomDraws()
+
+			t += 1
+
+	def makeRandomDraws(self):
+		self.yPrand = np.random(size=(self.nSim,self.periodsBeforeRedraw))
+		self.yTrand = np.random(size=(self.nSim,self.periodsBeforeRedraw))
+
+		if  self.p.deathProb > 0:
+			self.deathrand = np.random(size=(self.nSim,self.periodsBeforeRedraw))
+
+	def updateIncome(self):
+		if self.t == 1:
+			self.yPind = np.argmax(self.yPrand[:,self.randIndex]
+					<= self.income.yPcumdistT,axis=1)
+		else:
+			self.yPind = np.argmax(self.yPrand[:,self.randIndex]
+					<= self.income.yPcumtrans[self.yPind,:],
+					axis=1)
+
+		self.ysim = self.income.y.vec[self.yPind]
+
+	def updateCashForThisPeriod(self):
+		self.xsim = self.asim + self.ysim
+
+	def updateAssetsForNextPeriod(self):
+		if not self.Bequests:
+			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb] = 0
+
+		self.asim = self.p.R * self.ssim
