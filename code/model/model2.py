@@ -22,6 +22,8 @@ class Model:
 		# create x, c vectors of length (nx*nc) for interpolator
 		self.xgridLong = self.grids.x['matrix'][:,:,1]
 
+		self.stats = dict()
+
 	def solve(self):
 		V = self.makeValueGuess(self.grids.c['matrix'])
 		utilNoSwitch = functions.utility(self.p.riskaver,self.grids.c['matrix'])
@@ -156,6 +158,10 @@ class Simulator:
 		self.t = 1
 		self.randIndex = 0
 
+		# statistics to compute every period
+		self.aMean = np.zeros((self.T,)) # mean assets
+		self.aVariance = np.zeros((self.T,)) # variance of assets
+
 		# initial assets to desired mean
 		self.asim = params.wealthTarget * np.ones((self.nSim,))
 
@@ -165,17 +171,20 @@ class Simulator:
 	def simulate(self):
 		self.makeRandomDraws()
 		while self.t <= self.T:
-
+			self.updateAssets()
 			self.updateIncome()
-			self.updateCashForThisPeriod()
+			self.updateCash()
+			self.updateConsumption()
 
-			currentCash = self.xsim
-			self.updateAssetsForNextPeriod()
-			self.updateConsumptionForNextPeriod(currentCash)
+			self.computeTransitionStatistics()
+
+			self.solveDecisions()
 
 			if self.randIndex < self.periodsBeforeRedraw - 1:
+				# use next column of random numbers
 				self.randIndex += 1
 			else:
+				# need to redraw
 				self.randIndex = 0
 				self.makeRandomDraws()
 
@@ -199,11 +208,49 @@ class Simulator:
 
 		self.ysim = self.income.y.vec[self.yPind]
 
-	def updateCashForThisPeriod(self):
+	def updateCash(self):
 		self.xsim = self.asim + self.ysim
 
-	def updateAssetsForNextPeriod(self):
+	def updateAssets(self):
+		if self.t == 1:
+			#  initial assets set in class constructor
+			return
+
 		if not self.Bequests:
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb] = 0
 
 		self.asim = self.p.R * self.ssim
+
+	def computeTransitionStatistics(self):
+		"""
+		This method computes statistics that can be
+		used to evaluate convergence to the equilibrium
+		distribution.
+		"""
+		self.aMean[self.t-1] = np.mean(self.asim)
+		self.aVariance[self.t-1] = np.var(self.asim)
+
+	def computeEquilibriumStatistics(self):
+		# fraction with wealth < epsilon
+		self.stats['constrained'] = []
+		for threshold in self.p.wealthConstraints:
+			constrained = np.mean(self.asim <= threshold)
+			self.stats['constrained'].append(constrained)
+
+		# wealth percentiles
+		self.stats['wpercentiles'] = []
+		for pctile in self.p.wealthPercentiles:
+			value = np.percentile(self.asim,pctile)
+			self.stats['wpercentiles'].append(value)
+
+		# top shares
+		pctile90 = np.percentile(self.asim,0.9)
+		pctile99 = np.percentile(self.asim,0.99)
+		self.results['top10share'] = \
+			np.sum(self.asim[self.asim >= pctile90]) / self.asim.sum()
+		self.results['top10share'] = \
+			np.sum(self.asim[self.asim >= pctile99]) / self.asim.sum()
+
+class MPCSimulator(Simulator):
+	def __init__(self, simulatorObject):
+		Simulator.__init__(self)
