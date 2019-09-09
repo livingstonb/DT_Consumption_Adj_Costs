@@ -38,7 +38,7 @@ class Params:
 		self.nyT = None
 
 		# preference/other heterogeneity
-		self.nh = None
+		self.nz = None
 
 		# computation
 		self.maxIterVFI = 1e5
@@ -197,7 +197,7 @@ class Grid:
 
 		self.matrixDim = (	self.nx,
 							self.params.nc,
-							self.params.nh,
+							self.params.nz,
 							self.params.nyP,
 							)
 
@@ -233,7 +233,7 @@ class Grid:
 
 		self.s['vec'] = sgrid
 		self.s['matrix'] = matlib.repmat(sgrid,1,
-				self.nc*self.nh*self.params.nyP).reshape(self.matrixDim)
+				self.nc*self.nz*self.params.nyP).reshape(self.matrixDim)
 
 	def createConsumptionGrid(self):
 		cgrid = np.linspace(0,1,num=self.nc)
@@ -247,7 +247,7 @@ class Grid:
 		self.c['vec'] = cgrid
 		self.c['nx_nc'] = np.kron(cgrid,np.ones((self.nx,1)))
 		self.c['matrix'] = matlib.repmat(
-			self.c['nx_nc'],self.params.nh*self.params.nyP,1
+			self.c['nx_nc'],self.params.nz*self.params.nyP,1
 			).reshape(self.matrixDim)
 
 	def createCashGrid(self, income):
