@@ -76,13 +76,6 @@ class Model:
 
 		self.iterateBackward(conGuess)
 
-	def createInterpolant(self):
-		for iP in range(self.p.nyP):
-			for ix in range(self.p.nx):
-				Pi = self.x.grids['matrix'][ix+1,0,0,iP] - self.p.R * (self.grids.x['matrix'] )
-			self.x.grids.matrix[1:,0,0,iP].reshape((1,1,1,1,-1)) \
-				- self.p.R * (self.x.grids['matrix'] - self.c.grids['matrix']) \
-				- self.income.ymat
 
 	def makePolicyGuess(self):
 		# to avoid a degenerate guess, adjust for low r...
