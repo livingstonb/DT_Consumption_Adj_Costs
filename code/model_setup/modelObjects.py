@@ -37,6 +37,9 @@ class Params:
 		self.nyP = None
 		self.nyT = None
 
+		# preference/other heterogeneity
+		self.nh = None
+
 		# computation
 		self.maxIterVFI = 1e5
 		self.tolIterEGP = 1e-6
@@ -192,6 +195,12 @@ class Grid:
 		self.nc = params.nc
 		self.nx = params.nx
 
+		self.matrixDim = (	self.nx,
+							self.params.nc,
+							self.params.nh,
+							self.params.nyP,
+							)
+
 		# saving grid
 		self.s = {	'vec': None,
 					'matrix': None
@@ -224,8 +233,7 @@ class Grid:
 
 		self.s['vec'] = sgrid
 		self.s['matrix'] = matlib.repmat(sgrid,1,
-				self.nc*self.params.nyP).reshape(
-				(self.nx,self.params.nc,self.params.nyP))
+				self.nc*self.nh*self.params.nyP).reshape(self.matrixDim)
 
 	def createConsumptionGrid(self):
 		cgrid = np.linspace(0,1,num=self.nc)
@@ -238,16 +246,14 @@ class Grid:
 
 		self.c['vec'] = cgrid
 		self.c['nx_nc'] = np.kron(cgrid,np.ones((self.nx,1)))
-		self.c['matrix'] = matlib.repmat(self.c['nx_nc'],self.params.nyP,1).reshape(
-				(self.nx,self.params.nc,self.params.nyP))
+		self.c['matrix'] = matlib.repmat(
+			self.c['nx_nc'],self.params.nh*self.params.nyP,1
+			).reshape(self.matrixDim)
 
 	def createCashGrid(self, income):
 		# minimum of income along the yT dimension
 		minyT = income.ymat.min(axis=1)
-		minyT = np.kron(minyT,np.ones((self.nx,self.nc)))
-		minyT = minyT.reshape((self.nx,self.nc,self.params.nyP))
-
-		self.x['matrix'] = self.s['matrix'] + minyT
+		self.x['matrix'] = self.s['matrix'] + minyT[None,None,None,...]
 
 	def enforceMinGridSpacing(self, grid_in):
 		grid_adj = grid_in
