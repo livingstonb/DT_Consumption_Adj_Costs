@@ -12,7 +12,7 @@ class Model:
 
 		self.nextMPCShock = nextMPCShock
 
-		self.dims = (params.nx, params.nc, params.nh, params.nyP)
+		self.dims = (params.nx, params.nc, params.nz, params.nyP)
 		self.dims_yT = self.dims + (self.p.nyT,)
 
 		self.xp_s = None
@@ -20,14 +20,13 @@ class Model:
 
 		self.nextModel = nextModel
 
-		# create x, c vectors of length (nx*nc) for interpolator
-		self.xgridLong = self.grids.x['matrix'][:,:,1].reshape((-1,1))
-
 		self.stats = dict()
 
 	def solve(self):
+		self.constructInterpolantNoSwitch()
+
 		# guess conditional on not switching consumption
-		valueNoSwitch = functions.utility(self.p.riskaver,self.grids.c['matrix'])
+		valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix'])
 
 		# guess conditional on switching
 		valueSwitch = valueNoSwitch.max(axis=1,keepdims=True)
@@ -38,31 +37,34 @@ class Model:
 		# update value function of not switching
 		# not this simple, need to evaluate EmaxV at x' which means summing over
 		# all yT as well...
-		valueNoSwitch = functions.utility(self.p.riskaver,self.grids.c['matrix']) \
-			+ self.p.timeDiscount * np.matmul(self.Emat,value.reshape((-1,1)))
+		valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
+			+ self.p.timeDiscount * np.matmul(self.interpMatNoSwitch,value.reshape((-1,1))
+				).reshape(self.grids.matrixDim)
+
 		valueNoSwitch = valueNoSwitch.reshape(self.grids.matrixDim)
+		print('done')
 
 
 
-		# update value function of switching
-		# first get Emax
-		EmaxVals = self.Emat * np.maximum(valueSwitch-self.p.adjustCost,valueNoSwitch)
-		EmaxInterp = []
-		for iP in range(self.p.nyP):
-			# interpGrids = (	self.grids.x['matrix'][:,0,0,iP].flatten(),
-			# 				self.grids.c['vec'],)
-			# if self.nz > 1:
-			# 	interpGrids = interpGrids + (self.grids.z['vec'],)
-			# interpObj = RegularGridInterpolator(interpGrids,EmaxVals[:,:,:,iP])
-			# EmaxInterp.append(interpObj)
+		# # update value function of switching
+		# # first get Emax
+		# EmaxVals = self.Emat * np.maximum(valueSwitch-self.p.adjustCost,valueNoSwitch)
+		# EmaxInterp = []
+		# for iP in range(self.p.nyP):
+		# 	# interpGrids = (	self.grids.x['matrix'][:,0,0,iP].flatten(),
+		# 	# 				self.grids.c['vec'],)
+		# 	# if self.nz > 1:
+		# 	# 	interpGrids = interpGrids + (self.grids.z['vec'],)
+		# 	# interpObj = RegularGridInterpolator(interpGrids,EmaxVals[:,:,:,iP])
+		# 	# EmaxInterp.append(interpObj)
 
-			gridPts = self.grids.x['matrix'][:,0,0,iP]
-			for ix in range(self.p.nx):
-				# interpolate Emax at 
+		# 	gridPts = self.grids.x['matrix'][:,0,0,iP]
+		# 	for ix in range(self.p.nx):
+		# 		# interpolate Emax at 
 
 
-		utilSwitch = np.max(utilNoSwitch,axis=2).reshape((self.p.nx,1,self.p.nyP))
-		utilSwitch = np.repeat(utilSwitch,self.p.nc,axis=1) - self.p.adjustCost
+		# utilSwitch = np.max(utilNoSwitch,axis=2).reshape((self.p.nx,1,self.p.nyP))
+		# utilSwitch = np.repeat(utilSwitch,self.p.nc,axis=1) - self.p.adjustCost
 
 		it = 0
 		cdiff = 1e5
@@ -76,6 +78,34 @@ class Model:
 
 		self.iterateBackward(conGuess)
 
+	def constructInterpolantNoSwitch(self):
+		yTvec = self.income.yTgrid.reshape((1,-1))
+		yTdistvec = self.income.yTdist.reshape((1,-1))
+
+		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+		for iyP in range(self.p.nyP):
+			# compute E_{yT}[V()]
+			yP = self.income.yPgrid[iyP]
+			xgrid = self.grids.x['wide'][:,0,0,iyP]
+			for ic in range(self.p.nc):
+				xprime = self.p.R * (xgrid[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
+				for iz in range(self.p.nz):
+					# first dim of interpMat is x
+					# fourth dimension is x'
+					interpWithyT = functions.interpolateTransitionProbabilities2D(
+													xgrid,xprime)
+					# take expectation wrt yT
+					interpMat[:,ic,iz,:,ic,iz,iyP] = np.dot(yTdistvec,interpWithyT)
+
+		interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz,self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
+		interpMat = np.repeat(interpMat,self.p.nyP,axis=0)
+
+		inctransFullDim = np.kron(self.income.yPtrans,np.ones(
+			(self.p.nx*self.p.nc*self.p.nz,self.p.nx*self.p.nc*self.p.nz)))
+
+		interpMat = interpMat * inctransFullDim
+
+		self.interpMatNoSwitch = interpMat
 
 	def makePolicyGuess(self):
 		# to avoid a degenerate guess, adjust for low r...
@@ -357,7 +387,7 @@ class MPCSimulator(Simulator):
 				self.mpcs[rowRespondentsQuarterly] = respondentsQ.mean()
 
 			# update if some households responded this period but not previous periods
-			self.responded[:,ii] = self.responded[:,ii] || respondentsQ
+			self.responded[:,ii] = self.responded[:,ii] or respondentsQ
 
 			# fraction of respondents (annual)
 			if self.t == 4:

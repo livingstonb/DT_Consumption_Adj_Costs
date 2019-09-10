@@ -34,3 +34,33 @@ def interpolateTransitionProbabilities(grid, vals, extrap=False):
 			raise Exception ('Invalid value for Pi')
 
 	return probabilities
+
+def interpolateTransitionProbabilities2D(grid, vals, extrap=False):
+	gridIndices = np.searchsorted(grid,vals)
+	probabilities = np.zeros((vals.shape[0],vals.shape[1],grid.shape[0]))
+
+	nGrid = grid.shape[0]
+
+	for i in range(vals.shape[0]):
+		for j in range(vals.shape[1]):
+			igrid = gridIndices[i,j]
+			if igrid == 0:
+				probabilities[i,j,0] = 1
+			elif igrid == nGrid:
+				probabilities[i,j,-1] = 1
+			else:
+				gridPt1 = grid[igrid-1]
+				gridPt2 = grid[igrid]
+				Pi = (vals[i,j] - gridPt1) / (gridPt2 - gridPt1)
+
+				if extrap or ((Pi >= 0) and (Pi <= 1)):
+					probabilities[i,j,igrid] = Pi
+					probabilities[i,j,igrid-1] = 1 - Pi
+				elif Pi > 1:
+					probabilities[i,j,igrid] = 1
+				elif Pi < 0:
+					probabilities[i,j,igrid-1] = 1
+				else:
+					raise Exception ('Invalid value for Pi')
+
+	return probabilities

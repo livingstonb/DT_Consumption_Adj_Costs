@@ -38,7 +38,7 @@ class Params:
 		self.nyT = None
 
 		# preference/other heterogeneity
-		self.nz = None
+		self.nz = 1
 
 		# computation
 		self.maxIterVFI = 1e5
@@ -194,6 +194,7 @@ class Grid:
 		self.params = params
 		self.nc = params.nc
 		self.nx = params.nx
+		self.nz = params.nz
 
 		self.matrixDim = (	self.nx,
 							self.params.nc,
@@ -216,11 +217,17 @@ class Grid:
 		self.x = {	'matrix': None
 					}
 
+		# z grid
+		self.z = {	'matrix': None
+					}
+
 		self.createSavingGrid()
 
 		self.createConsumptionGrid()
 
-		self.createCashGrid(income)
+		self.createCashGrid(income,params.R)
+
+		self.create_zgrid()
 
 	def createSavingGrid(self):
 		sgrid = np.linspace(0,1,num=self.nx)
@@ -250,10 +257,14 @@ class Grid:
 			self.c['nx_nc'],self.params.nz*self.params.nyP,1
 			).reshape(self.matrixDim)
 
-	def createCashGrid(self, income):
+	def createCashGrid(self, income, returns):
 		# minimum of income along the yT dimension
 		minyT = income.ymat.min(axis=1)
-		self.x['matrix'] = self.s['matrix'] + minyT[None,None,None,...]
+		self.x['matrix'] = returns * self.s['matrix'] + minyT[None,None,None,...]
+		self.x['wide'] = self.x['matrix'][:,0,0,:].reshape((self.matrixDim[0],1,1,self.matrixDim[3]))
+
+	def create_zgrid(self):
+		self.z['vec'] = np.arange(self.nz).reshape((-1,1))
 
 	def enforceMinGridSpacing(self, grid_in):
 		grid_adj = grid_in

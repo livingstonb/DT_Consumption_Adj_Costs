@@ -8,8 +8,8 @@ basedir = 'C:\\Users\\Brian-laptop\\Documents\\GitHub\\DT_Consumption_Adj_Costs'
 codedir = os.path.join(basedir,'code')
 sys.path.append(codedir)
 
-from model_setup import modelObjects
-from model_setup import load_specifications
+from model import modelObjects
+from parameterizations.load_specifications import load_specifications
 
 from model.model import Model
 
@@ -19,11 +19,8 @@ from model.model import Model
 
 # create params object
 locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','quarterly_b.mat')
-paramsDict = load_specifications(locIncomeProcess, index=1)
-if len(sys.argv) > 1
-	params = modelObjects.Params(paramsDict,sys.argv[1])
-else
-	params = modelObjects.Params(paramsDict,1)
+params = load_specifications(locIncomeProcess, index=0)
+# params = modelObjects.Params(paramsDict)
 
 # create income object
 income = modelObjects.Income(params)
@@ -35,4 +32,4 @@ grids = modelObjects.Grid(params,income)
 
 # initialize model
 model = Model(params,income,grids)
-model.solveEGP()
+model.solve()

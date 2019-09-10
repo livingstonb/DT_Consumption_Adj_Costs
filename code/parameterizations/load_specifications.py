@@ -1,4 +1,4 @@
-from setup.params import Params
+from model.modelObjects import Params
 
 def load_specifications(locIncomeProcess, index=None, name=None):
 	"""
@@ -12,18 +12,19 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	adjustCosts = [1,5,10]
 
 	numExperiments = len(adjustCosts)
-	paramsDicts = [dict() for numExperiments]
+	paramsDicts = [dict() for i in range(numExperiments)]
 
 	ii = 0
 	for adjustCost in adjustCosts:
 		paramsDicts[ii]['adjustCost'] = adjustCost
+		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 
 		ii += 1
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
 	#-----------------------------------------------------#
-	if index:
+	if index is not None:
 		chosenParameters = Params(paramsDicts[index])
 	else:
 		chosenParameters = Params([paramsDict[ii] for ii in numExperiments
