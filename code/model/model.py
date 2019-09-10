@@ -82,30 +82,29 @@ class Model:
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
-		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
-		for iyP in range(self.p.nyP):
-			# compute E_{yT}[V()]
-			yP = self.income.yPgrid[iyP]
-			xgrid = self.grids.x['wide'][:,0,0,iyP]
-			for ic in range(self.p.nc):
-				xprime = self.p.R * (xgrid[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
-				for iz in range(self.p.nz):
-					# first dim of interpMat is x
-					# fourth dimension is x'
-					interpWithyT = functions.interpolateTransitionProbabilities2D(
-													xgrid,xprime)
-					# take expectation wrt yT
-					interpMat[:,ic,iz,:,ic,iz,iyP] = np.dot(yTdistvec,interpWithyT)
+		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+		for iyP1 in range(self.p.nyP):
+			xgrid = self.grids.x['wide'][:,0,0,iyP1]
+			for iyP2 in range(self.p.nyP):
+				# compute E_{yT}[V()]
+				yP = self.income.yPgrid[iyP2]
+				PyP1yP2 = self.income.yPtrans[iyP1,iyP2]
+				for ic in range(self.p.nc):
+					xprime = self.p.R * (xgrid[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
+					for iz in range(self.p.nz):
+						# first dim of interpMat is x
+						# fourth dimension is x'
+						interpWithyT = functions.interpolateTransitionProbabilities2D(
+														xgrid,xprime)
+						# take expectation wrt yT
+						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = PyP1yP2 * np.dot(yTdistvec,interpWithyT)
 
-		interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz,self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
-		interpMat = np.repeat(interpMat,self.p.nyP,axis=0)
-
-		inctransFullDim = np.kron(self.income.yPtrans,np.ones(
-			(self.p.nx*self.p.nc*self.p.nz,self.p.nx*self.p.nc*self.p.nz)))
-
-		interpMat = interpMat * inctransFullDim
+		interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
 
 		self.interpMatNoSwitch = interpMat
+
+	def updateValueNoSwitch(self):
+		pass
 
 	def makePolicyGuess(self):
 		# to avoid a degenerate guess, adjust for low r...
