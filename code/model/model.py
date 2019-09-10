@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import minimize
 from scipy.interpolate import RegularGridInterpolator
 import numpy.matlib as matlib
 from misc import functions
@@ -23,7 +24,8 @@ class Model:
 		self.stats = dict()
 
 	def solve(self):
-		self.constructInterpolantNoSwitch()
+		# interpolant for updating no-switch case
+		self.constructInterpolantForV()
 
 		# guess conditional on not switching consumption
 		valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix'])
@@ -31,54 +33,28 @@ class Model:
 		# guess conditional on switching
 		valueSwitch = valueNoSwitch.max(axis=1,keepdims=True)
 
-		# value function
-		value = np.maximum(valueNoSwitch,valueSwitch)
+		# update value function
+		valueFunction = np.maximum(valueNoSwitch,valueSwitch)
 
 		# update value function of not switching
-		# not this simple, need to evaluate EmaxV at x' which means summing over
-		# all yT as well...
-		valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
-			+ self.p.timeDiscount * np.matmul(self.interpMatNoSwitch,value.reshape((-1,1))
-				).reshape(self.grids.matrixDim)
+		valueNoSwitch = self.updateValueNoSwitch(valueFunction)
 
-		valueNoSwitch = valueNoSwitch.reshape(self.grids.matrixDim)
+		# update value function
+		valueFunction = np.maximum(valueNoSwitch,valueSwitch)
+
+		# update value function of switching
+		self.updateValueSwitch(valueFunction)
+
+		
 		print('done')
 
-
-
-		# # update value function of switching
-		# # first get Emax
-		# EmaxVals = self.Emat * np.maximum(valueSwitch-self.p.adjustCost,valueNoSwitch)
-		# EmaxInterp = []
-		# for iP in range(self.p.nyP):
-		# 	# interpGrids = (	self.grids.x['matrix'][:,0,0,iP].flatten(),
-		# 	# 				self.grids.c['vec'],)
-		# 	# if self.nz > 1:
-		# 	# 	interpGrids = interpGrids + (self.grids.z['vec'],)
-		# 	# interpObj = RegularGridInterpolator(interpGrids,EmaxVals[:,:,:,iP])
-		# 	# EmaxInterp.append(interpObj)
-
-		# 	gridPts = self.grids.x['matrix'][:,0,0,iP]
-		# 	for ix in range(self.p.nx):
-		# 		# interpolate Emax at 
-
-
-		# utilSwitch = np.max(utilNoSwitch,axis=2).reshape((self.p.nx,1,self.p.nyP))
-		# utilSwitch = np.repeat(utilSwitch,self.p.nc,axis=1) - self.p.adjustCost
 
 		it = 0
 		cdiff = 1e5
 		while (it < self.p.maxIterVFI) and (cdiff > self.p.tolIterVFI):
 			it += 1
 
-			
-
-		self.compute_xprime_s()
-		self.compute_Emat()
-
-		self.iterateBackward(conGuess)
-
-	def constructInterpolantNoSwitch(self):
+	def constructInterpolantForV(self):
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
@@ -91,20 +67,59 @@ class Model:
 				PyP1yP2 = self.income.yPtrans[iyP1,iyP2]
 				for ic in range(self.p.nc):
 					xprime = self.p.R * (xgrid[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
+					interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
+					newBlock = PyP1yP2 * np.dot(yTdistvec,interpWithyT)
 					for iz in range(self.p.nz):
 						# first dim of interpMat is x
 						# fourth dimension is x'
-						interpWithyT = functions.interpolateTransitionProbabilities2D(
-														xgrid,xprime)
+						
 						# take expectation wrt yT
-						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = PyP1yP2 * np.dot(yTdistvec,interpWithyT)
+						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
-		interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
+		interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
+			self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
 
-		self.interpMatNoSwitch = interpMat
+		self.interpMat = interpMat
 
-	def updateValueNoSwitch(self):
-		pass
+	def updateValueNoSwitch(self, valueFunction):
+		valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
+			+ self.p.timeDiscount * np.matmul(self.interpMat,valueFunction.reshape((-1,1))
+				).reshape(self.grids.matrixDim)
+
+		valueNoSwitch = valueNoSwitch.reshape(self.grids.matrixDim)
+
+		return valueNoSwitch
+
+	def updateValueSwitch(self, valueFunction):
+		# compute EMAX
+		EMAX = np.matmul(self.interpMat,valueFunction.reshape((-1,1))
+				).reshape(self.grids.matrixDim)
+
+		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
+
+		valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
+		for iyP in range(self.p.nyP):
+			EMAXInterpolant = RegularGridInterpolator(
+				(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
+			print(f'income value {iyP}')
+
+			for ix in range(self.p.nx):
+				xval = self.grids.x['wide'][ix,0,0,iyP]
+				print(xval)
+				print(f'asset value {ix}')
+
+				for iz in range(self.p.nz):
+					x0 = xval / 2
+					iteratorFn = lambda c: self.findValueFromSwitching(c,EMAXInterpolant,util,xval,iz)
+					valueSwitch[ix,0,iz,iyP] = minimize(iteratorFn,x0,method='SLSQP',bounds=((0,xval),)).x
+
+	def findValueFromSwitching(self, cSwitch, EMAXInterpolant, util, xval, iz):
+		# utilSumVec = interpolateTransitionProbabilities(self.grids.c['vec'],cSwitch)
+		utility = np.interp(cSwitch,self.grids.c['vec'].flatten(),util)
+		EV = EMAXInterpolant((xval,cSwitch,iz))
+
+		return - utility - self.p.timeDiscount * EV
+
 
 	def makePolicyGuess(self):
 		# to avoid a degenerate guess, adjust for low r...
@@ -116,98 +131,6 @@ class Model:
 		vGuess = functions.utility(self.p.riskAver,conGuess)
 		return vGuess
 
-	def iterateBackward(self, conGuess):
-		it = 0
-		cdiff = 1e5
-		con = conGuess
-
-		dimTuple = (self.p.nx, self.p.nc, self.p.nyP)
-
-		while (it < self.p.maxIterEGP) and (cdiff > self.p.tolIterEGP):
-			it += 1
-
-			# c(x)
-			con = con.reshape(dimTuple)
-
-			# c(x')
-			con_xp = self.get_c_xprime(con).reshape((-1,self.p.nyT))
-
-			# MUC in current period, from Euler equation
-			muc_s = self.getMUC(con_xp)
-
-			# c(s)
-			con_s = functions.marginalUtility(self.p.riskAver,muc_s)
-
-			# x(s) = s + c(s)
-			x_s = self.grids.x['matrix'] + con_s
-
-			# interpolate from x(s) to get s(x)
-			sav = self.getSavingPolicy(x_s)
-
-			conUpdate = self.grids.x['matrix'] - sav
-
-			cdiff = np.max(np.abs(conUpdate.flatten()-con.flatten()))
-			if np.mod(it,50) == 0:
-				print(f'    EGP iteration {it}, distance = {cdiff}')
-
-			con = conUpdate
-
-		if cdiff > self.p.tolIterEGP:
-			raise Exception ('EGP failed to converge')
-
-	def compute_xprime_s(self):
-		# find xprime as a function of saving
-		income_x = np.kron(self.income.ymat,np.ones((self.p.nx*self.p.nc,1)))
-		income_x = income_x.reshape(self.dims_yT)
-
-		self.xp_s = self.p.R * self.grids.s['matrix'][...,None] \
-			+ income_x + self.nextMPCShock
-
-		self.xp_s_T = self.xp_s.reshape((-1,self.p.nyT))
-
-	def compute_Emat(self):
-		self.Emat = np.kron(self.income.yPtrans,np.eye(self.p.nx*self.p.nc*self.p.nz))
-
-	def get_c_xprime(self,con):
-		con_xprime = np.zeros(self.dims_yT)
-
-		for iy in range(self.p.nyP):
-			for ic in range(self.p.nc):
-				# coninterp = RegularGridInterpolator(
-				# 	(self.grids.x['matrix'][:,ic,iy]),
-				# 	con[:,ic,iy],method='linear',bounds_error=True)
-
-				# con_xprime[:,ic,iy] = coninterp(self.xp_s[:,ic,iy])
-				con_xprime[:,ic,iy,:] = np.interp(self.xp_s[:,ic,iy,:],
-					self.grids.x['matrix'][:,ic,iy],
-					con[:,ic,iy])
-
-		return con_xprime
-
-	def getMUC(self, c_xp):
-		# first get MUC of consumption next period over all states
-		mucnext = functions.marginalUtility(self.p.riskAver,c_xp)
-		Emucnext = np.matmul(self.Emat,
-						np.matmul(mucnext,self.income.yTdist)).reshape(
-						self.dims)
-		muc_s = (1 - self.p.deathProb) * Emucnext
-		return muc_s
-
-	def getSavingPolicy(self,x_s):
-		"""
-		Finds s(x), the saving policy function on the cash-on-hand
-		grid.
-		"""
-		sav = np.zeros(self.dims)
-		for iy in range(self.p.nyP):
-			for ic in range(self.p.nc):
-				sav[:,ic,iy] = np.interp(	self.grids.x['matrix'][:,ic,iy],
-											x_s[:,ic,iy],
-											self.grids.s['vec'][:,0])
-
-		# impose borrowing limit
-		sav = np.maximum(sav,self.p.borrowLim)
-		return sav
 
 class Simulator:
 	def __init__(self, params, income, grids, policies, simPeriods):
