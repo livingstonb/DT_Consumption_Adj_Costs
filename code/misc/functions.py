@@ -64,3 +64,24 @@ def interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 					raise Exception ('Invalid value for Pi')
 
 	return probabilities
+
+def interpolate1D(grid, pt, extrap=False):
+	# returns the two indices between which to interpolate
+	# returns the proportions to place on each of the 2 indices
+	gridIndex = np.searchsorted(grid, pt)
+
+	if gridIndex == 0:
+		gridIndices = [0,1]
+		proportions = np.array([1,0])
+	elif gridIndex == grid.shape[0]:
+		gridIndices = [grid.shape[0]-2,grid.shape[0]-1]
+		proportions = np.array([0,1])
+	else:
+		gridIndices = [gridIndex-1,gridIndex]
+		gridPt1 = grid[gridIndices[0]]
+		gridPt2 = grid[gridIndices[1]]
+		proportion2 = (pt - gridPt1) / (gridPt2 - gridPt1)
+		proportions = np.array([1-proportion2,proportion2])
+
+	return gridIndices, proportions
+

@@ -137,6 +137,8 @@ cdef class Model:
 		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
 		utilInterpolant = interp1d(self.grids.c['vec'].flatten(),util,fill_value="extrapolate")
 
+		cgrid = self.grids.c['vec'].flatten()
+
 		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 		for iyP in range(self.p.nyP):
 			# EMAXInterpolant = RegularGridInterpolator(
@@ -150,8 +152,10 @@ cdef class Model:
 				for iz in range(self.p.nz):
 					if ix == 0:
 						x0 = xval / 2
-					EMAXInterpolant = interp1d(self.grids.c['vec'].flatten(),EMAX[ix,:,iz,iyP].flatten(),fill_value="extrapolate")
-					iteratorFn = lambda c: self.findValueFromSwitching(c,EMAXInterpolant,utilInterpolant)
+
+					em = EMAX[ix,:,iz,iyP]
+					# EMAXInterpolant = interp1d(self.grids.c['vec'].flatten(),EMAX[ix,:,iz,iyP].flatten(),fill_value="extrapolate")
+					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,em,util)
 					# self.valueSwitch[ix,0,iz,iyP] = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC))).x
 
 					
@@ -174,9 +178,15 @@ cdef class Model:
 
 					self.valueSwitch[ix,0,iz,iyP] = candidateC[funVals.argmin()]
 
-	cdef findValueFromSwitching(self, double cSwitch, object EMAXInterpolant, object utilInterpolant):
+	cdef findValueFromSwitching(self, double cSwitch, np.ndarray cgrid, np.ndarray em, np.ndarray util):
+		# interp1 = functions.interpolateTransitionProbabilities(cgrid,cSwitch)
+		# u = np.dot(interp1,util)
+		# em = np.dot(interp1,em)
+		(indices, weights) = functions.interpolate1D(cgrid, cSwitch)
+		u = np.dot(weights,util[indices])
+		emOUT = np.dot(weights,em[indices])
 
-		return - utilInterpolant(cSwitch) - self.p.timeDiscount * EMAXInterpolant(cSwitch)
+		return - u - self.p.timeDiscount * emOUT
 
 
 	def makePolicyGuess(self):
