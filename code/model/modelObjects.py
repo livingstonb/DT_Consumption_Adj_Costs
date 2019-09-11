@@ -88,7 +88,7 @@ class Params:
 
 		# preferences
 		self.riskAver = 1
-		self.adjustCost = 1
+		self.adjustCost = 5
 		self.timeDiscount = 0.98
 
 		#-----------------------------------#

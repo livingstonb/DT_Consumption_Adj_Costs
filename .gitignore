@@ -5,3 +5,6 @@ output
 temp
 *.DS_Store
 *.sublime-workspace
+.c
+.so
+build

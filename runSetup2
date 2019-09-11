@@ -1,0 +1,8 @@
+maindir="/mnt/c/Users/Brian-laptop/Documents/GitHub/DT_Consumption_Adj_Costs"
+python setup.py build_ext $maindir --build-temp temp
+
+rm -rf temp
+
+if [ "$1" == "run" ]; then
+    python master.py
+fi

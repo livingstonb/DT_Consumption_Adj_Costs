@@ -4,14 +4,17 @@ import os
 
 # declare repository directory
 # basedir = '/Users/brianlivingston/Documents/GitHub/DT_Consumption_Adj_Costs'
-basedir = 'C:\\Users\\Brian-laptop\\Documents\\GitHub\\DT_Consumption_Adj_Costs'
+# basedir = 'C:\\Users\\Brian-laptop\\Documents\\GitHub\\DT_Consumption_Adj_Costs'
+basedir = '/mnt/c/Users/Brian-laptop/Documents/GitHub/DT_Consumption_Adj_Costs'
 codedir = os.path.join(basedir,'code')
 sys.path.append(codedir)
 
+builddir = os.path.join(basedir,'build')
+sys.path.append('build')
+
 from model import modelObjects
 from parameterizations.load_specifications import load_specifications
-
-from model.model import Model
+from build.model import Model
 
 #---------------------------------------------------#
 #                   SET OPTIONS                     #

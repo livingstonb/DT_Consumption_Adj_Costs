@@ -1,12 +1,26 @@
 import numpy as np
+cimport numpy as np
+
 from scipy.optimize import minimize
 from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import interp1d
 import numpy.matlib as matlib
 from misc import functions
 import pandas as pd
 
-class Model:
+cdef class Model:
+	cdef:
+		object p, grids, income
+		double nextMPCShock
+		tuple dims, dims_yT
+		dict nextModel, stats
+		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
+		# np.ndarray[np.float64_t, ndim=2] interpMat
+		double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
+		double[:,:] interpMat
+
 	def __init__(self, params, income, grids, nextModel=None, nextMPCShock=0):
+
 		self.p = params
 		self.grids = grids
 		self.income = income
@@ -15,9 +29,6 @@ class Model:
 
 		self.dims = (params.nx, params.nc, params.nz, params.nyP)
 		self.dims_yT = self.dims + (self.p.nyT,)
-
-		self.xp_s = None
-		self.xp_s_T = None
 
 		self.nextModel = nextModel
 
@@ -28,16 +39,17 @@ class Model:
 		self.constructInterpolantForV()
 
 		# guess conditional on not switching consumption
-		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix'])
+		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) / (1 - self.p.timeDiscount)
 
 		# guess conditional on switching
-		self.valueSwitch = self.valueNoSwitch.max(axis=1,keepdims=True)
+		self.valueSwitch = np.max(self.valueNoSwitch,axis=1,keepdims=True)
 
 		# update value function
 		self.updateValueFunction()
 
 		iteration = 0
 		while True:
+			Vprevious = self.valueFunction.copy()
 
 			# update value function of not switching
 			self.updateValueNoSwitch()
@@ -48,14 +60,17 @@ class Model:
 			# update value function of switching
 			self.updateValueSwitch()
 
-			Vprevious = self.valueFunction.copy()
 			self.updateValueFunction()
 
-			distance = np.abs(self.valueFunction - Vprevious).flatten().sum()
+			distance = np.abs(np.asarray(self.valueFunction) - np.asarray(Vprevious)).flatten().max()
 			if distance < self.p.tol:
+				print('Value function converged')
 				break
 			elif iteration > self.p.maxIters:
 				raise Exception(f'No convergence after {iteration+1} iterations...')
+
+			if np.mod(iteration,1) == 0:
+				print(f'    Iteration {iteration}, norm of |V1-V| = {distance}')
 
 			iteration += 1
 
@@ -69,6 +84,11 @@ class Model:
 			it += 1
 
 	def constructInterpolantForV(self):
+		cdef:
+			int iyP1, iyP2, ic, iz
+			double yP, PyP1yP2
+			np.ndarray[np.float64_t, ndim=8] interpMat
+
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
@@ -90,51 +110,73 @@ class Model:
 						# take expectation wrt yT
 						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
-		interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
+		self.interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
 			self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
 
-		self.interpMat = interpMat
-
 	def updateValueFunction(self):
-		self.valueFunction = np.maximum(self.valueNoSwitch,self.valueSwitch)
+		self.valueFunction = np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
 
 	def updateValueNoSwitch(self):
 		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
-			+ self.p.timeDiscount * np.matmul(self.interpMat,self.valueFunction.reshape((-1,1))
+			+ self.p.timeDiscount * np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
 				).reshape(self.grids.matrixDim)
 
-		self.valueNoSwitch = self.valueNoSwitch.reshape(self.grids.matrixDim)
+		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
 
 	def updateValueSwitch(self):
+		cdef:
+			int iyP, ix, iz, ii
+			double xval, maxAdmissibleC
+			np.ndarray[np.float64_t, ndim=1] candidateC, funVals
+			np.ndarray[np.float64_t, ndim=4] EMAX
+
 		# compute EMAX
-		EMAX = np.matmul(self.interpMat,self.valueFunction.reshape((-1,1))
+		EMAX = np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
 				).reshape(self.grids.matrixDim)
 
 		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
+		utilInterpolant = interp1d(self.grids.c['vec'].flatten(),util,fill_value="extrapolate")
 
 		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 		for iyP in range(self.p.nyP):
-			EMAXInterpolant = RegularGridInterpolator(
-				(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
-			print(f'income value {iyP}')
+			# EMAXInterpolant = RegularGridInterpolator(
+			# 	(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
+			print(f'        income value {iyP}')
 
 			for ix in range(self.p.nx):
 				xval = self.grids.x['wide'][ix,0,0,iyP]
-				print(xval)
-				print(f'asset value {ix}')
+				maxAdmissibleC = np.minimum(xval,self.p.cMax)
 
 				for iz in range(self.p.nz):
 					if ix == 0:
 						x0 = xval / 2
-					iteratorFn = lambda c: self.findValueFromSwitching(c,EMAXInterpolant,util,xval,iz)
-					self.valueSwitch[ix,0,iz,iyP] = minimize(iteratorFn,x0,method='SLSQP',bounds=((1e-5,xval),)).x
+					EMAXInterpolant = interp1d(self.grids.c['vec'].flatten(),EMAX[ix,:,iz,iyP].flatten(),fill_value="extrapolate")
+					iteratorFn = lambda c: self.findValueFromSwitching(c,EMAXInterpolant,utilInterpolant)
+					# self.valueSwitch[ix,0,iz,iyP] = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC))).x
 
-	def findValueFromSwitching(self, cSwitch, EMAXInterpolant, util, xval, iz):
-		# utilSumVec = interpolateTransitionProbabilities(self.grids.c['vec'],cSwitch)
-		utility = np.interp(cSwitch,self.grids.c['vec'].flatten(),util)
-		EV = EMAXInterpolant((xval,cSwitch,iz))
+					
+					candidateC = np.zeros((5,))
+					funVals = np.zeros((5,))
+					ii = 0
+					for x0 in [self.p.cMin+1e-4,maxAdmissibleC/2,maxAdmissibleC]:
+						optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC),))
+						candidateC[ii] = optimResult.x
+						funVals[ii] = optimResult.fun
+						ii += 1
 
-		return - utility - self.p.timeDiscount * EV
+					# try consumting cmin
+					candidateC[ii] = self.p.cMin
+					funVals[ii] = iteratorFn(self.p.cMin)
+					ii += 1
+					# try consuming xval (or cmax)
+					candidateC[ii] = maxAdmissibleC
+					funVals[ii] = iteratorFn(maxAdmissibleC)
+
+					self.valueSwitch[ix,0,iz,iyP] = candidateC[funVals.argmin()]
+
+	cdef findValueFromSwitching(self, double cSwitch, object EMAXInterpolant, object utilInterpolant):
+
+		return - utilInterpolant(cSwitch) - self.p.timeDiscount * EMAXInterpolant(cSwitch)
 
 
 	def makePolicyGuess(self):
@@ -284,7 +326,7 @@ class MPCSimulator(Simulator):
 		self.csim = np.repeat(initialCon,self.nCols,axis=1)
 		self.yPind = initialyPind
 		self.yTind = initialyTind
-		self.responded = np.zeros((self.nSim,numel(self.shockIndices)),dtype=bool)
+		self.responded = np.zeros((self.nSim,len(self.shockIndices)),dtype=bool)
 
 		# statistics to compute very period
 		self.mpcs = pd.Series(name=self.p.name)
