@@ -1,19 +1,20 @@
 import numpy as np
+cimport numpy as np
 
-def utility(riskaver,con):
+cdef np.ndarray utility(double riskaver, np.ndarray con):
 	if riskaver == 1:
 		return np.log(con)
 	else:
 		return con ** (1-riskaver) / (1-riskaver)
 
-def marginalUtility(riskaver,con):
+cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	"""
 	Returns the first derivative of the utility function
 	"""
 	u = con ** (- riskaver)
 	return u
 
-def interpolateTransitionProbabilities(grid, vals, extrap=False):
+cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
 	gridIndices = np.searchsorted(grid,vals)
 	probabilities = np.zeros((vals.shape[0],grid.shape[0]))
 
@@ -35,7 +36,7 @@ def interpolateTransitionProbabilities(grid, vals, extrap=False):
 
 	return probabilities
 
-def interpolateTransitionProbabilities2D(grid, vals, extrap=False):
+cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 	gridIndices = np.searchsorted(grid,vals)
 	probabilities = np.zeros((vals.shape[0],vals.shape[1],grid.shape[0]))
 
@@ -65,23 +66,28 @@ def interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 
 	return probabilities
 
-def interpolate1D(grid, pt, extrap=False):
+cdef tuple interpolate1D(np.ndarray grid, double pt):
+	cdef:
+		int gridIndex
+		list gridIndices
+		np.ndarray[np.float64_t, ndim=1] proportions
+
 	# returns the two indices between which to interpolate
 	# returns the proportions to place on each of the 2 indices
 	gridIndex = np.searchsorted(grid, pt)
 
 	if gridIndex == 0:
 		gridIndices = [0,1]
-		proportions = np.array([1,0])
+		proportions = np.array([1,0],dtype=float)
 	elif gridIndex == grid.shape[0]:
 		gridIndices = [grid.shape[0]-2,grid.shape[0]-1]
-		proportions = np.array([0,1])
+		proportions = np.array([0,1],dtype=float)
 	else:
 		gridIndices = [gridIndex-1,gridIndex]
 		gridPt1 = grid[gridIndices[0]]
 		gridPt2 = grid[gridIndices[1]]
 		proportion2 = (pt - gridPt1) / (gridPt2 - gridPt1)
-		proportions = np.array([1-proportion2,proportion2])
+		proportions = np.array([1-proportion2,proportion2],dtype=float)
 
 	return gridIndices, proportions
 

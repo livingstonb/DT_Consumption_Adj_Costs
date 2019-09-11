@@ -71,9 +71,9 @@ class Params:
 
 		# consumption grid
 		self.nc = 30
-		self.cMin = 0.001
-		self.cMax = 3
-		self.cGridCurv = 0.3
+		self.cMin = 0.0005
+		self.cMax = 5
+		self.cGridCurv = 0.2
 
 		# options
 		self.MPCsOutOfNews = False
@@ -88,7 +88,7 @@ class Params:
 
 		# preferences
 		self.riskAver = 1
-		self.adjustCost = 5
+		self.adjustCost = 1
 		self.timeDiscount = 0.98
 
 		#-----------------------------------#

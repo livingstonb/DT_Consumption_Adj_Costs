@@ -5,7 +5,8 @@ from scipy.optimize import minimize
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 import numpy.matlib as matlib
-from misc import functions
+from build import functions
+from build cimport functions
 import pandas as pd
 
 cdef class Model:
@@ -39,10 +40,13 @@ cdef class Model:
 		self.constructInterpolantForV()
 
 		# guess conditional on not switching consumption
-		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) / (1 - self.p.timeDiscount)
+		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']
+			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests))
 
 		# guess conditional on switching
-		self.valueSwitch = np.max(self.valueNoSwitch,axis=1,keepdims=True)
+		valueNoSwitchAdj = np.asarray(self.valueNoSwitch.copy())
+		valueNoSwitchAdj[self.grids.c['matrix'] > self.grids.x['matrix']] = - 1e8
+		self.valueSwitch = np.max(valueNoSwitchAdj,axis=1,keepdims=True)
 
 		# update value function
 		self.updateValueFunction()
@@ -88,26 +92,24 @@ cdef class Model:
 			int iyP1, iyP2, ic, iz
 			double yP, PyP1yP2
 			np.ndarray[np.float64_t, ndim=8] interpMat
+			np.ndarray[np.float64_t, ndim=3] newBlock
 
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
 		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
 		for iyP1 in range(self.p.nyP):
-			xgrid = self.grids.x['wide'][:,0,0,iyP1]
+			xgrid1 = self.grids.x['wide'][:,0,0,iyP1]
 			for iyP2 in range(self.p.nyP):
 				# compute E_{yT}[V()]
+				xgrid2 = self.grids.x['wide'][:,0,0,iyP2]
 				yP = self.income.yPgrid[iyP2]
 				PyP1yP2 = self.income.yPtrans[iyP1,iyP2]
 				for ic in range(self.p.nc):
-					xprime = self.p.R * (xgrid[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
-					interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
+					xprime = self.p.R * (xgrid1[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
+					interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid2,xprime)
 					newBlock = PyP1yP2 * np.dot(yTdistvec,interpWithyT)
 					for iz in range(self.p.nz):
-						# first dim of interpMat is x
-						# fourth dimension is x'
-						
-						# take expectation wrt yT
 						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
 		self.interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
@@ -118,7 +120,8 @@ cdef class Model:
 
 	def updateValueNoSwitch(self):
 		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
-			+ self.p.timeDiscount * np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
+			+ self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) \
+			* np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
 				).reshape(self.grids.matrixDim)
 
 		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
@@ -159,34 +162,38 @@ cdef class Model:
 					# self.valueSwitch[ix,0,iz,iyP] = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC))).x
 
 					
-					candidateC = np.zeros((5,))
-					funVals = np.zeros((5,))
+					# candidateC = np.zeros((5,))
+					funVals = np.zeros((6,))
 					ii = 0
-					for x0 in [self.p.cMin+1e-4,maxAdmissibleC/2,maxAdmissibleC]:
+					for x0 in [self.p.cMin+1e-4,maxAdmissibleC/3,2*maxAdmissibleC/3,maxAdmissibleC]:
 						optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC),))
-						candidateC[ii] = optimResult.x
+						# candidateC[ii] = optimResult.x
 						funVals[ii] = optimResult.fun
 						ii += 1
 
 					# try consumting cmin
-					candidateC[ii] = self.p.cMin
 					funVals[ii] = iteratorFn(self.p.cMin)
 					ii += 1
 					# try consuming xval (or cmax)
-					candidateC[ii] = maxAdmissibleC
 					funVals[ii] = iteratorFn(maxAdmissibleC)
 
-					self.valueSwitch[ix,0,iz,iyP] = candidateC[funVals.argmin()]
+					self.valueSwitch[ix,0,iz,iyP] = - funVals.min()
 
 	cdef findValueFromSwitching(self, double cSwitch, np.ndarray cgrid, np.ndarray em, np.ndarray util):
-		# interp1 = functions.interpolateTransitionProbabilities(cgrid,cSwitch)
-		# u = np.dot(interp1,util)
-		# em = np.dot(interp1,em)
-		(indices, weights) = functions.interpolate1D(cgrid, cSwitch)
-		u = np.dot(weights,util[indices])
-		emOUT = np.dot(weights,em[indices])
+		cdef list indices
+		cdef np.ndarray[np.float64_t, ndim=1] weights
+		cdef int ind1, ind2
+		cdef double weight1, weight2, u, emOut
 
-		return - u - self.p.timeDiscount * emOUT
+		(indices, weights) = functions.interpolate1D(cgrid, cSwitch)
+		ind1 = indices[0]
+		ind2 = indices[1]
+		weight1 = weights[0]
+		weight2 = weights[1]
+		u = weight1 * util[ind1] + weight2 * util[ind2]
+		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
+
+		return - u - self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT
 
 
 	def makePolicyGuess(self):

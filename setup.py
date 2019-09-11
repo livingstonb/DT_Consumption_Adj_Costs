@@ -8,7 +8,9 @@ Options.buffer_max_dims = 10
 
 extensions = [
 				Extension("build.model",["code/model/model.pyx"],
-							include_dirs=[np.get_include()])
+							include_dirs=[np.get_include()]),
+				Extension("build.functions",["code/misc/functions.pyx"],
+							include_dirs=[np.get_include()]),
 				]
 
 setup(	name="build",
