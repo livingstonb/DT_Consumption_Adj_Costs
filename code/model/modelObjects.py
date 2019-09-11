@@ -41,13 +41,12 @@ class Params:
 		self.nz = 1
 
 		# computation
-		self.maxIterVFI = 1e5
-		self.tolIterEGP = 1e-6
+		self.maxIters = 1e5
+		self.tol = 1e-6
 		self.nSim = 2e5 # number of draws to sim distribution
 		self.tSim = 500 # number of periods to simulate
 
 		# beta iteration
-		self.maxIterVFI = 50
 		self.tolWealthTarget = 1e-7
 		self.wealthTarget = 3.5
 		self.iterateBeta = False
