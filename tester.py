@@ -1,4 +1,4 @@
-from build.functions import goldenSectionSearch
+from misc.functions import goldenSectionSearch
 import numpy as np
 
 gr = (np.sqrt(5) + 1) / 2

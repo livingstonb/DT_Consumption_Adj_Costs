@@ -17,7 +17,7 @@ cdef class Model:
 		dict nextModel, stats
 		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
 		# np.ndarray[np.float64_t, ndim=2] interpMat
-		double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
+		double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction, cSwitchingPolicy
 		double[:,:] interpMat
 
 	def __init__(self, params, income, grids, nextModel=None, nextMPCShock=0):
@@ -46,30 +46,36 @@ cdef class Model:
 		# subtract the adjustment cost for states with c > x
 		self.valueFunction = valueGuess - self.p.adjustCost * self.grids.mustSwitch
 
+		distance = 1e5
 		iteration = 0
-		while True:
+		while distance > self.p.tol:
+
+			if iteration > self.p.maxIters:
+				raise Exception(f'No convergence after {iteration+1} iterations...')
+
 			Vprevious = self.valueFunction.copy()
 
 			# update value function of not switching
 			self.updateValueNoSwitch()
 
 			# update value function of switching
-			self.updateValueSwitch()
+			self.maximizeValueFromSwitching()
 
 			# compute V = max(VSwitch,VNoSwitch)
 			self.updateValueFunction()
 
-			distance = np.abs(np.asarray(self.valueFunction) - np.asarray(Vprevious)).flatten().max()
-			if distance < self.p.tol:
-				print('Value function converged')
-				break
-			elif iteration > self.p.maxIters:
-				raise Exception(f'No convergence after {iteration+1} iterations...')
+			distance = np.abs(
+				np.asarray(self.valueFunction) - np.asarray(Vprevious)
+				).flatten().max()
 
-			if np.mod(iteration,1) == 0:
+			if np.mod(iteration,10) == 0:
 				print(f'    Iteration {iteration}, norm of |V1-V| = {distance}')
 
 			iteration += 1
+
+		self.maximizeValueFromSwitching(findPolicy=True)
+
+		print('Value function converged')
 
 	def constructInterpolantForV(self):
 		"""
@@ -117,10 +123,10 @@ cdef class Model:
 		This method updates self.valueFunction by finding max(valueSwitch,valueNoSwitch),
 		where valueSwitch is used wherever c > x in the state space.
 		"""
-		self.valueFunction = np.where(self.grids.mustSwitch,
+		self.valueFunction = self.p.dampening * np.where(self.grids.mustSwitch,
 			np.asarray(self.valueSwitch)-self.p.adjustCost,
 			np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
-			)
+			) + (1 - self.p.dampening) * np.asarray(self.valueFunction)
 
 	def updateValueNoSwitch(self):
 		"""
@@ -133,7 +139,7 @@ cdef class Model:
 
 		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
 
-	def updateValueSwitch(self):
+	def maximizeValueFromSwitching(self, findPolicy=False):
 		"""
 		Updates self.valueSwitch by first approximating EMAX(x,c,z,yP), defined as
 		E[V(R(x-c)+yP'yT', c, z, yP')|x,c,z,yP]. This approximation is done by
@@ -144,10 +150,13 @@ cdef class Model:
 		cdef:
 			int iyP, ix, iz, ii
 			double xval, maxAdmissibleC, goldenRatio, goldenRatioSq
-			np.ndarray[np.float64_t, ndim=1] candidateC, funVals
+			np.ndarray[np.float64_t, ndim=1] cVals, funVals
 			double[:] cgrid, util, em
 			np.ndarray[np.float64_t, ndim=4] EMAX
-			tuple cBounds
+			tuple cBounds, bounds, bound
+
+		if findPolicy:
+			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
 		# compute EMAX
 		EMAX = np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
@@ -159,6 +168,9 @@ cdef class Model:
 		goldenRatio = (np.sqrt(5) + 1) / 2
 		goldenRatioSq = goldenRatio ** 2
 
+		cVals = np.zeros((6,))
+		funVals = np.zeros((6,))
+
 		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 		for iyP in range(self.p.nyP):
 			# EMAXInterpolant = RegularGridInterpolator(
@@ -168,38 +180,41 @@ cdef class Model:
 				xval = self.grids.x['wide'][ix,0,0,iyP]
 				maxAdmissibleC = np.minimum(xval,self.p.cMax)
 				cBounds = ((self.p.cMin,maxAdmissibleC),)
-				bounds = [	(self.p.cMin,maxAdmissibleC/4),
+				bounds = (	(self.p.cMin,maxAdmissibleC/4),
 							(maxAdmissibleC/4,maxAdmissibleC/2),
 							(maxAdmissibleC/2,3*maxAdmissibleC/4),
-							(3*maxAdmissibleC/4,maxAdmissibleC),]
+							(3*maxAdmissibleC/4,maxAdmissibleC),
+							)
 
 				for iz in range(self.p.nz):
 					em = EMAX[ix,:,iz,iyP].flatten()
 					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,em,util)
 
-					# candidateC = np.zeros((5,))
-					funVals = np.zeros((6,))
 					ii = 0
 					# for x0 in [self.p.cMin+1e-4,maxAdmissibleC/3,2*maxAdmissibleC/3,maxAdmissibleC]:
 					for bound in bounds:
 						# optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=cBounds)
 						# candidateC[ii] = optimResult.x
 						# funVals[ii] = optimResult.fun
-						funVals[ii] = functions.goldenSectionSearch(iteratorFn,
+						funVals[ii], cVals[ii] = functions.goldenSectionSearch(iteratorFn,
 							bound[0],bound[1],goldenRatio,goldenRatioSq,1e-8,tuple())
 						ii += 1
 
-					# try consumting cmin
+					# try consuming cmin
 					funVals[ii] = iteratorFn(self.p.cMin)
 					ii += 1
+
 					# try consuming xval (or cmax)
 					funVals[ii] = iteratorFn(maxAdmissibleC)
 
-					self.valueSwitch[ix,0,iz,iyP] = - funVals.min()
+					if findPolicy:
+						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[funVals.argmax()]
+					else:
+						self.valueSwitch[ix,0,iz,iyP] = funVals.max()
 
 	cdef findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em, double[:] util):
 		"""
-		Output is - [u(cSwitch) + beta * EMAX(cSwitch)]
+		Output is u(cSwitch) + beta * EMAX(cSwitch)
 		"""
 		cdef list indices, weights
 		cdef int ind1, ind2
@@ -213,15 +228,14 @@ cdef class Model:
 		u = weight1 * util[ind1] + weight2 * util[ind2]
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
 
-		return - u - self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT
-
+		return u + self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT
 
 class Simulator:
-	def __init__(self, params, income, grids, policies, simPeriods):
+	def __init__(self, params, income, grids, cPolicy, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
-		self.policies = policies
+		self.cPolicy = cPolicy
 
 		self.nCols = 1
 
@@ -247,8 +261,6 @@ class Simulator:
 				self.updateIncome()
 
 			self.updateCash()
-			self.updateConsumption()
-
 			self.solveDecisions()
 
 			self.computeTransitionStatistics()
@@ -285,10 +297,33 @@ class Simulator:
 		self.xsim = self.asim + self.ysim
 
 	def updateAssets(self):
+		self.asim = self.p.R * self.ssim
+
 		if not self.Bequests:
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
-		self.asim = self.p.R * self.ssim
+	def solveDecisions(self):
+		for i in range(self.nSim):
+			iyP = self.yPind[i]
+			iz = self.zind[i]
+
+			conIndices, conWeights = functions.interpolate1D(self.grids.c['vec'], self.csim[i])
+			xIndices, xWeights = functions.interpolate1D(
+				self.grids.x['wide'][:,0,0,iyP], self.xsim[i])
+
+			valueSwitch = xWeights[0] * self.valueSwitch[xIndices[0],0,iz,iyP] \
+				+ xWeights[1] * self.valueSwitch[xIndices[1],0,iz,iyP]
+			valueNoSwitch = xWeights[0] * conWeights[0] * self.valueNoSwitch[xIndices[0],conIndices[0],iz,iyP] \
+				+ xWeights[1] * conWeights[0] * self.valueNoSwitch[xIndices[1],conIndices[0],iz,iyP] \
+				+ xWeights[0] * conWeights[1] * self.valueNoSwitch[xIndices[0],conIndices[1],iz,iyP] \
+				+ xWeights[1] * conWeights[1] * self.valueNoSwitch[xIndices[1],conIndices[1],iz,iyP]
+
+			switch = valueSwitch - self.p.adjustCost > valueNoSwitch
+			if switch:
+				self.csim[i] = xWeights[0] * conWeights[0] * self.cPolicy[xIndices[0],conIndices[0],iz,iyP] \
+					+ xWeights[1] * conWeights[0] * self.policies['c'][xIndices[1],conIndices[0],iz,iyP] \
+					+ xWeights[0] * conWeights[1] * self.policies['c'][xIndices[0],conIndices[1],iz,iyP] \
+					+ xWeights[1] * conWeights[1] * self.policies['c'][xIndices[1],conIndices[1],iz,iyP]
 
 class EquilbriumSimulator(Simulator):
 	def __init__(self, params, income, grids, policies):

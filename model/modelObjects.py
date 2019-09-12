@@ -42,9 +42,10 @@ class Params:
 
 		# computation
 		self.maxIters = 1e5
-		self.tol = 1e-6
+		self.tol = 1e-7
+		self.dampening = 1.2 # < 1 is dampening, > 1 is extrapolation
 		self.nSim = 2e5 # number of draws to sim distribution
-		self.tSim = 500 # number of periods to simulate
+		self.tSim = 1000 # number of periods to simulate
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7
