@@ -109,8 +109,10 @@ cdef class Model:
 		cdef:
 			int iyP1, iyP2, ic, iz
 			double yP, PyP1yP2
+			np.ndarray[np.float64_t, ndim=1] xgrid1, xgrid2
+			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
 			np.ndarray[np.float64_t, ndim=8] interpMat
-			np.ndarray[np.float64_t, ndim=3] newBlock
+			np.ndarray[np.float64_t, ndim=3] newBlock, interpWithyT
 
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
