@@ -143,7 +143,7 @@ cdef class Model:
 		"""
 		cdef:
 			int iyP, ix, iz, ii
-			double xval, maxAdmissibleC
+			double xval, maxAdmissibleC, goldenRatio, goldenRatioSq
 			np.ndarray[np.float64_t, ndim=1] candidateC, funVals
 			double[:] cgrid, util, em
 			np.ndarray[np.float64_t, ndim=4] EMAX
@@ -156,16 +156,22 @@ cdef class Model:
 		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
 		cgrid = self.grids.c['vec'].flatten()
 
+		goldenRatio = (np.sqrt(5) + 1) / 2
+		goldenRatioSq = goldenRatio ** 2
+
 		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 		for iyP in range(self.p.nyP):
 			# EMAXInterpolant = RegularGridInterpolator(
 			# 	(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
-			print(f'        income value {iyP}')
 
 			for ix in range(self.p.nx):
 				xval = self.grids.x['wide'][ix,0,0,iyP]
 				maxAdmissibleC = np.minimum(xval,self.p.cMax)
 				cBounds = ((self.p.cMin,maxAdmissibleC),)
+				bounds = [	(self.p.cMin,maxAdmissibleC/4),
+							(maxAdmissibleC/4,maxAdmissibleC/2),
+							(maxAdmissibleC/2,3*maxAdmissibleC/4),
+							(3*maxAdmissibleC/4,maxAdmissibleC),]
 
 				for iz in range(self.p.nz):
 					em = EMAX[ix,:,iz,iyP].flatten()
@@ -174,10 +180,13 @@ cdef class Model:
 					# candidateC = np.zeros((5,))
 					funVals = np.zeros((6,))
 					ii = 0
-					for x0 in [self.p.cMin+1e-4,maxAdmissibleC/3,2*maxAdmissibleC/3,maxAdmissibleC]:
-						optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=cBounds)
+					# for x0 in [self.p.cMin+1e-4,maxAdmissibleC/3,2*maxAdmissibleC/3,maxAdmissibleC]:
+					for bound in bounds:
+						# optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=cBounds)
 						# candidateC[ii] = optimResult.x
-						funVals[ii] = optimResult.fun
+						# funVals[ii] = optimResult.fun
+						funVals[ii] = functions.goldenSectionSearch(iteratorFn,
+							bound[0],bound[1],goldenRatio,goldenRatioSq,1e-8,tuple())
 						ii += 1
 
 					# try consumting cmin
