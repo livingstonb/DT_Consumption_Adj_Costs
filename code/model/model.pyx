@@ -194,8 +194,7 @@ cdef class Model:
 		"""
 		Output is - [u(cSwitch) + beta * EMAX(cSwitch)]
 		"""
-		cdef list indices
-		cdef np.ndarray[np.float64_t, ndim=1] weights
+		cdef list indices, weights
 		cdef int ind1, ind2
 		cdef double weight1, weight2, u, emOut
 

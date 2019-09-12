@@ -14,6 +14,27 @@ cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	u = con ** (- riskaver)
 	return u
 
+cdef long searchSortedSingleInput(np.ndarray grid, double val):
+	cdef long n, midpt, index
+	cdef double gridVal
+
+	n = grid.shape[0]
+	midpt = n // 2
+
+	index = midpt
+	while True:
+		if (index == n) or (index == 0):
+			return index
+		gridVal = grid[index]
+
+		if val < gridVal:
+			if val >= grid[index-1]:
+				return index
+			else:
+				index -= 1
+		else:
+			index += 1
+
 cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
 	gridIndices = np.searchsorted(grid,vals)
 	probabilities = np.zeros((vals.shape[0],grid.shape[0]))
@@ -69,25 +90,25 @@ cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 cdef tuple interpolate1D(np.ndarray grid, double pt):
 	cdef:
 		int gridIndex
-		list gridIndices
-		np.ndarray[np.float64_t, ndim=1] proportions
+		double gridPt1, gridPt2
+		list gridIndices, proportions
 
 	# returns the two indices between which to interpolate
 	# returns the proportions to place on each of the 2 indices
-	gridIndex = np.searchsorted(grid, pt)
+	gridIndex = searchSortedSingleInput(grid, pt)
 
 	if gridIndex == 0:
 		gridIndices = [0,1]
-		proportions = np.array([1,0],dtype=float)
+		proportions = [1,0]
 	elif gridIndex == grid.shape[0]:
 		gridIndices = [grid.shape[0]-2,grid.shape[0]-1]
-		proportions = np.array([0,1],dtype=float)
+		proportions = [0,1]
 	else:
 		gridIndices = [gridIndex-1,gridIndex]
 		gridPt1 = grid[gridIndices[0]]
 		gridPt2 = grid[gridIndices[1]]
 		proportion2 = (pt - gridPt1) / (gridPt2 - gridPt1)
-		proportions = np.array([1-proportion2,proportion2],dtype=float)
+		proportions = [1-proportion2,proportion2]
 
 	return gridIndices, proportions
 
