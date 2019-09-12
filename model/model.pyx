@@ -5,8 +5,8 @@ from scipy.optimize import minimize
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 import numpy.matlib as matlib
-from build import functions
-from build cimport functions
+from misc import functions
+from misc cimport functions
 import pandas as pd
 
 cdef class Model:

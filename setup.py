@@ -7,12 +7,12 @@ from Cython.Compiler import Options
 Options.buffer_max_dims = 10
 
 extensions = [
-				Extension("build.model",["code/model/model.pyx"],
+				Extension("model.model",["model/model.pyx"],
 							include_dirs=[np.get_include()]),
-				Extension("build.functions",["code/misc/functions.pyx"],
+				Extension("misc.functions",["misc/functions.pyx"],
 							include_dirs=[np.get_include()]),
 				]
 
-setup(	name="build",
+setup(	name="DiscreTime",
 		ext_modules=cythonize(extensions),
-		packages=["build"])
+		packages=["model","misc"])

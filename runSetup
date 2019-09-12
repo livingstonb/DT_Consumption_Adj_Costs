@@ -1,6 +1,6 @@
 
-maindir=" /mnt/c/Users/Brian-laptop/Documents/GitHub/DT_Consumption_Adj_Costs"
-python setup.py build_ext --build-lib $maindir --build-temp temp
+maindir=$(pwd)
+python setup.py build_ext --inplace --build-temp temp
 
 rm -rf temp
 
