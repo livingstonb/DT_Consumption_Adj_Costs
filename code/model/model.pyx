@@ -145,6 +145,7 @@ cdef class Model:
 			int iyP, ix, iz, ii
 			double xval, maxAdmissibleC
 			np.ndarray[np.float64_t, ndim=1] candidateC, funVals
+			double[:] cgrid, util, em
 			np.ndarray[np.float64_t, ndim=4] EMAX
 			tuple cBounds
 
@@ -167,10 +168,7 @@ cdef class Model:
 				cBounds = ((self.p.cMin,maxAdmissibleC),)
 
 				for iz in range(self.p.nz):
-					if ix == 0:
-						x0 = xval / 2
-
-					em = EMAX[ix,:,iz,iyP]
+					em = EMAX[ix,:,iz,iyP].flatten()
 					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,em,util)
 
 					# candidateC = np.zeros((5,))
@@ -190,7 +188,7 @@ cdef class Model:
 
 					self.valueSwitch[ix,0,iz,iyP] = - funVals.min()
 
-	cdef findValueFromSwitching(self, double cSwitch, np.ndarray cgrid, np.ndarray em, np.ndarray util):
+	cdef findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em, double[:] util):
 		"""
 		Output is - [u(cSwitch) + beta * EMAX(cSwitch)]
 		"""
