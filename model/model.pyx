@@ -8,6 +8,8 @@ import numpy.matlib as matlib
 from misc import functions
 from misc cimport functions
 import pandas as pd
+from matplotlib import pyplot as plt
+from scipy import sparse
 
 cdef class Model:
 	cdef:
@@ -18,7 +20,7 @@ cdef class Model:
 		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
 		# np.ndarray[np.float64_t, ndim=2] interpMat
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
-		double[:,:] interpMat
+		object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 
 	def __init__(self, params, income, grids, nextModel=None, nextMPCShock=0):
@@ -75,6 +77,8 @@ cdef class Model:
 
 			iteration += 1
 
+		self.updateValueNoSwitch()
+		self.maximizeValueFromSwitching()
 		self.maximizeValueFromSwitching(findPolicy=True)
 
 		print('Value function converged')
@@ -117,8 +121,8 @@ cdef class Model:
 					for iz in range(self.p.nz):
 						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
-		self.interpMat = interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
-			self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
+		self.interpMat = sparse.csr_matrix(interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
+			self.p.nx*self.p.nc*self.p.nz*self.p.nyP)))
 
 	def updateValueFunction(self):
 		"""
@@ -136,7 +140,7 @@ cdef class Model:
 		"""
 		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
-			* np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
+			* self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
 				).reshape(self.grids.matrixDim)
 
 		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
@@ -161,7 +165,7 @@ cdef class Model:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
 		# compute EMAX
-		EMAX = np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
+		EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
 				).reshape(self.grids.matrixDim)
 
 		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
@@ -203,10 +207,12 @@ cdef class Model:
 						ii += 1
 
 					# try consuming cmin
+					cVals[ii] = self.p.cMin
 					funVals[ii] = iteratorFn(self.p.cMin)
 					ii += 1
 
 					# try consuming xval (or cmax)
+					cVals[ii] = maxAdmissibleC
 					funVals[ii] = iteratorFn(maxAdmissibleC)
 
 					if findPolicy:
@@ -231,3 +237,19 @@ cdef class Model:
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
 
 		return u + self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT
+
+	def plotPolicyFunctions(self):
+		cSwitch = np.asarray(self.valueSwitch) - self.p.adjustCost > np.asarray(self.valueNoSwitch)
+		cPolicy = cSwitch * np.asarray(self.cSwitchingPolicy) + (~cSwitch) * self.grids.c['matrix']
+
+		ixvals = [0,2,5,10]
+		xvals = np.array([self.grids.x['wide'][i,0,0,5] for i in ixvals])
+
+		fig, ax = plt.subplots(nrows=2,ncols=2)
+		i = 0
+		for row in range(2):
+			for col in range(2):
+				ax[row,col].plot(self.grids.x['wide'][:,0,0,5],self.cSwitchingPolicy[:,0,0,5])
+				i += 1
+
+		plt.show()

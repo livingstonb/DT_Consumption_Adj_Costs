@@ -58,7 +58,7 @@ cdef class Params:
 		# computation
 		self.maxIters = long(1e5)
 		self.tol = 1e-7
-		self.dampening = 1.2 # < 1 is dampening, > 1 is extrapolation
+		self.dampening = 1 # < 1 is dampening, > 1 is extrapolation
 		self.nSim = long(2e5) # number of draws to sim distribution
 		self.tSim = 1000 # number of periods to simulate
 
@@ -79,15 +79,15 @@ cdef class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.sMax = 150 # max of saving grid
-		self.nx = 20
+		self.nx = 50
 		self.sGridCurv = 0.2
 		self.borrowLim = 0
 		self.minGridSpacing = 0.001
 
 		# consumption grid
-		self.nc = 20
+		self.nc = 50
 		self.cMin = 0.001
-		self.cMax = 5
+		self.cMax = 3
 		self.cGridCurv = 0.2
 
 		# options
@@ -104,7 +104,7 @@ cdef class Params:
 		# preferences
 		self.riskAver = 1
 		self.adjustCost = 1
-		self.timeDiscount = 0.9
+		self.timeDiscount = 0.8
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #
