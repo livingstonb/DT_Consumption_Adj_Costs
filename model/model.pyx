@@ -20,6 +20,7 @@ cdef class Model:
 		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
 		# np.ndarray[np.float64_t, ndim=2] interpMat
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
+		double[:,:,:,:] EMAX
 		object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 
@@ -40,6 +41,7 @@ cdef class Model:
 
 	def solve(self):
 		# construct interpolant for EMAX
+		print('Constructing interpolant for EMAX')
 		self.constructInterpolantForV()
 
 		# make initial guess for value function
@@ -59,6 +61,9 @@ cdef class Model:
 
 			Vprevious = self.valueFunction.copy()
 
+			# update EMAX = E[V|x,c,z,yP], where c is CHOSEN c not state variable
+			self.updateEMAX()
+
 			# update value function of not switching
 			self.updateValueNoSwitch()
 
@@ -77,8 +82,12 @@ cdef class Model:
 
 			iteration += 1
 
+		# value function found, now re-compute valueSwitch and valueNoSwitch
+		self.updateEMAX()
 		self.updateValueNoSwitch()
 		self.maximizeValueFromSwitching()
+
+		# compute c-policy function conditional on switching
 		self.maximizeValueFromSwitching(findPolicy=True)
 
 		print('Value function converged')
@@ -134,14 +143,17 @@ cdef class Model:
 			np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
 			) + (1 - self.p.dampening) * np.asarray(self.valueFunction)
 
+	def updateEMAX(self):
+		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
+				).reshape(self.grids.matrixDim)
+
 	def updateValueNoSwitch(self):
 		"""
 		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * E[V(c)]
 		"""
 		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
-			* self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
-				).reshape(self.grids.matrixDim)
+			* np.asarray(self.EMAX)
 
 		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
 
@@ -164,18 +176,17 @@ cdef class Model:
 		if findPolicy:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
-		# compute EMAX
-		EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
-				).reshape(self.grids.matrixDim)
-
 		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
 		cgrid = self.grids.c['vec'].flatten()
 
 		goldenRatio = (np.sqrt(5) + 1) / 2
 		goldenRatioSq = goldenRatio ** 2
 
-		cVals = np.zeros((6,))
-		funVals = np.zeros((6,))
+		nSections = 10
+		sections = np.linspace(1/nSections,1,num=nSections)
+
+		cVals = np.zeros((nSections+2,))
+		funVals = np.zeros((nSections+2,))
 
 		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 		for iyP in range(self.p.nyP):
@@ -186,14 +197,16 @@ cdef class Model:
 				xval = self.grids.x['wide'][ix,0,0,iyP]
 				maxAdmissibleC = np.minimum(xval,self.p.cMax)
 				cBounds = ((self.p.cMin,maxAdmissibleC),)
-				bounds = (	(self.p.cMin,maxAdmissibleC/4),
-							(maxAdmissibleC/4,maxAdmissibleC/2),
-							(maxAdmissibleC/2,3*maxAdmissibleC/4),
-							(3*maxAdmissibleC/4,maxAdmissibleC),
-							)
+				# bounds = (	(self.p.cMin,maxAdmissibleC/4),
+				# 			(maxAdmissibleC/4,maxAdmissibleC/2),
+				# 			(maxAdmissibleC/2,3*maxAdmissibleC/4),
+				# 			(3*maxAdmissibleC/4,maxAdmissibleC),
+				# 			)
+				bounds = tuple((maxAdmissibleC*sections[i],maxAdmissibleC*sections[i+1]) for i in range(nSections-1))
+				bounds = ((self.p.cMin,maxAdmissibleC*sections[0]),) + bounds
 
 				for iz in range(self.p.nz):
-					em = EMAX[ix,:,iz,iyP].flatten()
+					em = self.EMAX[ix,:,iz,iyP]
 					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,em,util)
 
 					ii = 0

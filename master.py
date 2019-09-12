@@ -23,7 +23,7 @@ from model.simulator import EquilibriumSimulator
 
 # create params object
 locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','incomeDebug.mat')
-params = load_specifications(locIncomeProcess, index=2)
+params = load_specifications(locIncomeProcess, index=3)
 # params = modelObjects.Params(paramsDict)
 
 # create income object
@@ -49,7 +49,7 @@ fig, ax = plt.subplots(nrows=2,ncols=2)
 i = 0
 for row in range(2):
 	for col in range(2):
-		ax[row,col].plot(grids.x['wide'][:,0,0,5],cSwitch[:,0,0,5])
+		ax[row,col].plot(grids.x['wide'][:,0,0,5],model.valueFunction[:,5,0,5])
 		i += 1
 
 plt.show()
