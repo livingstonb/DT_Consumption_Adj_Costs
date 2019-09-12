@@ -110,3 +110,37 @@ cdef tuple interpolate1D(double[:] grid, double pt):
 
 	return (gridIndices, proportions)
 
+cpdef double goldenSectionSearch(object f, double a, double b, 
+	double goldenRatio, double goldenRatioSq, double tol, tuple args):
+
+	cdef double c, d, diff
+	cdef double fc, fd
+
+	diff = b - a
+
+	c = a + diff / goldenRatioSq
+	d = a + diff / goldenRatio 
+
+	fc = f(c,*args)
+	fd = f(d,*args)
+
+	while abs(c - d) > tol:
+		if fc > fd:
+			b = d
+			d = c
+			fd = fc
+			diff = diff / goldenRatio
+			c = a + diff / goldenRatioSq
+			fc = f(c,*args)
+		else:
+			a = c
+			c = d
+			fc = fd
+			diff = diff / goldenRatio
+			d = a + diff / goldenRatio
+			fd = f(d,*args)
+
+	if fc > fd:
+		return fc # (a+d)/2
+	else:
+		return fd # (c+b)/2
