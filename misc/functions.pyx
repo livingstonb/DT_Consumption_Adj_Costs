@@ -2,7 +2,7 @@ import numpy as np
 cimport numpy as np
 
 cdef np.ndarray utility(double riskaver, np.ndarray con):
-	if riskaver == 1:
+	if riskaver == float(1):
 		return np.log(con)
 	else:
 		return con ** (1-riskaver) / (1-riskaver)
@@ -85,7 +85,7 @@ cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 
 	return probabilities
 
-cdef tuple interpolate1D(double[:] grid, double pt):
+cpdef tuple interpolate1D(double[:] grid, double pt):
 	cdef:
 		int gridIndex
 		double gridPt1, gridPt2, proportion2

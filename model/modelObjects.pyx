@@ -2,7 +2,7 @@ from scipy.io import loadmat
 import numpy as np
 import numpy.matlib as matlib
 
-class Params:
+cdef class Params:
 	"""
 	This class stores the parameters of the model.
 
@@ -16,6 +16,21 @@ class Params:
 	adjustToQuarterly() adjusts these variables to
 	quarterly values.
 	"""
+	cdef:
+		public str name, locIncomeProcess
+		public int index, freq, nyP, nyT, nz
+		public long maxIters, nSim, tSim
+		public double tol, dampening
+		public double tolWealthTarget, wealthTarget
+		public bint iterateBeta, MPCsOutOfNews, Bequests
+		public long NsimMPC
+		public list MPCshocks, wealthConstraints, wealthPercentiles
+		public int sMax, nx
+		public double sGridCurv, borrowLim, minGridSpacing
+		public int nc
+		public double cMin, cMax, cGridCurv
+		public double r, R, deathProb
+		public double riskAver, adjustCost, timeDiscount
 
 	def __init__(self, params_dict=None):
 
@@ -25,26 +40,26 @@ class Params:
 
 		# identifiers
 		self.name = 'Unnamed'
-		self.index = None
+		self.index = 0
 
 		# 1 (annual) or 4 (quarterly)
 		self.freq = 4
 
 		# path to income file
-		self.locIncomeProcess = None
+		self.locIncomeProcess = ''
 
 		# income grid sizes
-		self.nyP = None
-		self.nyT = None
+		self.nyP = 1
+		self.nyT = 1
 
 		# preference/other heterogeneity
 		self.nz = 1
 
 		# computation
-		self.maxIters = 1e5
+		self.maxIters = long(1e5)
 		self.tol = 1e-7
 		self.dampening = 1.2 # < 1 is dampening, > 1 is extrapolation
-		self.nSim = 2e5 # number of draws to sim distribution
+		self.nSim = long(2e5) # number of draws to sim distribution
 		self.tSim = 1000 # number of periods to simulate
 
 		# beta iteration
@@ -53,7 +68,7 @@ class Params:
 		self.iterateBeta = False
 
 		# mpc options
-		self.NsimMPC = 2e5 # number of draws to sim MPCs
+		self.NsimMPC = long(2e5) # number of draws to sim MPCs
 		self.MPCshocks = [-1e-5,-0.01,-0.1,1e5,0.01,0.1]
 
 		# fraction of mean annual income
@@ -64,14 +79,13 @@ class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.sMax = 150 # max of saving grid
-		self.nx = 40
+		self.nx = 20
 		self.sGridCurv = 0.2
-		self.aGridCurv = 0.2
 		self.borrowLim = 0
 		self.minGridSpacing = 0.001
 
 		# consumption grid
-		self.nc = 40
+		self.nc = 20
 		self.cMin = 0.001
 		self.cMax = 5
 		self.cGridCurv = 0.2
@@ -121,11 +135,11 @@ class Params:
 		if self.freq == 1:
 			return
 
-		self.R = (1 + self.r) ** (1/4)
+		self.R = (1 + self.r) ** 0.25
 		self.r = self.R - 1
 		self.tSim = self.tSim * 4
-		self.deathProb = 1 - (1 - self.deathProb) ** (1/4)
-		self.timeDiscount = self.timeDiscount ** (1/4)
+		self.deathProb = 1 - (1 - self.deathProb) ** 0.25
+		self.timeDiscount = self.timeDiscount ** 0.25
 
 	def addIncomeParameters(self, income):
 		self.nyP = income.nyP
@@ -155,28 +169,28 @@ class Income:
 		# persistent component
 		self.logyPgrid = matFile['discmodel1']['logyPgrid'][0][0]
 		self.nyP = self.logyPgrid.size
-		self.logyPgrid = self.logyPgrid.reshape((self.nyP,-1))
+		self.logyPgrid = self.logyPgrid.reshape((self.nyP,1))
 
 		self.yPdist = matFile['discmodel1']['yPdist'][0][0].reshape((self.nyP,-1))
 		self.yPtrans = matFile['discmodel1']['yPtrans'][0][0]
 
 		self.yPgrid = np.exp(self.logyPgrid)
 		self.yPgrid = self.yPgrid / np.dot(self.yPdist.T,self.yPgrid)
-		self.yPcumdist = np.cumsum(self.yPdist)
+		self.yPcumdist = np.cumsum(self.yPdist).reshape((self.nyP,1))
 		self.yPcumdistT = self.yPcumdist.T
 		self.yPcumtrans = np.cumsum(self.yPtrans,axis=1)
 
 		# transitory income
 		self.logyTgrid = matFile['discmodel1']['logyTgrid'][0][0]
 		self.nyT = self.logyTgrid.size
-		self.logyTgrid = self.logyPgrid.reshape((self.nyT,-1))
+		self.logyTgrid = self.logyTgrid.reshape((self.nyT,1))
 
 		self.yTdist = matFile['discmodel1']['yTdist'][0][0].reshape((self.nyT,-1))
 		
 		self.yTgrid = np.exp(self.logyTgrid)
 		self.yTgrid = self.yTgrid / np.dot(self.yTdist.T,self.yTgrid)
 		self.yTgrid = self.yTgrid / self.p.freq
-		self.yTcumdist = np.cumsum(self.yTdist)
+		self.yTcumdist = np.cumsum(self.yTdist).reshape((self.nyT,1))
 		self.yTcumdistT = self.yTcumdist.T
 
 	def createOtherIncomeVariables(self):
