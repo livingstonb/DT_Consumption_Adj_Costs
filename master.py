@@ -22,7 +22,7 @@ from build.model import Model
 
 # create params object
 locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','quarterly_b.mat')
-params = load_specifications(locIncomeProcess, index=0)
+params = load_specifications(locIncomeProcess, index=2)
 # params = modelObjects.Params(paramsDict)
 
 # create income object

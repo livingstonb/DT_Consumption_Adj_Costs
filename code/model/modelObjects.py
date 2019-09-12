@@ -63,15 +63,15 @@ class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.sMax = 150 # max of saving grid
-		self.nx = 35
+		self.nx = 40
 		self.sGridCurv = 0.2
 		self.aGridCurv = 0.2
 		self.borrowLim = 0
 		self.minGridSpacing = 0.001
 
 		# consumption grid
-		self.nc = 30
-		self.cMin = 0.0005
+		self.nc = 40
+		self.cMin = 0.001
 		self.cMax = 5
 		self.cGridCurv = 0.2
 
@@ -89,7 +89,7 @@ class Params:
 		# preferences
 		self.riskAver = 1
 		self.adjustCost = 1
-		self.timeDiscount = 0.98
+		self.timeDiscount = 0.9
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #
@@ -220,11 +220,14 @@ class Grid:
 		self.z = {	'matrix': None
 					}
 
+
 		self.createSavingGrid()
 
 		self.createConsumptionGrid()
 
 		self.createCashGrid(income,params.R)
+
+		self.mustSwitch = self.c['matrix'] > self.x['matrix']
 
 		self.create_zgrid()
 

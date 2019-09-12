@@ -36,20 +36,15 @@ cdef class Model:
 		self.stats = dict()
 
 	def solve(self):
-		# interpolant for updating no-switch case
+		# construct interpolant for EMAX
 		self.constructInterpolantForV()
 
-		# guess conditional on not switching consumption
-		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']
+		# make initial guess for value function
+		valueGuess = functions.utility(self.p.riskAver,self.grids.c['matrix']
 			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests))
 
-		# guess conditional on switching
-		valueNoSwitchAdj = np.asarray(self.valueNoSwitch.copy())
-		valueNoSwitchAdj[self.grids.c['matrix'] > self.grids.x['matrix']] = - 1e8
-		self.valueSwitch = np.max(valueNoSwitchAdj,axis=1,keepdims=True)
-
-		# update value function
-		self.updateValueFunction()
+		# subtract the adjustment cost for states with c > x
+		self.valueFunction = valueGuess - self.p.adjustCost * self.grids.mustSwitch
 
 		iteration = 0
 		while True:
@@ -58,12 +53,10 @@ cdef class Model:
 			# update value function of not switching
 			self.updateValueNoSwitch()
 
-			# update value function
-			self.updateValueFunction()
-
 			# update value function of switching
 			self.updateValueSwitch()
 
+			# compute V = max(VSwitch,VNoSwitch)
 			self.updateValueFunction()
 
 			distance = np.abs(np.asarray(self.valueFunction) - np.asarray(Vprevious)).flatten().max()
@@ -78,16 +71,20 @@ cdef class Model:
 
 			iteration += 1
 
-		
-		print('done')
-
-
-		it = 0
-		cdiff = 1e5
-		while (it < self.p.maxIterVFI) and (cdiff > self.p.tolIterVFI):
-			it += 1
-
 	def constructInterpolantForV(self):
+		"""
+		This method constructs an interpolant ndarray 'interpMat' such that
+		interpMat @ valueFunction(:) = E[V]. That is, the expected continuation 
+		value of being in state (x_i,ctilde,z_k,yP_k) and choosing to consume c_j, 
+		the (i,j,k,l)-th element of the matrix product of interpMat and 
+		valueFunction(:) is the quantity below:
+
+		E[V(R(x_i-c_j)+yP'yT', c_j, z_k, yP')|x_i,c_j,z_k,yP_l]
+
+		where the expectation is taken over yP' and yT'.
+
+		Output is stored in self.interpMat.
+		"""
 		cdef:
 			int iyP1, iyP2, ic, iz
 			double yP, PyP1yP2
@@ -116,9 +113,19 @@ cdef class Model:
 			self.p.nx*self.p.nc*self.p.nz*self.p.nyP))
 
 	def updateValueFunction(self):
-		self.valueFunction = np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
+		"""
+		This method updates self.valueFunction by finding max(valueSwitch,valueNoSwitch),
+		where valueSwitch is used wherever c > x in the state space.
+		"""
+		self.valueFunction = np.where(self.grids.mustSwitch,
+			np.asarray(self.valueSwitch)-self.p.adjustCost,
+			np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
+			)
 
 	def updateValueNoSwitch(self):
+		"""
+		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * E[V(c)]
+		"""
 		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) \
 			* np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
@@ -127,19 +134,25 @@ cdef class Model:
 		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
 
 	def updateValueSwitch(self):
+		"""
+		Updates self.valueSwitch by first approximating EMAX(x,c,z,yP), defined as
+		E[V(R(x-c)+yP'yT', c, z, yP')|x,c,z,yP]. This approximation is done by
+		interpolating the sums over income transitions using interpMat. Then a
+		maximization is done over u(c) + beta * EMAX at each point in the
+		(x,z,yP)-space by interpolating u(c) and EMAX(c) at each iteration.
+		"""
 		cdef:
 			int iyP, ix, iz, ii
 			double xval, maxAdmissibleC
 			np.ndarray[np.float64_t, ndim=1] candidateC, funVals
 			np.ndarray[np.float64_t, ndim=4] EMAX
+			tuple cBounds
 
 		# compute EMAX
 		EMAX = np.matmul(self.interpMat,np.reshape(self.valueFunction,(-1,1))
 				).reshape(self.grids.matrixDim)
 
 		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
-		utilInterpolant = interp1d(self.grids.c['vec'].flatten(),util,fill_value="extrapolate")
-
 		cgrid = self.grids.c['vec'].flatten()
 
 		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
@@ -151,22 +164,20 @@ cdef class Model:
 			for ix in range(self.p.nx):
 				xval = self.grids.x['wide'][ix,0,0,iyP]
 				maxAdmissibleC = np.minimum(xval,self.p.cMax)
+				cBounds = ((self.p.cMin,maxAdmissibleC),)
 
 				for iz in range(self.p.nz):
 					if ix == 0:
 						x0 = xval / 2
 
 					em = EMAX[ix,:,iz,iyP]
-					# EMAXInterpolant = interp1d(self.grids.c['vec'].flatten(),EMAX[ix,:,iz,iyP].flatten(),fill_value="extrapolate")
 					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,em,util)
-					# self.valueSwitch[ix,0,iz,iyP] = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC))).x
 
-					
 					# candidateC = np.zeros((5,))
 					funVals = np.zeros((6,))
 					ii = 0
 					for x0 in [self.p.cMin+1e-4,maxAdmissibleC/3,2*maxAdmissibleC/3,maxAdmissibleC]:
-						optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=((self.p.cMin,maxAdmissibleC),))
+						optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=cBounds)
 						# candidateC[ii] = optimResult.x
 						funVals[ii] = optimResult.fun
 						ii += 1
@@ -180,6 +191,9 @@ cdef class Model:
 					self.valueSwitch[ix,0,iz,iyP] = - funVals.min()
 
 	cdef findValueFromSwitching(self, double cSwitch, np.ndarray cgrid, np.ndarray em, np.ndarray util):
+		"""
+		Output is - [u(cSwitch) + beta * EMAX(cSwitch)]
+		"""
 		cdef list indices
 		cdef np.ndarray[np.float64_t, ndim=1] weights
 		cdef int ind1, ind2
@@ -194,17 +208,6 @@ cdef class Model:
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
 
 		return - u - self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT
-
-
-	def makePolicyGuess(self):
-		# to avoid a degenerate guess, adjust for low r...
-		returns = self.p.r + 0.001 * (self.p.r<0.0001)
-		conGuess = returns * self.grids.x['matrix']
-		return conGuess
-
-	def makeValueGuess(self, conGuess):
-		vGuess = functions.utility(self.p.riskAver,conGuess)
-		return vGuess
 
 
 class Simulator:
