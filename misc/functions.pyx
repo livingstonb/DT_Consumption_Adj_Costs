@@ -21,24 +21,22 @@ cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	u = con ** (- riskaver)
 	return u
 
-cdef long searchSortedSingleInput(double[:] grid, double val):
-	cdef long n, midpt, index
-	cdef double gridVal
+cpdef long searchSortedSingleInput(double[:] grid, double val):
+	"""
+	This function finds the index i for which
+	grid[i-1] <= val < grid[i]
+	"""
+	cdef long n, midpt, index = 0
 
-	n = np.size(grid)
-	midpt = n // 2
+	n = grid.size
 
-	index = midpt
-	while (index > 0) and (index < n):
-		gridVal = grid[index]
-
-		if val < gridVal:
-			if val >= grid[index-1]:
-				return index
-			else:
-				index -= 1
+	while index < n - 1:
+		if val <= grid[index]:
+			return index
 		else:
 			index += 1
+
+	return n
 
 cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
 	gridIndices = np.searchsorted(grid,vals)
@@ -116,6 +114,18 @@ cpdef tuple interpolate1D(double[:] grid, double pt):
 		proportions = [1-proportion2,proportion2]
 
 	return (gridIndices, proportions)
+
+cpdef long[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex):
+	cdef long[:] weights
+
+	if rightIndex == 0:
+		weights[0] = 1
+		weights[1] = 0
+	else:
+		weights[0] = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
+		weights[1] = 1 - weights[0]
+
+	return weights
 
 cpdef tuple goldenSectionSearch(object f, double a, double b, 
 	double goldenRatio, double goldenRatioSq, double tol, tuple args):
