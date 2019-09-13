@@ -9,7 +9,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [1,5,10,50,150]
+	adjustCosts = [1,5,10,50,75]
 
 	numExperiments = len(adjustCosts)
 	paramsDicts = [dict() for i in range(numExperiments)]
@@ -17,6 +17,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	ii = 0
 	for adjustCost in adjustCosts:
 		paramsDicts[ii]['adjustCost'] = adjustCost
+		paramsDicts[ii]['nx'] = 40
+		paramsDicts[ii]['nc'] = 200
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 		paramsDicts[ii]['timeDiscount'] = 0.8
 

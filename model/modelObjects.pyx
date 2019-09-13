@@ -78,7 +78,7 @@ cdef class Params:
 		self.wealthPercentiles = [10,25,50,75,90,99,99.9]
 
 		# cash-on-hand / savings grid parameters
-		self.sMax = 100 # max of saving grid
+		self.sMax = 50 # max of saving grid
 		self.nx = 40
 		self.sGridCurv = 0.2
 		self.borrowLim = 0
@@ -86,8 +86,8 @@ cdef class Params:
 
 		# consumption grid
 		self.nc = 50
-		self.cMin = 0.001
-		self.cMax = 5
+		self.cMin = 0.0001
+		self.cMax = 3
 		self.cGridCurv = 0.08
 
 		# options

@@ -184,7 +184,7 @@ cpdef tuple goldenSectionSearch(object f, double a, double b,
 			d = c
 			fd = fc
 			diff = diff / goldenRatio
-			c = a + diff / goldenRatio
+			c = a + diff / goldenRatioSq
 			fc = f(c,*args)
 		else:
 			a = c
