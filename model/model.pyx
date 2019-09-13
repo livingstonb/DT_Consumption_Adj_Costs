@@ -39,8 +39,9 @@ cdef class Model:
 
 		self.stats = dict()
 
-	def solve(self):
-		# construct interpolant for EMAX
+		self.initialize()
+
+	def initialize(self):
 		print('Constructing interpolant for EMAX')
 		self.constructInterpolantForV()
 
@@ -51,6 +52,7 @@ cdef class Model:
 		# subtract the adjustment cost for states with c > x
 		self.valueFunction = valueGuess - self.p.adjustCost * self.grids.mustSwitch
 
+	def solve(self):
 		print('Beginning value function iteration...')
 		distance = 1e5
 		iteration = 0
@@ -194,7 +196,7 @@ cdef class Model:
 
 		if not findPolicy:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
-			
+
 		for iyP in range(self.p.nyP):
 			# EMAXInterpolant = RegularGridInterpolator(
 			# 	(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
@@ -260,19 +262,5 @@ cdef class Model:
 
 		return u + self.p.timeDiscount * (1 - self.p.deathProb) * emOUT
 
-	def plotPolicyFunctions(self):
-		cSwitch = np.asarray(self.valueSwitch) - self.p.adjustCost > np.asarray(self.valueNoSwitch)
-		cPolicy = cSwitch * np.asarray(self.cSwitchingPolicy) + (~cSwitch) * self.grids.c['matrix']
-
-		ixvals = [0,2,5,10]
-		icvals = [10,50,100,140]
-		xvals = np.array([self.grids.x['wide'][i,0,0,5] for i in ixvals])
-
-		fig, ax = plt.subplots(nrows=2,ncols=2)
-		i = 0
-		for row in range(2):
-			for col in range(2):
-				ax[row,col].plot(self.grids.x['wide'][:,icvals[i],0,5],self.cSwitchingPolicy[:,icvals[i],0,5])
-				i += 1
-
-		plt.show()
+	def resetParameters(self, newParams):
+		self.p = newParams

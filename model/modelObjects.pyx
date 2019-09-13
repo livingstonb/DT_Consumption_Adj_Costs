@@ -62,7 +62,7 @@ cdef class Params:
 		self.maxIters = long(1e5)
 		self.tol = 1e-7
 		self.nSim = long(1e5) # number of draws to sim distribution
-		self.tSim = 250 # number of periods to simulate
+		self.tSim = 100 # number of periods to simulate
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7

@@ -6,7 +6,7 @@ from misc cimport functions
 cdef class Simulator:
 	cdef:
 		object p, income, grids
-		double[:,:,:,:] EMAX, cSwitchingPolicy
+		double[:,:,:,:] valueSwitch, valueNoSwitch, cSwitchingPolicy
 		int nCols
 		int periodsBeforeRedraw
 		int nSim, t, T, randIndex
@@ -14,14 +14,18 @@ cdef class Simulator:
 		long[:] yPind, zind
 		double[:,:] ysim, csim, xsim, asim
 		double[:,:] deathrand, yPrand, yTrand
+		public dict results
 
 	def __init__(self, params, income, grids, model, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
 
+		self.results = {}
+
 		self.cSwitchingPolicy = model.cSwitchingPolicy
-		self.EMAX = model.EMAX
+		self.valueSwitch = model.valueSwitch
+		self.valueNoSwitch = model.valueNoSwitch
 
 		self.nCols = 1
 
@@ -40,7 +44,7 @@ cdef class Simulator:
 
 		while self.t <= self.T:
 
-			if np.mod(self.t,1) == 0:
+			if np.mod(self.t,25) == 0:
 				print(f'    Simulating period {self.t}')
 
 			if self.t > 1:
@@ -100,6 +104,7 @@ cdef class Simulator:
 			double[:] cgrid
 			bint switch
 			double valueSwitch, valueNoSwitch, cSwitch
+			double consumption, cash
 
 		cgrid = self.grids.c['vec'].flatten()
 		for col in range(self.nCols):
@@ -108,35 +113,34 @@ cdef class Simulator:
 				iyP = self.yPind[i]
 				iz = self.zind[i]
 
-				conIndices, conWeights = functions.interpolate1D(cgrid, self.csim[i,col])
+				consumption = self.csim[i,col]
+				cash = self.xsim[i,col]
+
 				xIndices, xWeights = functions.interpolate1D(
-					self.grids.x['wide'][:,0,0,iyP].flatten(), self.xsim[i,col])
+					self.grids.x['wide'][:,0,0,iyP].flatten(), cash)
 
-				valueNoSwitch = xWeights[0] * conWeights[0] * self.EMAX[xIndices[0],conIndices[0],iz,iyP] \
-					+ xWeights[1] * conWeights[0] * self.EMAX[xIndices[1],conIndices[0],iz,iyP] \
-					+ xWeights[0] * conWeights[1] * self.EMAX[xIndices[0],conIndices[1],iz,iyP] \
-					+ xWeights[1] * conWeights[1] * self.EMAX[xIndices[1],conIndices[1],iz,iyP]
+				if consumption > cash:
+					# forced to switch consumption
+					switch = True
+				else:
+					# check if switching is optimal
+					conIndices, conWeights = functions.interpolate1D(cgrid, consumption)
 
-				cSwitch = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
-						+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
+					valueSwitch = xWeights[0] * self.valueSwitch[xIndices[0],0,iz,iyP] \
+						+ xWeights[1] * self.valueSwitch[xIndices[1],0,iz,iyP]
 
-				conSwitchIndices, conSwitchWeights = functions.interpolate1D(cgrid, cSwitch)
-				valueSwitch = xWeights[0] * conSwitchWeights[0] * self.EMAX[xIndices[0],conSwitchIndices[0],iz,iyP] \
-					+ xWeights[1] * conSwitchWeights[0] * self.EMAX[xIndices[1],conSwitchIndices[0],iz,iyP] \
-					+ xWeights[0] * conSwitchWeights[1] * self.EMAX[xIndices[0],conSwitchIndices[1],iz,iyP] \
-					+ xWeights[1] * conSwitchWeights[1] * self.EMAX[xIndices[1],conSwitchIndices[1],iz,iyP]
+					valueNoSwitch = xWeights[0] * conWeights[0] * self.valueNoSwitch[xIndices[0],conIndices[0],iz,iyP] \
+						+ xWeights[1] * conWeights[0] * self.valueNoSwitch[xIndices[1],conIndices[0],iz,iyP] \
+						+ xWeights[0] * conWeights[1] * self.valueNoSwitch[xIndices[0],conIndices[1],iz,iyP] \
+						+ xWeights[1] * conWeights[1] * self.valueNoSwitch[xIndices[1],conIndices[1],iz,iyP]
 
-				switch = functions.utility(self.p.riskAver,cSwitch) \
-						+ self.p.timeDiscount * (1-self.p.deathProb) * valueSwitch - self.p.adjustCost \
-					> functions.utility(self.p.riskAver,self.csim[i,col]) \
-						+ self.p.timeDiscount * (1-self.p.deathProb) * valueNoSwitch
+					switch = valueSwitch - self.p.adjustCost > valueNoSwitch
+
 				if switch:
-					self.csim[i,0] = cSwitch
-
-		self.csim = np.minimum(self.csim,self.xsim)
+					self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
+							+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
 
 cdef class EquilibriumSimulator(Simulator):
-	cdef double[:] aMean, aVariance
 
 	def __init__(self, params, income, grids, model):
 		super().__init__(params,income,grids,model,params.tSim)
@@ -165,8 +169,8 @@ cdef class EquilibriumSimulator(Simulator):
 		self.zind = np.zeros(self.nSim,dtype=int)
 
 		# statistics to compute every period
-		self.aMean = np.zeros((self.T,)) # mean assets
-		self.aVariance = np.zeros((self.T,)) # variance of assets
+		self.results['mean assets'] = np.zeros((self.T,))
+		self.results['variance of assets'] = np.zeros((self.T,))
 
 		self.initialized = True
 
@@ -176,30 +180,30 @@ cdef class EquilibriumSimulator(Simulator):
 		used to evaluate convergence to the equilibrium
 		distribution.
 		"""
-		self.aMean[self.t-1] = np.mean(self.asim,axis=0)
-		self.aVariance[self.t-1] = np.var(self.asim,axis=0)
-		print(self.aMean[self.t-1])
+		self.results['mean assets'][self.t-1] = np.mean(self.asim,axis=0)
+		self.results['variance of assets'][self.t-1] = np.var(self.asim,axis=0)
 
 	def computeEquilibriumStatistics(self):
 		# fraction with wealth < epsilon
-		self.stats['constrained'] = []
+		self.results['constrained'] = []
 		for threshold in self.p.wealthConstraints:
-			constrained = np.mean(self.asim <= threshold)
-			self.stats['constrained'].append(constrained)
+			constrained = np.mean(np.asarray(self.asim) <= threshold)
+			self.results['constrained'].append(constrained)
 
 		# wealth percentiles
-		self.stats['wpercentiles'] = []
+		self.results['wpercentiles'] = []
 		for pctile in self.p.wealthPercentiles:
 			value = np.percentile(self.asim,pctile)
-			self.stats['wpercentiles'].append(value)
+			self.results['wpercentiles'].append(value)
 
 		# top shares
-		pctile90 = np.percentile(self.asim,0.9)
-		pctile99 = np.percentile(self.asim,0.99)
+		pctile90 = np.percentile(self.asim,90)
+		pctile99 = np.percentile(self.asim,99)
+		asimNumpy = np.asarray(self.asim)
 		self.results['top10share'] = \
-			np.sum(self.asim[self.asim >= pctile90]) / self.asim.sum()
-		self.results['top10share'] = \
-			np.sum(self.asim[self.asim >= pctile99]) / self.asim.sum()
+			asimNumpy[asimNumpy>=pctile90].sum() / asimNumpy.sum()
+		self.results['top1share'] = \
+			asimNumpy[asimNumpy>=pctile99].sum() / asimNumpy.sum()
 
 class MPCSimulator(Simulator):
 	def __init__(self, params, income, grids, policies, shockIndices):
