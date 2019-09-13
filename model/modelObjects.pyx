@@ -20,9 +20,10 @@ cdef class Params:
 		public str name, locIncomeProcess
 		public int index, freq, nyP, nyT, nz
 		public long maxIters, nSim, tSim
-		public double tol, dampening
+		public double tol
 		public double tolWealthTarget, wealthTarget
 		public bint iterateBeta, MPCsOutOfNews, Bequests
+		public bint noTransIncome, noPersIncome
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
 		public int sMax, nx
@@ -51,6 +52,8 @@ cdef class Params:
 		# income grid sizes
 		self.nyP = 1
 		self.nyT = 1
+		self.noTransIncome = False
+		self.noPersIncome = False
 
 		# preference/other heterogeneity
 		self.nz = 1
@@ -58,7 +61,6 @@ cdef class Params:
 		# computation
 		self.maxIters = long(1e5)
 		self.tol = 1e-7
-		self.dampening = 1 # < 1 is dampening, > 1 is extrapolation
 		self.nSim = long(1e5) # number of draws to sim distribution
 		self.tSim = 250 # number of periods to simulate
 
@@ -167,29 +169,43 @@ class Income:
 		matFile = loadmat(self.p.locIncomeProcess)
 
 		# persistent component
-		self.logyPgrid = matFile['discmodel1']['logyPgrid'][0][0]
-		self.nyP = self.logyPgrid.size
-		self.logyPgrid = self.logyPgrid.reshape((self.nyP,1))
+		if self.p.noPersIncome:
+			self.nyP = 1
+			self.yPdist = np.array([1.0]).reshape((1,1))
+			self.yPgrid = np.array([1.0]).reshape((1,1))
+			self.yPtrans = np.array([1.0]).reshape((1,1))
+		else:
+			self.logyPgrid = matFile['discmodel1']['logyPgrid'][0][0]
+			self.nyP = self.logyPgrid.size
+			self.logyPgrid = self.logyPgrid.reshape((self.nyP,1))
 
-		self.yPdist = matFile['discmodel1']['yPdist'][0][0].reshape((self.nyP,1))
-		self.yPtrans = matFile['discmodel1']['yPtrans'][0][0]
+			self.yPdist = matFile['discmodel1']['yPdist'][0][0].reshape((self.nyP,1))
+			self.yPtrans = matFile['discmodel1']['yPtrans'][0][0]
 
-		self.yPgrid = np.exp(self.logyPgrid)
+			self.yPgrid = np.exp(self.logyPgrid)
+
 		self.yPgrid = self.yPgrid / np.dot(self.yPdist.T,self.yPgrid)
 		self.yPcumdist = np.cumsum(self.yPdist).reshape((self.nyP,1))
 		self.yPcumdistT = self.yPcumdist.T
 		self.yPcumtrans = np.cumsum(self.yPtrans,axis=1)
 
 		# transitory income
-		self.logyTgrid = matFile['discmodel1']['logyTgrid'][0][0]
-		self.nyT = self.logyTgrid.size
-		self.logyTgrid = self.logyTgrid.reshape((self.nyT,1))
+		if self.p.noTransIncome:
+			self.nyT = 1
+			self.yTdist = np.array([1.0]).reshape((1,1))
+			self.yTgrid = np.array([1.0]).reshape((1,1))
+		else:
+			self.logyTgrid = matFile['discmodel1']['logyTgrid'][0][0]
+			self.nyT = self.logyTgrid.size
+			self.logyTgrid = self.logyTgrid.reshape((self.nyT,1))
 
-		self.yTdist = matFile['discmodel1']['yTdist'][0][0].reshape((self.nyT,-1))
-		
-		self.yTgrid = np.exp(self.logyTgrid)
+			self.yTdist = matFile['discmodel1']['yTdist'][0][0].reshape((self.nyT,1))
+			
+			self.yTgrid = np.exp(self.logyTgrid)
+
 		self.yTgrid = self.yTgrid / np.dot(self.yTdist.T,self.yTgrid)
 		self.yTgrid = self.yTgrid / self.p.freq
+
 		self.yTcumdist = np.cumsum(self.yTdist).reshape((self.nyT,1))
 		self.yTcumdistT = self.yTcumdist.T
 

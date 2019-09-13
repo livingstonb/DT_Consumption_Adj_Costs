@@ -83,9 +83,9 @@ cdef class Model:
 			iteration += 1
 
 		# value function found, now re-compute valueSwitch and valueNoSwitch
-		self.updateEMAX()
-		self.updateValueNoSwitch()
-		self.maximizeValueFromSwitching()
+		# self.updateEMAX()
+		# self.updateValueNoSwitch()
+		# self.maximizeValueFromSwitching()
 
 		# compute c-policy function conditional on switching
 		self.maximizeValueFromSwitching(findPolicy=True)
@@ -133,6 +133,7 @@ cdef class Model:
 					for iz in range(self.p.nz):
 						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
+
 		self.interpMat = sparse.csr_matrix(interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
 			self.p.nx*self.p.nc*self.p.nz*self.p.nyP)))
 
@@ -141,10 +142,10 @@ cdef class Model:
 		This method updates self.valueFunction by finding max(valueSwitch,valueNoSwitch),
 		where valueSwitch is used wherever c > x in the state space.
 		"""
-		self.valueFunction = self.p.dampening * np.where(self.grids.mustSwitch,
+		self.valueFunction = np.where(self.grids.mustSwitch,
 			np.asarray(self.valueSwitch)-self.p.adjustCost,
 			np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
-			) + (1 - self.p.dampening) * np.asarray(self.valueFunction)
+			)
 
 	def updateEMAX(self):
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
@@ -191,7 +192,9 @@ cdef class Model:
 		cVals = np.zeros((nSections+2,))
 		funVals = np.zeros((nSections+2,))
 
-		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
+		if not findPolicy:
+			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
+			
 		for iyP in range(self.p.nyP):
 			# EMAXInterpolant = RegularGridInterpolator(
 			# 	(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
