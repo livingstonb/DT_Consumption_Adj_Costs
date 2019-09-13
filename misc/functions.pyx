@@ -21,22 +21,49 @@ cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	u = con ** (- riskaver)
 	return u
 
+cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
+	"""
+	This function finds the index i for which
+	grid[i-1] <= val < grid[i]
+	"""
+	cdef long n, m, i, midpt, index
+	cdef double currentVal
+
+	n = grid.size
+	m = vals.size
+
+	indices = np.zeros((m),dtype=int)
+
+	for i in range(m):
+		index = 1
+		currentVal = vals[i]
+
+		while index < n - 1:
+			if currentVal >= grid[index]:
+				index += 1
+			else:
+				break
+
+		indices[i] = index
+
+	return indices
+
 cpdef long searchSortedSingleInput(double[:] grid, double val):
 	"""
 	This function finds the index i for which
 	grid[i-1] <= val < grid[i]
 	"""
-	cdef long n, midpt, index = 0
+	cdef long n, midpt, index = 1
 
 	n = grid.size
 
 	while index < n - 1:
-		if val <= grid[index]:
-			return index
-		else:
+		if val >= grid[index]:
 			index += 1
+		else:
+			break
 
-	return n
+	return index
 
 cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
 	gridIndices = np.searchsorted(grid,vals)
@@ -61,32 +88,35 @@ cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
 	return probabilities
 
 cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
-	gridIndices = np.searchsorted(grid,vals)
+	cdef:
+		long[:,:] gridIndices
+		double[:,:,:] probabilities
+		long i, j, igrid
+		double Pi
+	gridIndices = np.zeros((vals.shape[0],vals.shape[1]),dtype=int)
 	probabilities = np.zeros((vals.shape[0],vals.shape[1],grid.shape[0]))
 
 	nGrid = grid.shape[0]
 
-	for i in range(vals.shape[0]):
-		for j in range(vals.shape[1]):
-			igrid = gridIndices[i,j]
-			if igrid == 0:
-				probabilities[i,j,0] = 1
-			elif igrid == nGrid:
-				probabilities[i,j,-1] = 1
-			else:
-				gridPt1 = grid[igrid-1]
-				gridPt2 = grid[igrid]
-				Pi = (vals[i,j] - gridPt1) / (gridPt2 - gridPt1)
+	for j in range(vals.shape[1]):
+		gridIndices[:,j] = searchSortedMultipleInput(grid,vals[:,j])
 
-				if extrap or ((Pi >= 0) and (Pi <= 1)):
-					probabilities[i,j,igrid] = Pi
-					probabilities[i,j,igrid-1] = 1 - Pi
-				elif Pi > 1:
-					probabilities[i,j,igrid] = 1
-				elif Pi < 0:
-					probabilities[i,j,igrid-1] = 1
-				else:
-					raise Exception ('Invalid value for Pi')
+		for i in range(vals.shape[0]):
+			igrid = gridIndices[i,j]
+
+			gridPt1 = grid[igrid-1]
+			gridPt2 = grid[igrid]
+			Pi = (vals[i,j] - gridPt1) / (gridPt2 - gridPt1)
+
+			if Pi < 0:
+				probabilities[i,j,igrid-1] = 1
+				probabilities[i,j,igrid] = 0
+			elif Pi > 1:
+				probabilities[i,j,igrid-1] = 0
+				probabilities[i,j,igrid] = 1
+			else:
+				probabilities[i,j,igrid-1] = 1 - Pi
+				probabilities[i,j,igrid] = Pi
 
 	return probabilities
 
@@ -115,15 +145,22 @@ cpdef tuple interpolate1D(double[:] grid, double pt):
 
 	return (gridIndices, proportions)
 
-cpdef long[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex):
-	cdef long[:] weights
+cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex):
+	cdef double[:] weights
+	cdef double weight1
 
-	if rightIndex == 0:
+	weights = np.zeros((2))
+	weight1 = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
+
+	if weight1 < 0:
+		weights[0] = 0
+		weights[1] = 1
+	elif weight1 > 1:
 		weights[0] = 1
 		weights[1] = 0
 	else:
-		weights[0] = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
-		weights[1] = 1 - weights[0]
+		weights[0] = weight1
+		weights[1] = 1 - weight1
 
 	return weights
 

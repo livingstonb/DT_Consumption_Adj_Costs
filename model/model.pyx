@@ -112,7 +112,8 @@ cdef class Model:
 			np.ndarray[np.float64_t, ndim=1] xgrid1, xgrid2
 			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
 			np.ndarray[float, ndim=8] interpMat
-			np.ndarray[np.float64_t, ndim=3] newBlock, interpWithyT
+			np.ndarray[np.float64_t, ndim=3] newBlock
+			double[:,:,:] interpWithyT
 
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
@@ -239,16 +240,19 @@ cdef class Model:
 		"""
 		Output is u(cSwitch) + beta * EMAX(cSwitch)
 		"""
-		cdef list indices, weights
+		cdef list indices
 		cdef int ind1, ind2
 		cdef double weight1, weight2, u, emOut
+		cdef double[:] weights
 
-		(indices, weights) = functions.interpolate1D(cgrid, cSwitch)
-		ind1 = indices[0]
-		ind2 = indices[1]
+		# (indices, weights) = functions.interpolate1D(cgrid, cSwitch)
+		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch)
+		ind1 = ind2 - 1
+		weights = functions.getInterpolationWeights(cgrid, cSwitch, ind2)
 		weight1 = weights[0]
 		weight2 = weights[1]
-		u = weight1 * util[ind1] + weight2 * util[ind2]
+		u = functions.utility(self.p.riskAver,cSwitch)
+		# u = weight1 * util[ind1] + weight2 * util[ind2]
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
 
 		return u + self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT

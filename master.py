@@ -42,19 +42,19 @@ model.solve()
 cSwitch = np.asarray(model.valueSwitch) - params.adjustCost > np.asarray(model.valueNoSwitch)
 cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * grids.c['matrix']
 
-# ixvals = [0,10,20,40]
-# xvals = np.array([grids.x['wide'][i,0,0,5] for i in ixvals])
+ixvals = [0,10,20,35]
+xvals = np.array([grids.x['wide'][i,0,0,5] for i in ixvals])
 
-# fig, ax = plt.subplots(nrows=2,ncols=2)
-# i = 0
-# for row in range(2):
-# 	for col in range(2):
-# 		ax[row,col].plot(grids.c['matrix'][ixvals[i],:,0,5],cPolicy[ixvals[i],:,0,5])
-# 		i += 1
+fig, ax = plt.subplots(nrows=2,ncols=2)
+i = 0
+for row in range(2):
+	for col in range(2):
+		ax[row,col].plot(grids.c['matrix'][ixvals[i],:,0,5],cPolicy[ixvals[i],:,0,5])
+		i += 1
 
-# plt.show()
+plt.show()
 
 # # solve for stationary distribution
-eqSimulator = EquilibriumSimulator(params, income, grids, model)
-eqSimulator.simulate()
+# eqSimulator = EquilibriumSimulator(params, income, grids, model)
+# eqSimulator.simulate()
 

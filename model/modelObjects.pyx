@@ -59,8 +59,8 @@ cdef class Params:
 		self.maxIters = long(1e5)
 		self.tol = 1e-7
 		self.dampening = 1 # < 1 is dampening, > 1 is extrapolation
-		self.nSim = long(2e5) # number of draws to sim distribution
-		self.tSim = 1000 # number of periods to simulate
+		self.nSim = long(1e5) # number of draws to sim distribution
+		self.tSim = 250 # number of periods to simulate
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7
@@ -79,13 +79,13 @@ cdef class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.sMax = 100 # max of saving grid
-		self.nx = 50
+		self.nx = 40
 		self.sGridCurv = 0.2
 		self.borrowLim = 0
-		self.minGridSpacing = 0
+		self.minGridSpacing = 0.0005
 
 		# consumption grid
-		self.nc = 150
+		self.nc = 50
 		self.cMin = 0.001
 		self.cMax = 5
 		self.cGridCurv = 0.08
