@@ -102,35 +102,36 @@ cdef class Simulator:
 			double valueSwitch, valueNoSwitch, cSwitch
 
 		cgrid = self.grids.c['vec'].flatten()
-		for i in range(self.nSim):
+		for col in range(self.nCols):
+			for i in range(self.nSim):
 
-			iyP = self.yPind[i]
-			iz = self.zind[i]
+				iyP = self.yPind[i]
+				iz = self.zind[i]
 
-			conIndices, conWeights = functions.interpolate1D(cgrid, self.csim[i,0])
-			xIndices, xWeights = functions.interpolate1D(
-				self.grids.x['wide'][:,0,0,iyP].flatten(), self.xsim[i,0])
+				conIndices, conWeights = functions.interpolate1D(cgrid, self.csim[i,col])
+				xIndices, xWeights = functions.interpolate1D(
+					self.grids.x['wide'][:,0,0,iyP].flatten(), self.xsim[i,col])
 
-			valueNoSwitch = xWeights[0] * conWeights[0] * self.EMAX[xIndices[0],conIndices[0],iz,iyP] \
-				+ xWeights[1] * conWeights[0] * self.EMAX[xIndices[1],conIndices[0],iz,iyP] \
-				+ xWeights[0] * conWeights[1] * self.EMAX[xIndices[0],conIndices[1],iz,iyP] \
-				+ xWeights[1] * conWeights[1] * self.EMAX[xIndices[1],conIndices[1],iz,iyP]
+				valueNoSwitch = xWeights[0] * conWeights[0] * self.EMAX[xIndices[0],conIndices[0],iz,iyP] \
+					+ xWeights[1] * conWeights[0] * self.EMAX[xIndices[1],conIndices[0],iz,iyP] \
+					+ xWeights[0] * conWeights[1] * self.EMAX[xIndices[0],conIndices[1],iz,iyP] \
+					+ xWeights[1] * conWeights[1] * self.EMAX[xIndices[1],conIndices[1],iz,iyP]
 
-			cSwitch = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
-					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
+				cSwitch = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
+						+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
 
-			conSwitchIndices, conSwitchWeights = functions.interpolate1D(cgrid, cSwitch)
-			valueSwitch = xWeights[0] * conSwitchWeights[0] * self.EMAX[xIndices[0],conSwitchIndices[0],iz,iyP] \
-				+ xWeights[1] * conSwitchWeights[0] * self.EMAX[xIndices[1],conSwitchIndices[0],iz,iyP] \
-				+ xWeights[0] * conSwitchWeights[1] * self.EMAX[xIndices[0],conSwitchIndices[1],iz,iyP] \
-				+ xWeights[1] * conSwitchWeights[1] * self.EMAX[xIndices[1],conSwitchIndices[1],iz,iyP]
+				conSwitchIndices, conSwitchWeights = functions.interpolate1D(cgrid, cSwitch)
+				valueSwitch = xWeights[0] * conSwitchWeights[0] * self.EMAX[xIndices[0],conSwitchIndices[0],iz,iyP] \
+					+ xWeights[1] * conSwitchWeights[0] * self.EMAX[xIndices[1],conSwitchIndices[0],iz,iyP] \
+					+ xWeights[0] * conSwitchWeights[1] * self.EMAX[xIndices[0],conSwitchIndices[1],iz,iyP] \
+					+ xWeights[1] * conSwitchWeights[1] * self.EMAX[xIndices[1],conSwitchIndices[1],iz,iyP]
 
-			switch = functions.utility(self.p.riskAver,cSwitch) \
-					+ self.p.timeDiscount * (1-self.p.deathProb) * valueSwitch - self.p.adjustCost \
-				> functions.utility(self.p.riskAver,self.csim[i,0]) \
-					+ self.p.timeDiscount * (1-self.p.deathProb) * valueNoSwitch
-			if switch:
-				self.csim[i,0] = cSwitch
+				switch = functions.utility(self.p.riskAver,cSwitch) \
+						+ self.p.timeDiscount * (1-self.p.deathProb) * valueSwitch - self.p.adjustCost \
+					> functions.utility(self.p.riskAver,self.csim[i,col]) \
+						+ self.p.timeDiscount * (1-self.p.deathProb) * valueNoSwitch
+				if switch:
+					self.csim[i,0] = cSwitch
 
 		self.csim = np.minimum(self.csim,self.xsim)
 

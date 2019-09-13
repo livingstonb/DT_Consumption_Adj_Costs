@@ -171,7 +171,7 @@ class Income:
 		self.nyP = self.logyPgrid.size
 		self.logyPgrid = self.logyPgrid.reshape((self.nyP,1))
 
-		self.yPdist = matFile['discmodel1']['yPdist'][0][0].reshape((self.nyP,-1))
+		self.yPdist = matFile['discmodel1']['yPdist'][0][0].reshape((self.nyP,1))
 		self.yPtrans = matFile['discmodel1']['yPtrans'][0][0]
 
 		self.yPgrid = np.exp(self.logyPgrid)

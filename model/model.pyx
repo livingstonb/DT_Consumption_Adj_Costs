@@ -255,7 +255,7 @@ cdef class Model:
 		# u = weight1 * util[ind1] + weight2 * util[ind2]
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
 
-		return u + self.p.timeDiscount * (1 - self.p.deathProb * self.p.Bequests) * emOUT
+		return u + self.p.timeDiscount * (1 - self.p.deathProb) * emOUT
 
 	def plotPolicyFunctions(self):
 		cSwitch = np.asarray(self.valueSwitch) - self.p.adjustCost > np.asarray(self.valueNoSwitch)

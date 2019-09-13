@@ -22,7 +22,7 @@ from model.simulator import EquilibriumSimulator
 
 # create params object
 locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','quarterly_b.mat')
-params = load_specifications(locIncomeProcess, index=2)
+params = load_specifications(locIncomeProcess, index=4)
 # params = modelObjects.Params(paramsDict)
 
 # create income object
@@ -43,7 +43,7 @@ cSwitch = np.asarray(model.valueSwitch) - params.adjustCost > np.asarray(model.v
 cSwitch = np.logical_or(cSwitch,grids.mustSwitch)
 cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * grids.c['matrix']
 
-ixvals = [5,10,20,35]
+ixvals = [5,10,20,28]
 xvals = np.array([grids.x['wide'][i,0,0,5] for i in ixvals])
 print(xvals)
 
