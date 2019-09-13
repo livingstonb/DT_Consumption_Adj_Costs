@@ -22,8 +22,8 @@ from model.simulator import EquilibriumSimulator
 #---------------------------------------------------#
 
 # create params object
-locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','incomeDebug.mat')
-params = load_specifications(locIncomeProcess, index=3)
+locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','quarterly_b.mat')
+params = load_specifications(locIncomeProcess, index=0)
 # params = modelObjects.Params(paramsDict)
 
 # create income object
@@ -33,6 +33,7 @@ params.addIncomeParameters(income)
 
 # create grids
 grids = modelObjects.Grid(params,income)
+# import pdb; pdb.set_trace()
 
 # initialize and solve for policy functions
 model = Model(params,income,grids)
@@ -42,19 +43,19 @@ model.solve()
 cSwitch = np.asarray(model.valueSwitch) - params.adjustCost > np.asarray(model.valueNoSwitch)
 cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * grids.c['matrix']
 
-ixvals = [0,2,5,10]
-xvals = np.array([grids.x['wide'][i,0,0,5] for i in ixvals])
+# ixvals = [0,10,20,40]
+# xvals = np.array([grids.x['wide'][i,0,0,5] for i in ixvals])
 
-fig, ax = plt.subplots(nrows=2,ncols=2)
-i = 0
-for row in range(2):
-	for col in range(2):
-		ax[row,col].plot(grids.x['wide'][:,0,0,5],model.valueFunction[:,5,0,5])
-		i += 1
+# fig, ax = plt.subplots(nrows=2,ncols=2)
+# i = 0
+# for row in range(2):
+# 	for col in range(2):
+# 		ax[row,col].plot(grids.c['matrix'][ixvals[i],:,0,5],cPolicy[ixvals[i],:,0,5])
+# 		i += 1
 
-plt.show()
+# plt.show()
 
 # # solve for stationary distribution
-# eqSimulator = EquilibriumSimulator(params, income, grids, model)
-# eqSimulator.simulate()
+eqSimulator = EquilibriumSimulator(params, income, grids, model)
+eqSimulator.simulate()
 

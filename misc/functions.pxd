@@ -1,7 +1,9 @@
 import numpy as np
 cimport numpy as np
 
-cdef np.ndarray utility(double riskaver, np.ndarray con)
+cdef np.ndarray utilityVec(double riskaver, np.ndarray con)
+
+cdef double utility(double riskaver, double con)
 
 cdef np.ndarray marginalUtility(double riskaver, np.ndarray con)
 

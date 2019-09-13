@@ -1,9 +1,16 @@
 import numpy as np
 cimport numpy as np
+import math
 
-cdef np.ndarray utility(double riskaver, np.ndarray con):
+cdef np.ndarray utilityVec(double riskaver, np.ndarray con):
 	if riskaver == float(1):
 		return np.log(con)
+	else:
+		return con ** (1-riskaver) / (1-riskaver)
+
+cdef double utility(double riskaver, double con):
+	if riskaver == float(1):
+		return math.log(con)
 	else:
 		return con ** (1-riskaver) / (1-riskaver)
 
@@ -141,6 +148,6 @@ cpdef tuple goldenSectionSearch(object f, double a, double b,
 			fd = f(d,*args)
 
 	if fc > fd:
-		return fc, (a + d) / 2
+		return fc, c #(a + d) / 2
 	else:
-		return fd, (c + b) / 2
+		return fd, d #(c + b) / 2

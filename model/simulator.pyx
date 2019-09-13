@@ -1,12 +1,12 @@
 import numpy as np
 cimport numpy as np
 import pandas as pd
-from misc import functions
+from misc cimport functions
 
 cdef class Simulator:
 	cdef:
 		object p, income, grids
-		double[:,:,:,:] valueNoSwitch, valueSwitch, cSwitchingPolicy
+		double[:,:,:,:] EMAX, cSwitchingPolicy
 		int nCols
 		int periodsBeforeRedraw
 		int nSim, t, T, randIndex
@@ -21,8 +21,7 @@ cdef class Simulator:
 		self.grids = grids
 
 		self.cSwitchingPolicy = model.cSwitchingPolicy
-		self.valueSwitch = model.valueSwitch
-		self.valueNoSwitch = model.valueNoSwitch
+		self.EMAX = model.EMAX
 
 		self.nCols = 1
 
@@ -87,18 +86,20 @@ cdef class Simulator:
 
 	def updateAssets(self):
 		self.asim = self.p.R * (np.asarray(self.xsim) - np.asarray(self.csim))
+		self.asim = np.minimum(self.asim,self.p.R*self.p.sMax)
 
 		if not self.p.Bequests:
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
+
 	def solveDecisions(self):
 		cdef:
 			long i, iyP, iz
-			list conIndices, conWeights
+			list conIndices, conSwitchIndices, conWeights, conSwitchWeights
 			list xIndices, xWeights
 			double[:] cgrid
 			bint switch
-			double valueSwitch, valueNoSwitch
+			double valueSwitch, valueNoSwitch, cSwitch
 
 		cgrid = self.grids.c['vec'].flatten()
 		for i in range(self.nSim):
@@ -110,17 +111,28 @@ cdef class Simulator:
 			xIndices, xWeights = functions.interpolate1D(
 				self.grids.x['wide'][:,0,0,iyP].flatten(), self.xsim[i,0])
 
-			valueSwitch = xWeights[0] * self.valueSwitch[xIndices[0],0,iz,iyP] \
-				+ xWeights[1] * self.valueSwitch[xIndices[1],0,iz,iyP]
-			valueNoSwitch = xWeights[0] * conWeights[0] * self.valueNoSwitch[xIndices[0],conIndices[0],iz,iyP] \
-				+ xWeights[1] * conWeights[0] * self.valueNoSwitch[xIndices[1],conIndices[0],iz,iyP] \
-				+ xWeights[0] * conWeights[1] * self.valueNoSwitch[xIndices[0],conIndices[1],iz,iyP] \
-				+ xWeights[1] * conWeights[1] * self.valueNoSwitch[xIndices[1],conIndices[1],iz,iyP]
+			valueNoSwitch = xWeights[0] * conWeights[0] * self.EMAX[xIndices[0],conIndices[0],iz,iyP] \
+				+ xWeights[1] * conWeights[0] * self.EMAX[xIndices[1],conIndices[0],iz,iyP] \
+				+ xWeights[0] * conWeights[1] * self.EMAX[xIndices[0],conIndices[1],iz,iyP] \
+				+ xWeights[1] * conWeights[1] * self.EMAX[xIndices[1],conIndices[1],iz,iyP]
 
-			switch = valueSwitch - self.p.adjustCost > valueNoSwitch
+			cSwitch = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
+					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
+
+			conSwitchIndices, conSwitchWeights = functions.interpolate1D(cgrid, cSwitch)
+			valueSwitch = xWeights[0] * conSwitchWeights[0] * self.EMAX[xIndices[0],conSwitchIndices[0],iz,iyP] \
+				+ xWeights[1] * conSwitchWeights[0] * self.EMAX[xIndices[1],conSwitchIndices[0],iz,iyP] \
+				+ xWeights[0] * conSwitchWeights[1] * self.EMAX[xIndices[0],conSwitchIndices[1],iz,iyP] \
+				+ xWeights[1] * conSwitchWeights[1] * self.EMAX[xIndices[1],conSwitchIndices[1],iz,iyP]
+
+			switch = functions.utility(self.p.riskAver,cSwitch) \
+					+ self.p.timeDiscount * (1-self.p.deathProb) * valueSwitch - self.p.adjustCost \
+				> functions.utility(self.p.riskAver,self.csim[i,0]) \
+					+ self.p.timeDiscount * (1-self.p.deathProb) * valueNoSwitch
 			if switch:
-				self.csim[i] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
-					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP] 
+				self.csim[i,0] = cSwitch
+
+		self.csim = np.minimum(self.csim,self.xsim)
 
 cdef class EquilibriumSimulator(Simulator):
 	cdef double[:] aMean, aVariance
@@ -165,6 +177,7 @@ cdef class EquilibriumSimulator(Simulator):
 		"""
 		self.aMean[self.t-1] = np.mean(self.asim,axis=0)
 		self.aVariance[self.t-1] = np.var(self.asim,axis=0)
+		print(self.aMean[self.t-1])
 
 	def computeEquilibriumStatistics(self):
 		# fraction with wealth < epsilon

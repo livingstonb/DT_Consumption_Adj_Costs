@@ -20,7 +20,7 @@ cdef class Model:
 		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
 		# np.ndarray[np.float64_t, ndim=2] interpMat
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
-		double[:,:,:,:] EMAX
+		public double[:,:,:,:] EMAX
 		object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 
@@ -45,7 +45,7 @@ cdef class Model:
 		self.constructInterpolantForV()
 
 		# make initial guess for value function
-		valueGuess = functions.utility(self.p.riskAver,self.grids.c['matrix']
+		valueGuess = functions.utilityVec(self.p.riskAver,self.grids.c['matrix']
 			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb))
 
 		# subtract the adjustment cost for states with c > x
@@ -111,13 +111,13 @@ cdef class Model:
 			double yP, PyP1yP2
 			np.ndarray[np.float64_t, ndim=1] xgrid1, xgrid2
 			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
-			np.ndarray[np.float64_t, ndim=8] interpMat
+			np.ndarray[float, ndim=8] interpMat
 			np.ndarray[np.float64_t, ndim=3] newBlock, interpWithyT
 
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
-		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP),dtype='float32')
 		for iyP1 in range(self.p.nyP):
 			xgrid1 = self.grids.x['wide'][:,0,0,iyP1]
 			for iyP2 in range(self.p.nyP):
@@ -153,7 +153,7 @@ cdef class Model:
 		"""
 		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * E[V(c)]
 		"""
-		self.valueNoSwitch = functions.utility(self.p.riskAver,self.grids.c['matrix']) \
+		self.valueNoSwitch = functions.utilityVec(self.p.riskAver,self.grids.c['matrix']) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
 
@@ -178,7 +178,7 @@ cdef class Model:
 		if findPolicy:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
-		util = functions.utility(self.p.riskAver,self.grids.c['vec']).flatten()
+		util = functions.utilityVec(self.p.riskAver,self.grids.c['vec']).flatten()
 		cgrid = self.grids.c['vec'].flatten()
 
 		goldenRatio = (np.sqrt(5) + 1) / 2
@@ -258,13 +258,14 @@ cdef class Model:
 		cPolicy = cSwitch * np.asarray(self.cSwitchingPolicy) + (~cSwitch) * self.grids.c['matrix']
 
 		ixvals = [0,2,5,10]
+		icvals = [10,50,100,140]
 		xvals = np.array([self.grids.x['wide'][i,0,0,5] for i in ixvals])
 
 		fig, ax = plt.subplots(nrows=2,ncols=2)
 		i = 0
 		for row in range(2):
 			for col in range(2):
-				ax[row,col].plot(self.grids.x['wide'][:,0,0,5],self.cSwitchingPolicy[:,0,0,5])
+				ax[row,col].plot(self.grids.x['wide'][:,icvals[i],0,5],self.cSwitchingPolicy[:,icvals[i],0,5])
 				i += 1
 
 		plt.show()

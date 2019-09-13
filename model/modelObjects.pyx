@@ -79,16 +79,16 @@ cdef class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.sMax = 100 # max of saving grid
-		self.nx = 150
+		self.nx = 50
 		self.sGridCurv = 0.2
 		self.borrowLim = 0
-		self.minGridSpacing = 0.001
+		self.minGridSpacing = 0
 
 		# consumption grid
 		self.nc = 150
 		self.cMin = 0.001
-		self.cMax = 3
-		self.cGridCurv = 0.2
+		self.cMax = 5
+		self.cGridCurv = 0.08
 
 		# options
 		self.MPCsOutOfNews = False
@@ -205,15 +205,15 @@ class Grid:
 	"""
 
 	def __init__(self, params, income):
-		self.params = params
+		self.p = params
 		self.nc = params.nc
 		self.nx = params.nx
 		self.nz = params.nz
 
 		self.matrixDim = (	self.nx,
-							self.params.nc,
-							self.params.nz,
-							self.params.nyP,
+							params.nc,
+							params.nz,
+							params.nyP,
 							)
 
 		# saving grid
@@ -248,31 +248,30 @@ class Grid:
 
 	def createSavingGrid(self):
 		sgrid = np.linspace(0,1,num=self.nx)
-		sgrid = sgrid.reshape((self.nx,-1))
-		sgrid = sgrid ** (1 / self.params.sGridCurv)
-		sgrid = self.params.borrowLim \
-			+ (self.params.sMax - self.params.borrowLim) * sgrid
+		sgrid = sgrid.reshape((self.nx,1))
+		sgrid = sgrid ** (1 / self.p.sGridCurv)
+		sgrid = self.p.borrowLim \
+			+ (self.p.sMax - self.p.borrowLim) * sgrid
 
 		sgrid = self.enforceMinGridSpacing(sgrid)
 
 		self.s['vec'] = sgrid
 		self.s['matrix'] = matlib.repmat(sgrid,1,
-				self.nc*self.nz*self.params.nyP).reshape(self.matrixDim)
+				self.nc*self.nz*self.p.nyP).reshape(self.matrixDim)
 
 	def createConsumptionGrid(self):
 		cgrid = np.linspace(0,1,num=self.nc)
-		cgrid = cgrid.reshape((self.nc,-1))
-		cgrid = cgrid ** (1 / self.params.cGridCurv)
-		cgrid = self.params.cMin \
-			+ (self.params.cMax - self.params.cMin) * cgrid
+		cgrid = cgrid.reshape((self.nc,1))
+		cgrid = cgrid ** (1 / self.p.cGridCurv)
+		cgrid = self.p.cMin \
+			+ (self.p.cMax - self.p.cMin) * cgrid
 
 		cgrid = self.enforceMinGridSpacing(cgrid)
 
 		self.c['vec'] = cgrid
 		self.c['nx_nc'] = np.kron(cgrid,np.ones((self.nx,1)))
-		self.c['matrix'] = matlib.repmat(
-			self.c['nx_nc'],self.params.nz*self.params.nyP,1
-			).reshape(self.matrixDim)
+		self.c['matrix'] = np.tile(cgrid.reshape((1,self.p.nc,1,1)),
+			[self.p.nx,1,self.p.nz,self.p.nyP])
 
 	def createCashGrid(self, income, returns):
 		# minimum of income along the yT dimension
@@ -286,7 +285,7 @@ class Grid:
 	def enforceMinGridSpacing(self, grid_in):
 		grid_adj = grid_in
 		for i in range(grid_in.size-1):
-			if grid_adj[i+1] - grid_adj[i] < self.params.minGridSpacing:
-				grid_adj[i+1] = grid_adj[i] + self.params.minGridSpacing
+			if grid_adj[i+1] - grid_adj[i] < self.p.minGridSpacing:
+				grid_adj[i+1] = grid_adj[i] + self.p.minGridSpacing
 
 		return grid_adj
