@@ -29,21 +29,22 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
+	paramsDicts[ii]['adjustCost'] = 5
 	paramsDicts[ii]['noPersIncome'] = True
-	paramsDicts[ii]['nx'] = 30
-	paramsDicts[ii]['nc'] = 30
-	paramsDicts[ii]['nSim'] = 500
+	paramsDicts[ii]['nx'] = 40
+	paramsDicts[ii]['nc'] = 50
+	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.9
+	paramsDicts[ii]['timeDiscount'] = 0.8
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
 	#-----------------------------------------------------#
 	if index is not None:
-		chosenParameters = Params(paramsDicts[index])
+		chosenParameters = paramsDicts[index]
 	else:
 		for ii in range(len(paramsDicts)):
 			if paramsDicts[ii]['name'] == name:
-				chosenParameters = paramsdicts[ii]
+				chosenParameters = paramsDicts[ii]
 
-	return chosenParameters
+	return Params(chosenParameters)

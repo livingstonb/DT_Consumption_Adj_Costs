@@ -81,11 +81,6 @@ cdef class Model:
 
 			iteration += 1
 
-		# value function found, now re-compute valueSwitch and valueNoSwitch
-		# self.updateEMAX()
-		# self.updateValueNoSwitch()
-		# self.maximizeValueFromSwitching()
-
 		# compute c-policy function conditional on switching
 		self.maximizeValueFromSwitching(findPolicy=True)
 
@@ -109,6 +104,7 @@ cdef class Model:
 		"""
 		cdef:
 			int iyP1, iyP2, ic, iz, i
+			long iblock
 			double yP, PyP1yP2
 			np.ndarray[np.float64_t, ndim=1] xgrid
 			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
@@ -122,12 +118,9 @@ cdef class Model:
 
 		xgrid = np.asarray(self.grids.x.flat)
 
-		# interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP),dtype='float32')
 		blockMats = [[None] * self.p.nyP] * self.p.nyP
 		
-		row = 0
 		for iyP1 in range(self.p.nyP):
-			col = 0
 			for iyP2 in range(self.p.nyP):
 				iblock = 0
 				blocks = [None] * (self.p.nz*self.p.nc)
@@ -143,13 +136,11 @@ cdef class Model:
 						newBlock = PyP1yP2 * np.squeeze(np.dot(yTdistvec,interpWithyT))
 
 						blocks[iblock] = sparse.csr_matrix(newBlock)
-						# interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
 						iblock += 1
 
 				blockMats[iyP1][iyP2] = sparse.block_diag(blocks)
 
-		# self.interpMat = sparse.csr_matrix(interpMat.reshape((self.p.nyP*self.p.nz*self.p.nc*self.p.nx,self.p.nyP*self.p.nz*self.p.nc*self.p.nx)))
 		self.interpMat = sparse.bmat(blockMats)
 
 	def updateValueFunction(self):
@@ -165,6 +156,54 @@ cdef class Model:
 	def updateEMAX(self):
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
 				).reshape(self.grids.matrixDim,order='F')
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	def updateEMAXslow(self):
+		"""
+		This method can be used to double check the construction of the
+		interpolation matrix for updating EMAT.
+		"""
+		cdef:
+			double emax, Pytrans, assets, cash, yP2
+			double[:] xgrid, cgrid, xWeights
+			long[:] xIndices
+			int ix, ic, iz, iyP1, iyP2, iyT
+
+		xgrid = self.grids.x.flat
+		cgrid = self.grids.c.flat
+
+		xIndices = np.zeros(2,dtype=int)
+
+		self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+		
+		for ix in range(self.p.nx):
+
+			for ic in range(self.p.nc):
+				assets = self.p.R * (xgrid[ix] - cgrid[ic])
+
+				for iz in range(self.p.nz):
+
+					for iyP1 in range(self.p.nyP):
+						emax = 0
+
+						for iyP2 in range(self.p.nyP):
+							Pytrans = self.income.yPtrans[iyP1,iyP2]
+							yP2 = self.income.yPgrid[iyP2]
+
+							for iyT in range(self.p.nyT):
+								cash = assets + yP2 * self.income.yTgrid[iyT]
+								xIndices[1] = functions.searchSortedSingleInput(xgrid,cash)
+								xIndices[0] = xIndices[1] - 1
+								xWeights = functions.getInterpolationWeights(xgrid,cash,xIndices[1])
+				
+
+								emax += Pytrans * self.income.yTdist[iyT] * (
+									xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
+									+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
+									)
+
+						self.EMAX[ix,ic,iz,iyP1] = emax
 
 	def updateValueNoSwitch(self):
 		"""
@@ -254,7 +293,6 @@ cdef class Model:
 		cdef double weight1, weight2, u, emOut
 		cdef double[:] weights
 
-		# (indices, weights) = functions.interpolate1D(cgrid, cSwitch)
 		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch)
 		ind1 = ind2 - 1
 		weights = functions.getInterpolationWeights(cgrid, cSwitch, ind2)

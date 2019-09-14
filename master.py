@@ -22,7 +22,7 @@ from model.simulator import EquilibriumSimulator
 
 # create params object
 locIncomeProcess = os.path.join(basedir,'input','IncomeGrids','quarterly_b.mat')
-params = load_specifications(locIncomeProcess, index=1)
+params = load_specifications(locIncomeProcess, name='fast')
 # params = modelObjects.Params(paramsDict)
 
 # create income object

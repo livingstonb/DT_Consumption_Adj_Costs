@@ -38,6 +38,8 @@ cdef class Simulator:
 
 		self.initialized = False
 
+		np.random.seed(0)
+
 	def makeRandomDraws(self):
 		self.yPrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
 		self.yTrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
@@ -123,6 +125,8 @@ cdef class Simulator:
 					self.switched[i,col] = 1
 				else:
 					self.switched[i,col] = 0
+
+		self.csim = np.minimum(self.csim,self.xsim)
 
 cdef class EquilibriumSimulator(Simulator):
 

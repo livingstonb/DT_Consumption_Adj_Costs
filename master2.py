@@ -22,7 +22,7 @@ locIncomeProcess = os.path.join(
 if len(sys.argv) > 1:
 	paramIndex = sys.argv[1]
 else:
-	paramIndex = 0
+	paramIndex = 1
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
@@ -148,3 +148,23 @@ print(eqSimulator.results.to_string())
 
 print('\nMPCS:\n')
 print(mpcSimulator.mpcs.to_string())
+
+#-----------------------------------------------------------#
+#      PLOT POLICY FUNCTION                                 #
+#-----------------------------------------------------------#
+
+cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch) - params.adjustCost
+cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
+
+ixvals = [10,20,30,40,50,60]
+xvals = np.array([grids.x.flat[i] for i in ixvals])
+print(xvals)
+
+fig, ax = plt.subplots(nrows=2,ncols=3)
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,0])
+		i += 1
+
+plt.show()

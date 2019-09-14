@@ -19,7 +19,7 @@ cdef double utility(double riskaver, double con):
 	if riskaver == float(1):
 		return math.log(con)
 	else:
-		return con ** (1-riskaver) / (1-riskaver)
+		return math.pow(con,1-riskaver) / (1-riskaver)
 
 cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	"""
