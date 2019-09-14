@@ -60,3 +60,6 @@ plt.show()
 # eqSimulator = EquilibriumSimulator(params, income, grids, model)
 # eqSimulator.simulate()
 
+def solveWithNewDiscountRate(newRate, model):
+	model.resetDiscountRate(newRate)
+	model.solve()

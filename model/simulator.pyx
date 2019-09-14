@@ -13,17 +13,15 @@ cdef class Simulator:
 		int periodsBeforeRedraw
 		int nSim, t, T, randIndex
 		bint initialized
+		long[:,:] switched
 		long[:] yPind, zind
 		double[:,:] ysim, csim, xsim, asim
 		double[:,:] deathrand, yPrand, yTrand
-		public dict results
 
 	def __init__(self, params, income, grids, model, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
-
-		self.results = {}
 
 		self.cSwitchingPolicy = model.cSwitchingPolicy
 		self.valueSwitch = model.valueSwitch
@@ -31,7 +29,7 @@ cdef class Simulator:
 
 		self.nCols = 1
 
-		self.periodsBeforeRedraw = np.minimum(simPeriods,50)
+		self.periodsBeforeRedraw = np.minimum(simPeriods,10)
 
 		self.nSim = params.nSim
 		self.T = simPeriods
@@ -73,7 +71,7 @@ cdef class Simulator:
 		self.yPrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
 		self.yTrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
 
-		if (self.p.deathProb > 0) and self.p.Bequests:
+		if (self.p.deathProb > 0) and (not self.p.Bequests):
 			self.deathrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
 
 	def updateIncome(self):
@@ -94,7 +92,7 @@ cdef class Simulator:
 		self.asim = self.p.R * (np.asarray(self.xsim) - np.asarray(self.csim))
 		self.asim = np.minimum(self.asim,self.p.xMax)
 
-		if not self.p.Bequests:
+		if (self.p.deathProb > 0) and (not self.p.Bequests):
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
 	@cython.boundscheck(False)
@@ -142,12 +140,21 @@ cdef class Simulator:
 				if switch:
 					self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
 							+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
+					self.switched[i,col] = 1
+				else:
+					self.switched[i,col] = 0
 
 cdef class EquilibriumSimulator(Simulator):
+
+	cdef public dict transitionStatistics
+	cdef public object results
 
 	def __init__(self, params, income, grids, model):
 		super().__init__(params,income,grids,model,params.tSim)
 		self.initialize()
+
+		self.transitionStatistics = {}
+		self.results = pd.Series()
 
 	def simulate(self):
 		super().simulate()
@@ -171,9 +178,7 @@ cdef class EquilibriumSimulator(Simulator):
 
 		self.zind = np.zeros(self.nSim,dtype=int)
 
-		# statistics to compute every period
-		self.results['mean assets'] = np.zeros((self.T,))
-		self.results['variance of assets'] = np.zeros((self.T,))
+		self.switched = np.zeros((self.nSim,1),dtype=int)
 
 		self.initialized = True
 
@@ -183,75 +188,127 @@ cdef class EquilibriumSimulator(Simulator):
 		used to evaluate convergence to the equilibrium
 		distribution.
 		"""
-		self.results['mean assets'][self.t-1] = np.mean(self.asim,axis=0)
-		self.results['variance of assets'][self.t-1] = np.var(self.asim,axis=0)
+		self.transitionStatistics = {	'E[a]': np.zeros((self.T,)),
+										'Var[a]': np.zeros((self.T,))
+									}
+		self.transitionStatistics['E[a]'][self.t-1] = np.mean(self.asim,axis=0)
+		self.transitionStatistics['Var[a]'][self.t-1] = np.var(self.asim,axis=0)
 
 	def computeEquilibriumStatistics(self):
-		# fraction with wealth < epsilon
-		self.results['constrained'] = []
+		# mean wealth
+		self.results['Mean wealth'] = np.mean(self.asim)
+
+		# mean cash-on-hand
+		self.results['Mean cash-on-hand'] = np.mean(self.xsim)
+
+		# fraction with wealth <= epsilon
 		for threshold in self.p.wealthConstraints:
 			constrained = np.mean(np.asarray(self.asim) <= threshold)
-			self.results['constrained'].append(constrained)
+			self.results[f'Wealth <= {threshold:.2g}'] = constrained
 
 		# wealth percentiles
-		self.results['wpercentiles'] = []
 		for pctile in self.p.wealthPercentiles:
 			value = np.percentile(self.asim,pctile)
-			self.results['wpercentiles'].append(value)
+			if pctile <= 99:
+				self.results[f'Wealth, {pctile:d}th percentile'] = value
+			else:
+				self.results[f'Wealth, {pctile:.2f}th percentile'] = value
 
 		# top shares
 		pctile90 = np.percentile(self.asim,90)
 		pctile99 = np.percentile(self.asim,99)
 		asimNumpy = np.asarray(self.asim)
-		self.results['top10share'] = \
+		self.results['Top 10% wealth share'] = \
 			asimNumpy[asimNumpy>=pctile90].sum() / asimNumpy.sum()
-		self.results['top1share'] = \
+		self.results['Top 1% wealth share'] = \
 			asimNumpy[asimNumpy>=pctile99].sum() / asimNumpy.sum()
 
-class MPCSimulator(Simulator):
-	def __init__(self, params, income, grids, policies, shockIndices):
-		Simulator.__init__(self,params,income,grids,policies,4)
+		# gini
+		asimRow = np.asarray(self.asim).reshape((-1,1))
+		asimCol = np.asarray(self.asim).reshape((1,-1))
+		self.results['Gini coefficient (wealth)'] = \
+			np.abs(asimCol - asimRow).flatten().sum() / (
+				2 * self.nSim * asimCol.sum())
+
+		# fraction of HHs that switched consumption in last period
+		self.results['Probability of consumption change'] = np.mean(self.switched)
+
+	def returnFinalStates(self):
+		finalStates = {
+			'yPind': self.yPind,
+			'xsim': self.xsim,
+			'csim': self.csim,
+			'zind': self.zind,
+		}
+		return finalStates
+
+cdef class MPCSimulator(Simulator):
+	cdef public object mpcs
+	cdef object responded
+	cdef list shockIndices
+
+	def __init__(self, params, income, grids, model, shockIndices):
+		Simulator.__init__(self,params,income,grids,model,4)
 		self.nCols = len(shockIndices) + 1
 		self.shockIndices = shockIndices
+		self.mpcs = pd.Series()
 
-	def simulate(self):
-		Simulator.simulate(self)
+	def initialize(self, finalStates):
+		self.xsim = np.repeat(finalStates['xsim'],self.nCols,axis=1)
+		self.csim = np.repeat(finalStates['csim'],self.nCols,axis=1)
+		self.yPind = finalStates['yPind'].copy()
+		self.zind = finalStates['zind'].copy()
 
-	def initialize(self, initialAssets, initialCon, initialyPind, initialyTind):
-		self.asim = np.repeat(initialAssets,self.nCols,axis=1)
-		self.csim = np.repeat(initialCon,self.nCols,axis=1)
-		self.yPind = initialyPind
-		self.yTind = initialyTind
-		yPsim = self.income.yPgrid[self.yPind]
-		yTsim = self.income.yTgrid[self.yTind]
-		self.ysim = (yPsim * yTsim).reshape((-1,1))
+		j = 0
+		for ishock in self.shockIndices:
+			for i in range(self.p.nSim):
+				self.xsim[i,j] += self.p.MPCshocks[ishock]
+			j += 1
+
+		self.makeRandomDraws()
+
+		self.updateAssets()
+		self.updateIncome()
+
 		self.responded = np.zeros((self.nSim,len(self.shockIndices)),dtype=bool)
 
 		# statistics to compute very period
 		self.mpcs = pd.Series(name=self.p.name)
 		for ishock in range(6):
 			for quarter in range(1,5):
-				row = f'Quarter {quarter} MPC out of {self.p.MPCshocks[ishock]}'
+				row = f'E[Q{quarter} MPC] out of {self.p.MPCshocks[ishock]}'
+				self.mpcs[row] = np.nan
+				row = f'E[Q{quarter} MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
 				self.mpcs[row] = np.nan
 
-			row = f'Annual MPC out of {self.p.MPCshocks[ishock]}'
+			row = f'E[Annual MPC] out of {self.p.MPCshocks[ishock]}'
+			self.mpcs[row] = np.nan
+			row = f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
 			self.mpcs[row] = np.nan
 
+
 		for ishock in range(6):
-			row = f'Fraction with Q1 MPC > 0 for shock of {self.p.MPCshocks[ishock]}'
+			row = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
 			self.mpcs[row] = np.nan
-			row = f'Fraction with Annual MPC > 0 for shock of {self.p.MPCshocks[ishock]}'
+			row = f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
 			self.mpcs[row] = np.nan
+
+		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
+
+		self.initialized = True
 
 	def computeTransitionStatistics(self):
 		ii = 0
 		for ishock in self.shockIndices:
-			rowQuarterly = f'Quarter {self.t} MPC out of {self.p.MPCshocks[ishock]}'
-			rowAnnual = f'Annual MPC out of {self.p.MPCshocks[ishock]}'
+			rowQuarterly = f'E[Q{self.t} MPC] out of {self.p.MPCshocks[ishock]}'
+			rowQuarterlyCond = f'E[Q{self.t} MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
+			rowAnnual = f'E[Annual MPC] out of {self.p.MPCshocks[ishock]}'
+			rowAnnualCond = f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
 
 			# quarterly mpcs
 			self.mpcs[rowQuarterly] = np.mean(
-				(self.csim[:,ii] - self.csim[:,self.nCols]) / self.p.MPCshocks[ishock])
+				(np.asarray(self.csim[:,ii]) - np.asarray(self.csim[:,self.nCols-1])
+					) / self.p.MPCshocks[ishock])
 
 			# add quarterly mpcs to annual mpcs
 			if self.t == 1:
@@ -260,17 +317,18 @@ class MPCSimulator(Simulator):
 				self.mpcs[rowAnnual] += self.mpcs[rowQuarterly]
 
 			# fraction of respondents in this quarter
-			respondentsQ = (self.csim[:,ii] - self.csim[:,self.nCols]) / self.p.MPCshocks[ishock] > 0
+			respondentsQ = (np.asarray(self.csim[:,ii]) - np.asarray(self.csim[:,self.nCols-1])
+				) / self.p.MPCshocks[ishock] > 0
 			if self.t == 1:
-				rowRespondentsQuarterly = f'Fraction with Q1 MPC > 0 for shock of {self.p.MPCshocks[ishock]}'
+				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
 				self.mpcs[rowRespondentsQuarterly] = respondentsQ.mean()
 
 			# update if some households responded this period but not previous periods
-			self.responded[:,ii] = self.responded[:,ii] or respondentsQ
+			self.responded[:,ii] = np.logical_or(self.responded[:,ii],respondentsQ)
 
 			# fraction of respondents (annual)
 			if self.t == 4:
-				rowRespondentsAnnual = f'Fraction with Annual MPC > 0 for shock of {self.p.MPCshocks[ishock]}'
-				self.mpcs[rowRespondentsAnnual] = np.self.responded[:,ii].mean()
+				rowRespondentsAnnual = f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
+				self.mpcs[rowRespondentsAnnual] = self.responded[:,ii].mean()
 		
 			ii += 1

@@ -265,5 +265,5 @@ cdef class Model:
 
 		return u + self.p.timeDiscount * (1 - self.p.deathProb) * emOUT
 
-	def resetParameters(self, newParams):
-		self.p = newParams
+	def resetDiscountRate(self, newTimeDiscount):
+		self.p.timeDiscount = newTimeDiscount
