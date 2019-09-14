@@ -2,11 +2,17 @@ import numpy as np
 cimport numpy as np
 import math
 
-cdef np.ndarray utilityVec(double riskaver, np.ndarray con):
+cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	if riskaver == float(1):
 		return np.log(con)
 	else:
-		return con ** (1-riskaver) / (1-riskaver)
+		return np.power(con,1-riskaver) / (1-riskaver)
+
+cdef np.ndarray utilityVec(double riskaver, double[:] con):
+	if riskaver == float(1):
+		return np.log(con)
+	else:
+		return np.power(con,1-riskaver) / (1-riskaver)
 
 cdef double utility(double riskaver, double con):
 	if riskaver == float(1):

@@ -26,8 +26,8 @@ cdef class Params:
 		public bint noTransIncome, noPersIncome
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
-		public int sMax, nx
-		public double sGridCurv, borrowLim, minGridSpacing
+		public int xMax, nx
+		public double xGridCurv, borrowLim, minGridSpacing
 		public int nc
 		public double cMin, cMax, cGridCurv
 		public double r, R, deathProb
@@ -80,9 +80,9 @@ cdef class Params:
 		self.wealthPercentiles = [10,25,50,75,90,99,99.9]
 
 		# cash-on-hand / savings grid parameters
-		self.sMax = 50 # max of saving grid
+		self.xMax = 50 # max of saving grid
 		self.nx = 40
-		self.sGridCurv = 0.2
+		self.xGridCurv = 0.2
 		self.borrowLim = 0
 		self.minGridSpacing = 0.0005
 
@@ -214,89 +214,89 @@ class Income:
 		self.ymat = np.matmul(self.yPgrid,self.yTgrid.T)
 
 
-class Grid:
-	"""
-	This class creates and stores the asset and 
-	consumption grids.
-	"""
+cdef class GridDouble:
+	cdef public double[:] flat
+	cdef public double[:,:] vec
+	cdef public double[:,:,:,:] wide
+	cdef public double[:,:,:,:] matrix
+
+cdef class GridInt:
+	cdef public long[:] flat
+	cdef public long[:,:] vec
+	cdef public long[:,:,:,:] wide
+	cdef public long[:,:,:,:] matrix
+
+
+cdef class GridCreator:
+	cdef:
+		object p
+		public tuple matrixDim
+		public GridDouble c, x
+		public GridInt z
+		public object mustSwitch
 
 	def __init__(self, params, income):
 		self.p = params
-		self.nc = params.nc
-		self.nx = params.nx
-		self.nz = params.nz
 
-		self.matrixDim = (	self.nx,
+		self.matrixDim = (	params.nx,
 							params.nc,
 							params.nz,
 							params.nyP,
 							)
 
-		# saving grid
-		self.s = {	'vec': None,
-					'matrix': None
-					}
-
-		# consumption grid
-		self.c = {	'vec': None,
-					'nx_nc': None,
-					'matrix': None
-					}
-
-		# cash-on-hand grid
-		self.x = {	'matrix': None
-					}
-
-		# z grid
-		self.z = {	'matrix': None
-					}
-
-
-		self.createSavingGrid()
+		self.createCashGrid(income)
 
 		self.createConsumptionGrid()
 
-		self.createCashGrid(income,params.R)
-
-		self.mustSwitch = self.c['matrix'] > self.x['matrix']
+		self.mustSwitch = np.asarray(self.c.matrix) > np.asarray(self.x.matrix)
 
 		self.create_zgrid()
 
-	def createSavingGrid(self):
-		sgrid = np.linspace(0,1,num=self.nx)
-		sgrid = sgrid.reshape((self.nx,1))
-		sgrid = sgrid ** (1 / self.p.sGridCurv)
-		sgrid = self.p.borrowLim \
-			+ (self.p.sMax - self.p.borrowLim) * sgrid
+	def createCashGrid(self, income):
+		self.x  = GridDouble()
 
-		sgrid = self.enforceMinGridSpacing(sgrid)
+		xmin = self.p.borrowLim + income.ymat.min().min()
 
-		self.s['vec'] = sgrid
-		self.s['matrix'] = matlib.repmat(sgrid,1,
-				self.nc*self.nz*self.p.nyP).reshape(self.matrixDim)
+		xgrid = np.linspace(0,1,num=self.p.nx)
+		xgrid = xgrid.reshape((self.p.nx,1))
+		xgrid = xgrid ** (1 / self.p.xGridCurv)
+		xgrid = xmin \
+			+ (self.p.xMax - xmin) * xgrid
+
+		xgrid = self.enforceMinGridSpacing(xgrid)
+
+		self.x.flat = xgrid.flatten()
+		self.x.vec = xgrid
+		self.x.wide = xgrid.reshape((-1,1,1,1))
+		self.x.matrix = np.tile(self.x.wide,
+			(1,self.p.nc,self.p.nz,self.p.nyP))
 
 	def createConsumptionGrid(self):
-		cgrid = np.linspace(0,1,num=self.nc)
-		cgrid = cgrid.reshape((self.nc,1))
+		self.c = GridDouble()
+
+		cgrid = np.linspace(0,1,num=self.p.nc)
+		cgrid = cgrid.reshape((self.p.nc,1))
 		cgrid = cgrid ** (1 / self.p.cGridCurv)
 		cgrid = self.p.cMin \
 			+ (self.p.cMax - self.p.cMin) * cgrid
 
 		cgrid = self.enforceMinGridSpacing(cgrid)
 
-		self.c['vec'] = cgrid
-		self.c['nx_nc'] = np.kron(cgrid,np.ones((self.nx,1)))
-		self.c['matrix'] = np.tile(cgrid.reshape((1,self.p.nc,1,1)),
-			[self.p.nx,1,self.p.nz,self.p.nyP])
-
-	def createCashGrid(self, income, returns):
-		# minimum of income along the yT dimension
-		minyT = income.ymat.min(axis=1)
-		self.x['matrix'] = returns * self.s['matrix'] + minyT[None,None,None,...]
-		self.x['wide'] = self.x['matrix'][:,0,0,:].reshape((self.matrixDim[0],1,1,self.matrixDim[3]))
+		self.c.flat = cgrid.flatten()
+		self.c.vec = cgrid
+		self.c.wide = cgrid.reshape((1,self.p.nc,1,1))
+		self.c.matrix = np.tile(self.c.wide,
+			(self.p.nx,1,self.p.nz,self.p.nyP))
 
 	def create_zgrid(self):
-		self.z['vec'] = np.arange(self.nz).reshape((-1,1))
+		self.z = GridInt()
+
+		zgrid = np.arange(self.p.nz).reshape((-1,1))
+		self.z.flat = zgrid.flatten()
+		self.z.vec = zgrid
+		self.z.wide = zgrid.reshape((1,1,self.p.nz,1))
+		self.z.matrix = np.tile(self.z.wide,
+			(self.p.nx,self.p.nc,1,self.p.nyP))
 
 	def enforceMinGridSpacing(self, grid_in):
 		grid_adj = grid_in

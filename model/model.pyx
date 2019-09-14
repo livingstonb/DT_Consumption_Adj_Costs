@@ -46,7 +46,7 @@ cdef class Model:
 		self.constructInterpolantForV()
 
 		# make initial guess for value function
-		valueGuess = functions.utilityVec(self.p.riskAver,self.grids.c['matrix']
+		valueGuess = functions.utilityMat(self.p.riskAver,self.grids.c.matrix
 			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb))
 
 		# subtract the adjustment cost for states with c > x
@@ -111,7 +111,7 @@ cdef class Model:
 		cdef:
 			int iyP1, iyP2, ic, iz
 			double yP, PyP1yP2
-			np.ndarray[np.float64_t, ndim=1] xgrid1, xgrid2
+			np.ndarray[np.float64_t, ndim=1] xgrid
 			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
 			np.ndarray[float, ndim=8] interpMat
 			np.ndarray[np.float64_t, ndim=3] newBlock
@@ -120,18 +120,20 @@ cdef class Model:
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
+		xgrid = np.asarray(self.grids.x.flat)
+
 		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP),dtype='float32')
 		for iyP1 in range(self.p.nyP):
-			xgrid1 = self.grids.x['wide'][:,0,0,iyP1]
+
 			for iyP2 in range(self.p.nyP):
-				# compute E_{yT}[V()]
-				xgrid2 = self.grids.x['wide'][:,0,0,iyP2]
 				yP = self.income.yPgrid[iyP2]
 				PyP1yP2 = self.income.yPtrans[iyP1,iyP2]
+
 				for ic in range(self.p.nc):
-					xprime = self.p.R * (xgrid1[:,None] - self.grids.c['vec'][ic]) + yP * yTvec
-					interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid2,xprime)
+					xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) + yP * yTvec
+					interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
 					newBlock = PyP1yP2 * np.dot(yTdistvec,interpWithyT)
+
 					for iz in range(self.p.nz):
 						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
@@ -157,7 +159,7 @@ cdef class Model:
 		"""
 		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * E[V(c)]
 		"""
-		self.valueNoSwitch = functions.utilityVec(self.p.riskAver,self.grids.c['matrix']) \
+		self.valueNoSwitch = functions.utilityMat(self.p.riskAver,self.grids.c.matrix) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
 
@@ -172,23 +174,22 @@ cdef class Model:
 		(x,z,yP)-space by interpolating u(c) and EMAX(c) at each iteration.
 		"""
 		cdef:
-			int iyP, ix, iz, ii
+			int iyP, ix, iz, ii, nSections, i
 			double xval, maxAdmissibleC, goldenRatio, goldenRatioSq
 			np.ndarray[np.float64_t, ndim=1] cVals, funVals
-			double[:] cgrid, util, em
+			double[:] cgrid, util, sections
 			np.ndarray[np.float64_t, ndim=4] EMAX
 			tuple cBounds, bounds, bound
 
 		if findPolicy:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
-		util = functions.utilityVec(self.p.riskAver,self.grids.c['vec']).flatten()
-		cgrid = self.grids.c['vec'].flatten()
+		cgrid = self.grids.c.flat
 
 		goldenRatio = (np.sqrt(5) + 1) / 2
 		goldenRatioSq = goldenRatio ** 2
 
-		nSections = 10
+		nSections = 5
 		sections = np.linspace(1/nSections,1,num=nSections)
 
 		cVals = np.zeros((nSections+2,))
@@ -198,31 +199,19 @@ cdef class Model:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
 		for iyP in range(self.p.nyP):
-			# EMAXInterpolant = RegularGridInterpolator(
-			# 	(self.grids.x['wide'][:,0,0,iyP],self.grids.c['vec'].flatten(),self.grids.z['vec'].flatten()),EMAX[:,:,:,iyP],bounds_error=False)
 
 			for ix in range(self.p.nx):
-				xval = self.grids.x['wide'][ix,0,0,iyP]
+				xval = self.grids.x.flat[ix]
 				maxAdmissibleC = np.minimum(xval,self.p.cMax)
 				cBounds = ((self.p.cMin,maxAdmissibleC),)
-				# bounds = (	(self.p.cMin,maxAdmissibleC/4),
-				# 			(maxAdmissibleC/4,maxAdmissibleC/2),
-				# 			(maxAdmissibleC/2,3*maxAdmissibleC/4),
-				# 			(3*maxAdmissibleC/4,maxAdmissibleC),
-				# 			)
 				bounds = tuple((maxAdmissibleC*sections[i],maxAdmissibleC*sections[i+1]) for i in range(nSections-1))
 				bounds = ((self.p.cMin,maxAdmissibleC*sections[0]),) + bounds
 
 				for iz in range(self.p.nz):
-					em = self.EMAX[ix,:,iz,iyP]
-					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,em,util)
+					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,self.EMAX[ix,:,iz,iyP])
 
 					ii = 0
-					# for x0 in [self.p.cMin+1e-4,maxAdmissibleC/3,2*maxAdmissibleC/3,maxAdmissibleC]:
 					for bound in bounds:
-						# optimResult = minimize(iteratorFn,x0,method='SLSQP',bounds=cBounds)
-						# candidateC[ii] = optimResult.x
-						# funVals[ii] = optimResult.fun
 						funVals[ii], cVals[ii] = functions.goldenSectionSearch(iteratorFn,
 							bound[0],bound[1],goldenRatio,goldenRatioSq,1e-8,tuple())
 						ii += 1
@@ -241,7 +230,7 @@ cdef class Model:
 					else:
 						self.valueSwitch[ix,0,iz,iyP] = funVals.max()
 
-	cdef findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em, double[:] util):
+	cdef findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em):
 		"""
 		Output is u(cSwitch) + beta * EMAX(cSwitch)
 		"""
@@ -257,7 +246,6 @@ cdef class Model:
 		weight1 = weights[0]
 		weight2 = weights[1]
 		u = functions.utility(self.p.riskAver,cSwitch)
-		# u = weight1 * util[ind1] + weight2 * util[ind2]
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
 
 		return u + self.p.timeDiscount * (1 - self.p.deathProb) * emOUT

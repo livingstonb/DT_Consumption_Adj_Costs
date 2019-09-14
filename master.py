@@ -31,9 +31,8 @@ income = modelObjects.Income(params)
 params.addIncomeParameters(income)
 
 # create grids
-grids = modelObjects.Grid(params,income)
-# import pdb; pdb.set_trace()
-test = np.where(grids.mustSwitch,1,0).reshape((-1,1)).sum()
+grids = modelObjects.GridCreator(params,income)
+import pdb; pdb.set_trace()
 
 # initialize and solve for policy functions
 model = Model(params,income,grids)

@@ -90,7 +90,7 @@ cdef class Simulator:
 
 	def updateAssets(self):
 		self.asim = self.p.R * (np.asarray(self.xsim) - np.asarray(self.csim))
-		self.asim = np.minimum(self.asim,self.p.R*self.p.sMax)
+		self.asim = np.minimum(self.asim,self.p.xMax)
 
 		if not self.p.Bequests:
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
@@ -106,7 +106,7 @@ cdef class Simulator:
 			double valueSwitch, valueNoSwitch, cSwitch
 			double consumption, cash
 
-		cgrid = self.grids.c['vec'].flatten()
+		cgrid = self.grids.c.flat
 		for col in range(self.nCols):
 			for i in range(self.nSim):
 
@@ -117,7 +117,7 @@ cdef class Simulator:
 				cash = self.xsim[i,col]
 
 				xIndices, xWeights = functions.interpolate1D(
-					self.grids.x['wide'][:,0,0,iyP].flatten(), cash)
+					self.grids.x.flat, cash)
 
 				if consumption > cash:
 					# forced to switch consumption
