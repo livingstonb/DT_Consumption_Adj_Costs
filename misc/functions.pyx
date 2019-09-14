@@ -1,5 +1,6 @@
 import numpy as np
 cimport numpy as np
+cimport cython
 import math
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
@@ -27,6 +28,8 @@ cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	u = con ** (- riskaver)
 	return u
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	"""
 	This function finds the index i for which
@@ -54,6 +57,8 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 
 	return indices
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef long searchSortedSingleInput(double[:] grid, double val):
 	"""
 	This function finds the index i for which
@@ -93,6 +98,8 @@ cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
 
 	return probabilities
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 	cdef:
 		long[:,:] gridIndices
@@ -126,6 +133,8 @@ cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
 
 	return probabilities
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef tuple interpolate1D(double[:] grid, double pt):
 	cdef:
 		int gridIndex
@@ -151,6 +160,8 @@ cpdef tuple interpolate1D(double[:] grid, double pt):
 
 	return (gridIndices, proportions)
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex):
 	cdef double[:] weights
 	cdef double weight1

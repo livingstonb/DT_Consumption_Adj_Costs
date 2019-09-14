@@ -1,14 +1,11 @@
 import numpy as np
 cimport numpy as np
 
-from scipy.optimize import minimize
-from scipy.interpolate import RegularGridInterpolator
-from scipy.interpolate import interp1d
-import numpy.matlib as matlib
+cimport cython
+
 from misc import functions
 from misc cimport functions
 import pandas as pd
-from matplotlib import pyplot as plt
 from scipy import sparse
 
 cdef class Model:
@@ -94,6 +91,8 @@ cdef class Model:
 
 		print('Value function converged')
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	def constructInterpolantForV(self):
 		"""
 		This method constructs an interpolant ndarray 'interpMat' such that
@@ -177,6 +176,8 @@ cdef class Model:
 
 		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	def maximizeValueFromSwitching(self, findPolicy=False):
 		"""
 		Updates self.valueSwitch by first approximating EMAX(x,c,z,yP), defined as
@@ -242,6 +243,8 @@ cdef class Model:
 					else:
 						self.valueSwitch[ix,0,iz,iyP] = funVals.max()
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cdef findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em):
 		"""
 		Output is u(cSwitch) + beta * EMAX(cSwitch)

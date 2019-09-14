@@ -3,6 +3,8 @@ cimport numpy as np
 import pandas as pd
 from misc cimport functions
 
+cimport cython
+
 cdef class Simulator:
 	cdef:
 		object p, income, grids
@@ -95,7 +97,8 @@ cdef class Simulator:
 		if not self.p.Bequests:
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
-
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	def solveDecisions(self):
 		cdef:
 			long i, iyP, iz
