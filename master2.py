@@ -134,15 +134,15 @@ else:
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
-shockIndices = [4] # only do 0.01 shock for now
+shockIndices = [1,4] # only do 0.01 shock for now
 
 finalSimStates = eqSimulator.returnFinalStates()
-mpcSimulator = simulator.MPCSimulator(params,income,grids,model,shockIndices)
-mpcSimulator.initialize(finalSimStates)
+mpcSimulator = simulator.MPCSimulator(
+	params,income,grids,model,shockIndices,finalSimStates)
 mpcSimulator.simulate()
 
 print('\nResults from simulation:\n')
-print(eqSimulator.results)
+print(eqSimulator.results.to_string())
 
 print('\nMPCS:\n')
-print(mpcSimulator.mpcs)
+print(mpcSimulator.mpcs.to_string())

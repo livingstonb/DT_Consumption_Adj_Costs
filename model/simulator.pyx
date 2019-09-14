@@ -244,26 +244,36 @@ cdef class EquilibriumSimulator(Simulator):
 
 cdef class MPCSimulator(Simulator):
 	cdef public object mpcs
-	cdef object responded
+	cdef object responded, pushed_below_xgrid
 	cdef list shockIndices
+	cdef dict finalStates
 
-	def __init__(self, params, income, grids, model, shockIndices):
+	def __init__(self, params, income, grids, model, shockIndices, finalStates):
 		Simulator.__init__(self,params,income,grids,model,4)
 		self.nCols = len(shockIndices) + 1
 		self.shockIndices = shockIndices
 		self.mpcs = pd.Series()
 
-	def initialize(self, finalStates):
-		self.xsim = np.repeat(finalStates['xsim'],self.nCols,axis=1)
-		self.csim = np.repeat(finalStates['csim'],self.nCols,axis=1)
-		self.yPind = finalStates['yPind'].copy()
-		self.zind = finalStates['zind'].copy()
+		self.finalStates = finalStates
 
-		j = 0
+		self.initialize()
+
+	def initialize(self):
+		self.xsim = np.repeat(self.finalStates['xsim'],self.nCols,axis=1)
+		self.csim = np.repeat(self.finalStates['csim'],self.nCols,axis=1)
+		self.yPind = self.finalStates['yPind'].copy()
+		self.zind = self.finalStates['zind'].copy()
+
+		self.pushed_below_xgrid = np.zeros((self.nSim,self.nCols-1),dtype=bool)
+
+		col = 0
 		for ishock in self.shockIndices:
 			for i in range(self.p.nSim):
-				self.xsim[i,j] += self.p.MPCshocks[ishock]
-			j += 1
+				self.xsim[i,col] += self.p.MPCshocks[ishock]
+				if self.xsim[i,col] < self.grids.x.flat[0]:
+					self.xsim[i,col] = self.grids.x.flat[0]
+					self.pushed_below_xgrid[i,col] = True
+			col += 1
 
 		self.makeRandomDraws()
 
@@ -305,19 +315,28 @@ cdef class MPCSimulator(Simulator):
 			rowAnnual = f'E[Annual MPC] out of {self.p.MPCshocks[ishock]}'
 			rowAnnualCond = f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
 
+			csimQuarter = np.asarray(self.csim[:,ii])
+			if self.t == 1:
+				# adjust consumption response for households pushed below xMin
+				# csim(x+delta) = csim(xmin) + x + delta - xmin
+				indices = self.pushed_below_xgrid[:,ii]
+				if np.any(indices):
+					csimQuarter[indices] += np.asarray(self.finalStates['xsim'])[indices].flatten() \
+						+ self.p.MPCshocks[ishock] - self.grids.x.flat[0]
+
 			# quarterly mpcs
 			self.mpcs[rowQuarterly] = np.mean(
-				(np.asarray(self.csim[:,ii]) - np.asarray(self.csim[:,self.nCols-1])
+				(np.asarray(csimQuarter - np.asarray(self.csim[:,self.nCols-1]))
 					) / self.p.MPCshocks[ishock])
 
 			# add quarterly mpcs to annual mpcs
 			if self.t == 1:
 				self.mpcs[rowAnnual] = self.mpcs[rowQuarterly]
-			elif self.t > 1:
+			else:
 				self.mpcs[rowAnnual] += self.mpcs[rowQuarterly]
 
 			# fraction of respondents in this quarter
-			respondentsQ = (np.asarray(self.csim[:,ii]) - np.asarray(self.csim[:,self.nCols-1])
+			respondentsQ = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 				) / self.p.MPCshocks[ishock] > 0
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
