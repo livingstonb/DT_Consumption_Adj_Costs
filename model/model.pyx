@@ -109,37 +109,49 @@ cdef class Model:
 		Output is stored in self.interpMat.
 		"""
 		cdef:
-			int iyP1, iyP2, ic, iz
+			int iyP1, iyP2, ic, iz, i
 			double yP, PyP1yP2
 			np.ndarray[np.float64_t, ndim=1] xgrid
 			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
 			np.ndarray[float, ndim=8] interpMat
-			np.ndarray[np.float64_t, ndim=3] newBlock
+			np.ndarray[np.float64_t, ndim=2] newBlock
 			double[:,:,:] interpWithyT
+			list blocks
 
 		yTvec = self.income.yTgrid.reshape((1,-1))
 		yTdistvec = self.income.yTdist.reshape((1,-1))
 
 		xgrid = np.asarray(self.grids.x.flat)
 
-		interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP),dtype='float32')
+		# interpMat = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,self.p.nx,self.p.nc,self.p.nz,self.p.nyP),dtype='float32')
+		blockMats = [[None] * self.p.nyP] * self.p.nyP
+		
+		row = 0
 		for iyP1 in range(self.p.nyP):
-
+			col = 0
 			for iyP2 in range(self.p.nyP):
+				iblock = 0
+				blocks = [None] * (self.p.nz*self.p.nc)
+				
 				yP = self.income.yPgrid[iyP2]
 				PyP1yP2 = self.income.yPtrans[iyP1,iyP2]
 
-				for ic in range(self.p.nc):
-					xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) + yP * yTvec
-					interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
-					newBlock = PyP1yP2 * np.dot(yTdistvec,interpWithyT)
+				for iz in range(self.p.nz):
 
-					for iz in range(self.p.nz):
-						interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
+					for ic in range(self.p.nc):
+						xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) + yP * yTvec
+						interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
+						newBlock = PyP1yP2 * np.squeeze(np.dot(yTdistvec,interpWithyT))
 
+						blocks[iblock] = sparse.csr_matrix(newBlock)
+						# interpMat[:,ic,iz,iyP1,:,ic,iz,iyP2] = newBlock
 
-		self.interpMat = sparse.csr_matrix(interpMat.reshape((self.p.nx*self.p.nc*self.p.nz*self.p.nyP,
-			self.p.nx*self.p.nc*self.p.nz*self.p.nyP)))
+						iblock += 1
+
+				blockMats[iyP1][iyP2] = sparse.block_diag(blocks)
+
+		# self.interpMat = sparse.csr_matrix(interpMat.reshape((self.p.nyP*self.p.nz*self.p.nc*self.p.nx,self.p.nyP*self.p.nz*self.p.nc*self.p.nx)))
+		self.interpMat = sparse.bmat(blockMats)
 
 	def updateValueFunction(self):
 		"""
@@ -152,8 +164,8 @@ cdef class Model:
 			)
 
 	def updateEMAX(self):
-		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1))
-				).reshape(self.grids.matrixDim)
+		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
+				).reshape(self.grids.matrixDim,order='F')
 
 	def updateValueNoSwitch(self):
 		"""

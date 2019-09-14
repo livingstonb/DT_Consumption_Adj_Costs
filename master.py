@@ -32,31 +32,31 @@ params.addIncomeParameters(income)
 
 # create grids
 grids = modelObjects.GridCreator(params,income)
-import pdb; pdb.set_trace()
+# import pdb; pdb.set_trace()
 
 # initialize and solve for policy functions
 model = Model(params,income,grids)
 model.solve()
 # model.plotPolicyFunctions()
 
-# cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch) - params.adjustCost
-# # cSwitch = np.logical_or(cSwitch,grids.mustSwitch)
-# cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * grids.c['matrix']
+cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch) - params.adjustCost
+# cSwitch = np.logical_or(cSwitch,grids.mustSwitch)
+cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
-# ixvals = [5,10,20,28]
-# xvals = np.array([grids.x['wide'][i,0,0,0] for i in ixvals])
-# print(xvals)
+ixvals = [10,20,30,40,50,60]
+xvals = np.array([grids.x.flat[i] for i in ixvals])
+print(xvals)
 
-# fig, ax = plt.subplots(nrows=2,ncols=2)
-# i = 0
-# for row in range(2):
-# 	for col in range(2):
-# 		ax[row,col].plot(grids.c['matrix'][ixvals[i],:,0,0],cPolicy[ixvals[i],:,0,0])
-# 		i += 1
+fig, ax = plt.subplots(nrows=2,ncols=3)
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,0])
+		i += 1
 
-# plt.show()
+plt.show()
 
-# solve for stationary distribution
-eqSimulator = EquilibriumSimulator(params, income, grids, model)
-eqSimulator.simulate()
+# # solve for stationary distribution
+# eqSimulator = EquilibriumSimulator(params, income, grids, model)
+# eqSimulator.simulate()
 
