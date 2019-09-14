@@ -22,7 +22,7 @@ locIncomeProcess = os.path.join(
 if len(sys.argv) > 1:
 	paramIndex = sys.argv[1]
 else:
-	paramIndex = 1
+	paramIndex = 0
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
@@ -114,7 +114,7 @@ if params.iterateBeta:
 
 		ii += 1
 
-	if lowerBoundFound:
+	if upperBoundFound:
 		betaUpperBound = upperBoundFinder.currentBetaBound
 	else:
 		raise Exception('Upper bound for discount factor could not be found.')
@@ -122,6 +122,8 @@ if params.iterateBeta:
 	#-----------------------------------------------------------#
 	#      ITERATE OVER DISCOUNT RATE                           #
 	#-----------------------------------------------------------#
+	# not yet coded
+	raise Exception('iteration over discount rate not yet implemented')
 else:
 	#-----------------------------------------------------------#
 	#      SOLVE MODEL ONCE                                     #

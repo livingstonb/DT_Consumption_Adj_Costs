@@ -38,35 +38,6 @@ cdef class Simulator:
 
 		self.initialized = False
 
-	def simulate(self):
-		if not self.initialized:
-			raise Exception ('Simulator not initialized')
-
-		while self.t <= self.T:
-
-			if np.mod(self.t,25) == 0:
-				print(f'    Simulating period {self.t}')
-
-			if self.t > 1:
-				# assets and income should already be initialized
-				self.updateAssets()
-				self.updateIncome()
-
-			self.updateCash()
-			self.solveDecisions()
-
-			self.computeTransitionStatistics()
-
-			if self.randIndex < self.periodsBeforeRedraw - 1:
-				# use next column of random numbers
-				self.randIndex += 1
-			else:
-				# need to redraw
-				self.randIndex = 0
-				self.makeRandomDraws()
-
-			self.t += 1
-
 	def makeRandomDraws(self):
 		self.yPrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
 		self.yTrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
@@ -100,12 +71,17 @@ cdef class Simulator:
 	def solveDecisions(self):
 		cdef:
 			long i, iyP, iz
-			list conIndices, conSwitchIndices, conWeights, conSwitchWeights
-			list xIndices, xWeights
+			long[:] xIndices, conIndices
+			double[:] xWeights, conWeights
 			double[:] cgrid
 			bint switch
 			double valueSwitch, valueNoSwitch, cSwitch
 			double consumption, cash
+
+		xIndices = np.zeros(2,dtype=int)
+		conIndices = np.zeros(2,dtype=int)
+		xWeights = np.zeros(2)
+		conWeights = np.zeros(2)
 
 		cgrid = self.grids.c.flat
 		for col in range(self.nCols):
@@ -117,15 +93,19 @@ cdef class Simulator:
 				consumption = self.csim[i,col]
 				cash = self.xsim[i,col]
 
-				xIndices, xWeights = functions.interpolate1D(
-					self.grids.x.flat, cash)
+				xIndices[1] = functions.searchSortedSingleInput(self.grids.x.flat,cash)
+				xIndices[0] = xIndices[1] - 1
+				xWeights = functions.getInterpolationWeights(self.grids.x.flat,cash,xIndices[1])
 
 				if consumption > cash:
 					# forced to switch consumption
 					switch = True
 				else:
 					# check if switching is optimal
-					conIndices, conWeights = functions.interpolate1D(cgrid, consumption)
+					conIndices[1] = functions.searchSortedSingleInput(cgrid,consumption)
+					conIndices[0] = conIndices[1] - 1
+					conWeights = functions.getInterpolationWeights(cgrid,consumption,conIndices[1])
+
 
 					valueSwitch = xWeights[0] * self.valueSwitch[xIndices[0],0,iz,iyP] \
 						+ xWeights[1] * self.valueSwitch[xIndices[1],0,iz,iyP]
@@ -148,6 +128,7 @@ cdef class EquilibriumSimulator(Simulator):
 
 	cdef public dict transitionStatistics
 	cdef public object results
+	cdef object incomeHistory
 
 	def __init__(self, params, income, grids, model):
 		super().__init__(params,income,grids,model,params.tSim)
@@ -157,7 +138,33 @@ cdef class EquilibriumSimulator(Simulator):
 		self.results = pd.Series()
 
 	def simulate(self):
-		super().simulate()
+		if not self.initialized:
+			raise Exception ('Simulator not initialized')
+
+		while self.t <= self.T:
+
+			if np.mod(self.t,25) == 0:
+				print(f'    Simulating period {self.t}')
+
+			if self.t > 1:
+				# assets and income should already be initialized
+				self.updateAssets()
+				self.updateIncome()
+
+			self.updateCash()
+			self.solveDecisions()
+
+			self.computeTransitionStatistics()
+
+			if self.randIndex < self.periodsBeforeRedraw - 1:
+				# use next column of random numbers
+				self.randIndex += 1
+			else:
+				# need to redraw
+				self.randIndex = 0
+				self.makeRandomDraws()
+
+			self.t += 1
 		self.computeEquilibriumStatistics()
 
 	def initialize(self):
@@ -179,6 +186,7 @@ cdef class EquilibriumSimulator(Simulator):
 		self.zind = np.zeros(self.nSim,dtype=int)
 
 		self.switched = np.zeros((self.nSim,1),dtype=int)
+		self.incomeHistory = np.zeros((self.nSim,4))
 
 		self.initialized = True
 
@@ -194,7 +202,15 @@ cdef class EquilibriumSimulator(Simulator):
 		self.transitionStatistics['E[a]'][self.t-1] = np.mean(self.asim,axis=0)
 		self.transitionStatistics['Var[a]'][self.t-1] = np.var(self.asim,axis=0)
 
+		if self.t >= self.T - 3:
+			self.incomeHistory[:,self.t-self.T+3] = np.reshape(self.ysim,self.nSim)
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	def computeEquilibriumStatistics(self):
+		cdef int i, j
+		cdef double giniNumerator, asim_i
+
 		# mean wealth
 		self.results['Mean wealth'] = np.mean(self.asim)
 
@@ -205,6 +221,11 @@ cdef class EquilibriumSimulator(Simulator):
 		for threshold in self.p.wealthConstraints:
 			constrained = np.mean(np.asarray(self.asim) <= threshold)
 			self.results[f'Wealth <= {threshold:.2g}'] = constrained
+
+		self.results['Wealth <= own quarterly income/6'] = np.mean(
+			np.asarray(self.asim) <= (np.asarray(self.ysim) / 6))
+		self.results['Wealth <= own quarterly income/12'] = np.mean(
+			np.asarray(self.asim) <= (np.asarray(self.ysim) / 12))
 
 		# wealth percentiles
 		for pctile in self.p.wealthPercentiles:
@@ -224,14 +245,29 @@ cdef class EquilibriumSimulator(Simulator):
 			asimNumpy[asimNumpy>=pctile99].sum() / asimNumpy.sum()
 
 		# gini
-		asimRow = np.asarray(self.asim).reshape((-1,1))
-		asimCol = np.asarray(self.asim).reshape((1,-1))
+		giniNumerator = 0
+		for i in range(self.nSim):
+			asim_i = self.asim[i,0]
+			for j in range(self.nSim):
+				giniNumerator += abs(asim_i - self.asim[j,0])
 		self.results['Gini coefficient (wealth)'] = \
-			np.abs(asimCol - asimRow).flatten().sum() / (
-				2 * self.nSim * asimCol.sum())
+			giniNumerator / (2 * self.nSim * np.sum(self.asim))
+
+		# consumption percentiles
+		for pctile in self.p.wealthPercentiles:
+			value = np.percentile(self.csim,pctile)
+			if pctile <= 99:
+				self.results[f'Consumption, {pctile:d}th percentile'] = value
+			else:
+				self.results[f'Consumption, {pctile:.2f}th percentile'] = value
 
 		# fraction of HHs that switched consumption in last period
 		self.results['Probability of consumption change'] = np.mean(self.switched)
+
+		# income statistics
+		self.results['Mean annual income'] = self.incomeHistory.sum(axis=1).mean()
+		self.results['Variance of annual income'] = self.incomeHistory.sum(axis=1).var()
+		self.results['Stdev log annual income'] = np.log(self.incomeHistory.sum(axis=1)).std()
 
 	def returnFinalStates(self):
 		finalStates = {
@@ -258,6 +294,34 @@ cdef class MPCSimulator(Simulator):
 
 		self.initialize()
 
+	def simulate(self):
+		if not self.initialized:
+			raise Exception ('Simulator not initialized')
+
+		while self.t <= self.T:
+
+			print(f'    Simulating MPCs, quarter {self.t}')
+
+			if self.t > 1:
+				# assets and income should already be initialized
+				self.updateAssets()
+				self.updateIncome()
+				self.updateCash()
+
+			self.solveDecisions()
+
+			self.computeTransitionStatistics()
+
+			if self.randIndex < self.periodsBeforeRedraw - 1:
+				# use next column of random numbers
+				self.randIndex += 1
+			else:
+				# need to redraw
+				self.randIndex = 0
+				self.makeRandomDraws()
+
+			self.t += 1
+
 	def initialize(self):
 		self.xsim = np.repeat(self.finalStates['xsim'],self.nCols,axis=1)
 		self.csim = np.repeat(self.finalStates['csim'],self.nCols,axis=1)
@@ -276,9 +340,6 @@ cdef class MPCSimulator(Simulator):
 			col += 1
 
 		self.makeRandomDraws()
-
-		self.updateAssets()
-		self.updateIncome()
 
 		self.responded = np.zeros((self.nSim,len(self.shockIndices)),dtype=bool)
 
@@ -325,9 +386,10 @@ cdef class MPCSimulator(Simulator):
 						+ self.p.MPCshocks[ishock] - self.grids.x.flat[0]
 
 			# quarterly mpcs
-			self.mpcs[rowQuarterly] = np.mean(
-				(np.asarray(csimQuarter - np.asarray(self.csim[:,self.nCols-1]))
-					) / self.p.MPCshocks[ishock])
+			allMPCS = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
+					) / self.p.MPCshocks[ishock]
+			self.mpcs[rowQuarterly] = allMPCS.mean()
+			self.mpcs[rowQuarterlyCond] = allMPCS[allMPCS>0].mean()
 
 			# add quarterly mpcs to annual mpcs
 			if self.t == 1:

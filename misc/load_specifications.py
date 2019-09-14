@@ -16,15 +16,25 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	ii = 0
 	for adjustCost in adjustCosts:
+		paramsDicts[ii]['name'] = f'adjustCost{adjustCost}'
 		paramsDicts[ii]['adjustCost'] = adjustCost
-		paramsDicts[ii]['noPersIncome'] = True
-		paramsDicts[ii]['nx'] = 40
-		paramsDicts[ii]['nc'] = 50
-		paramsDicts[ii]['nSim'] = 1e3
+		paramsDicts[ii]['noPersIncome'] = False
+		paramsDicts[ii]['nx'] = 75
+		paramsDicts[ii]['nc'] = 200
+		paramsDicts[ii]['nSim'] = 1e5
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-		paramsDicts[ii]['timeDiscount'] = 0.8
+		paramsDicts[ii]['timeDiscount'] = 0.9
 
 		ii += 1
+
+	paramsDicts.append({})
+	paramsDicts[ii]['name'] = 'fast'
+	paramsDicts[ii]['noPersIncome'] = True
+	paramsDicts[ii]['nx'] = 30
+	paramsDicts[ii]['nc'] = 30
+	paramsDicts[ii]['nSim'] = 500
+	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	paramsDicts[ii]['timeDiscount'] = 0.9
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
@@ -32,7 +42,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if index is not None:
 		chosenParameters = Params(paramsDicts[index])
 	else:
-		chosenParameters = Params([paramsDict[ii] for ii in numExperiments
-							if paramsDict[ii]['name'] == name][0])
+		for ii in range(len(paramsDicts)):
+			if paramsDicts[ii]['name'] == name:
+				chosenParameters = paramsdicts[ii]
 
 	return chosenParameters
