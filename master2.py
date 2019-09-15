@@ -22,12 +22,12 @@ locIncomeProcess = os.path.join(
 if len(sys.argv) > 1:
 	paramIndex = sys.argv[1]
 else:
-	paramIndex = 1
+	paramIndex = 0
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
-params = load_specifications(locIncomeProcess,name='fast')
+params = load_specifications(locIncomeProcess,index=paramIndex)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
