@@ -13,9 +13,11 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals)
 
 cpdef long searchSortedSingleInput(double[:] grid, double val)
 
+cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals)
+
 cpdef tuple interpolate1D(double[:] grid, double pt)
 
 cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex)
 
 cpdef tuple goldenSectionSearch(object f, double a, double b, 
-	double goldenRatio, double goldenRatioSq, double tol, tuple args)
+	double invGoldenRatio, double invGoldenRatioSq, double tol)

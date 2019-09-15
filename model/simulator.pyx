@@ -5,6 +5,8 @@ from misc cimport functions
 
 cimport cython
 
+from libc.math cimport log, fabs
+
 cdef class Simulator:
 	cdef:
 		object p, income, grids
@@ -253,7 +255,7 @@ cdef class EquilibriumSimulator(Simulator):
 		for i in range(self.nSim):
 			asim_i = self.asim[i,0]
 			for j in range(self.nSim):
-				giniNumerator += abs(asim_i - self.asim[j,0])
+				giniNumerator += fabs(asim_i - self.asim[j,0])
 		self.results['Gini coefficient (wealth)'] = \
 			giniNumerator / (2 * self.nSim * np.sum(self.asim))
 

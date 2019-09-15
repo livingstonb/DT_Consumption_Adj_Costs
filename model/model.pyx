@@ -13,6 +13,7 @@ cdef class Model:
 		object p, grids, income
 		double nextMPCShock
 		tuple dims, dims_yT
+		bint EMAXPassedAsArgument
 		dict nextModel, stats
 		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
 		# np.ndarray[np.float64_t, ndim=2] interpMat
@@ -21,7 +22,7 @@ cdef class Model:
 		object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 
-	def __init__(self, params, income, grids, nextModel=None, nextMPCShock=0):
+	def __init__(self, params, income, grids, EMAX=None, nextMPCShock=0):
 
 		self.p = params
 		self.grids = grids
@@ -32,15 +33,20 @@ cdef class Model:
 		self.dims = (params.nx, params.nc, params.nz, params.nyP)
 		self.dims_yT = self.dims + (self.p.nyT,)
 
-		self.nextModel = nextModel
-
+		if EMAX is None:
+			self.EMAXPassedAsArgument = False
+		else:
+			self.EMAXPassedAsArgument = True
+			self.EMAX = EMAX
+			
 		self.stats = dict()
 
 		self.initialize()
 
 	def initialize(self):
-		print('Constructing interpolant for EMAX')
-		self.constructInterpolantForV()
+		if not self.EMAXPassedAsArgument:
+			print('Constructing interpolant for EMAX')
+			self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
 		valueGuess = functions.utilityMat(self.p.riskAver,self.grids.c.matrix
@@ -60,8 +66,9 @@ cdef class Model:
 
 			Vprevious = self.valueFunction.copy()
 
-			# update EMAX = E[V|x,c,z,yP], where c is CHOSEN c not state variable
-			self.updateEMAX()
+			if not self.EMAXPassedAsArgument:
+				# update EMAX = E[V|x,c,z,yP], where c is chosen c
+				self.updateEMAX()
 
 			# update value function of not switching
 			self.updateValueNoSwitch()
@@ -88,7 +95,7 @@ cdef class Model:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	def constructInterpolantForV(self):
+	def constructInterpolantForEMAX(self):
 		"""
 		This method constructs an interpolant ndarray 'interpMat' such that
 		interpMat @ valueFunction(:) = E[V]. That is, the expected continuation 
@@ -131,7 +138,8 @@ cdef class Model:
 				for iz in range(self.p.nz):
 
 					for ic in range(self.p.nc):
-						xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) + yP * yTvec
+						xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) \
+							+ yP * yTvec + self.nextMPCShock
 						interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
 						newBlock = PyP1yP2 * np.squeeze(np.dot(yTdistvec,interpWithyT))
 
@@ -192,7 +200,7 @@ cdef class Model:
 							yP2 = self.income.yPgrid[iyP2]
 
 							for iyT in range(self.p.nyT):
-								cash = assets + yP2 * self.income.yTgrid[iyT]
+								cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock
 								xIndices[1] = functions.searchSortedSingleInput(xgrid,cash)
 								xIndices[0] = xIndices[1] - 1
 								xWeights = functions.getInterpolationWeights(xgrid,cash,xIndices[1])
@@ -227,7 +235,7 @@ cdef class Model:
 		"""
 		cdef:
 			int iyP, ix, iz, ii, nSections, i
-			double xval, maxAdmissibleC, goldenRatio, goldenRatioSq
+			double xval, maxAdmissibleC, invGoldenRatio, invGoldenRatioSq
 			np.ndarray[np.float64_t, ndim=1] cVals, funVals
 			double[:] cgrid, util, sections
 			np.ndarray[np.float64_t, ndim=4] EMAX
@@ -238,8 +246,8 @@ cdef class Model:
 
 		cgrid = self.grids.c.flat
 
-		goldenRatio = (np.sqrt(5) + 1) / 2
-		goldenRatioSq = goldenRatio ** 2
+		invGoldenRatio = 1 / ((np.sqrt(5) + 1) / 2)
+		invGoldenRatioSq = np.power(invGoldenRatio,2)
 
 		nSections = 5
 		sections = np.linspace(1/nSections,1,num=nSections)
@@ -265,7 +273,7 @@ cdef class Model:
 					ii = 0
 					for bound in bounds:
 						funVals[ii], cVals[ii] = functions.goldenSectionSearch(iteratorFn,
-							bound[0],bound[1],goldenRatio,goldenRatioSq,1e-8,tuple())
+							bound[0],bound[1],invGoldenRatio,invGoldenRatioSq,1e-8)
 						ii += 1
 
 					# try consuming cmin

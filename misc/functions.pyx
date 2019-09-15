@@ -1,7 +1,8 @@
 import numpy as np
 cimport numpy as np
 cimport cython
-import math
+
+from libc.math cimport log, fabs, pow
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	if riskaver == float(1):
@@ -17,15 +18,15 @@ cdef np.ndarray utilityVec(double riskaver, double[:] con):
 
 cdef double utility(double riskaver, double con):
 	if riskaver == float(1):
-		return math.log(con)
+		return log(con)
 	else:
-		return math.pow(con,1-riskaver) / (1-riskaver)
+		return pow(con,1-riskaver) / (1-riskaver)
 
 cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
 	"""
 	Returns the first derivative of the utility function
 	"""
-	u = con ** (- riskaver)
+	u = np.power(con,-riskaver)
 	return u
 
 @cython.boundscheck(False)
@@ -35,8 +36,9 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	This function finds the index i for which
 	grid[i-1] <= val < grid[i]
 	"""
-	cdef long n, m, i, midpt, index
+	cdef long n, m, i, index
 	cdef double currentVal
+	cdef long[:] indices
 
 	n = grid.size
 	m = vals.size
@@ -64,7 +66,7 @@ cpdef long searchSortedSingleInput(double[:] grid, double val):
 	This function finds the index i for which
 	grid[i-1] <= val < grid[i]
 	"""
-	cdef long n, midpt, index = 1
+	cdef long n, index = 1
 
 	n = grid.size
 
@@ -76,36 +78,15 @@ cpdef long searchSortedSingleInput(double[:] grid, double val):
 
 	return index
 
-cpdef interpolateTransitionProbabilities(grid, vals, extrap=False):
-	gridIndices = np.searchsorted(grid,vals)
-	probabilities = np.zeros((vals.shape[0],grid.shape[0]))
-
-	for ival in range(vals.shape[0]):
-		igrid = gridIndices[ival]
-		gridPt1 = grid[igrid-1]
-		gridPt2 = grid[igrid]
-		Pi = (vals[ival] - gridPt1) / (gridPt2 - gridPt1)
-
-		if extrap or ((Pi >= 0) and (Pi <= 1)):
-			probabilities[ival,igrid] = Pi
-			probabilities[ival,igrid-1] = 1 - Pi
-		elif Pi > 1:
-			probabilities[ival,igrid] = 1
-		elif Pi < 0:
-			probabilities[ival,igrid-1] = 1
-		else:
-			raise Exception ('Invalid value for Pi')
-
-	return probabilities
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef interpolateTransitionProbabilities2D(grid, vals, extrap=False):
+cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals):
 	cdef:
 		long[:,:] gridIndices
 		double[:,:,:] probabilities
 		long i, j, igrid
-		double Pi
+		double Pi, gridPt1, gridPt2
+
 	gridIndices = np.zeros((vals.shape[0],vals.shape[1]),dtype=int)
 	probabilities = np.zeros((vals.shape[0],vals.shape[1],grid.shape[0]))
 
@@ -182,34 +163,34 @@ cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightInd
 	return weights
 
 cpdef tuple goldenSectionSearch(object f, double a, double b, 
-	double goldenRatio, double goldenRatioSq, double tol, tuple args):
+	double invGoldenRatio, double invGoldenRatioSq, double tol):
 
 	cdef double c, d, diff
 	cdef double fc, fd
 
 	diff = b - a
 
-	c = a + diff / goldenRatioSq
-	d = a + diff / goldenRatio 
+	c = a + diff * invGoldenRatioSq
+	d = a + diff * invGoldenRatio 
 
-	fc = f(c,*args)
-	fd = f(d,*args)
+	fc = f(c)
+	fd = f(d)
 
-	while abs(c - d) > tol:
+	while fabs(c - d) > tol:
 		if fc > fd:
 			b = d
 			d = c
 			fd = fc
-			diff = diff / goldenRatio
-			c = a + diff / goldenRatioSq
-			fc = f(c,*args)
+			diff = diff * invGoldenRatio
+			c = a + diff * invGoldenRatioSq
+			fc = f(c)
 		else:
 			a = c
 			c = d
 			fc = fd
-			diff = diff / goldenRatio
-			d = a + diff / goldenRatio
-			fd = f(d,*args)
+			diff = diff * invGoldenRatio
+			d = a + diff * invGoldenRatio
+			fd = f(d)
 
 	if fc > fd:
 		return fc, c #(a + d) / 2

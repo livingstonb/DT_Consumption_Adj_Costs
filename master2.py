@@ -150,6 +150,27 @@ print('\nMPCS:\n')
 print(mpcSimulator.mpcs.to_string())
 
 #-----------------------------------------------------------#
+#      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
+#-----------------------------------------------------------#
+# shockIndices = [4]
+
+#  # i-th element is the model for a shock in i+1 periods
+# futureShockModels = [None] * 4
+# for ishock in shockIndices:
+# 	# shock next period
+# 	futureShockModels[0] = Model(
+# 		params,income,grids,
+# 		nextMPCShock=params.MPCshocks[ishock])
+# 	futureShockModels[0].solve()
+
+# 	for period in range(1,4):
+# 		# shock in two or more periods
+# 		futureShockModels[period] = Model(
+# 			params,income,grids,
+# 			EMAX=futureShockModels[period-1].EMAX)
+# 		futureShockModels[period].solve()
+
+#-----------------------------------------------------------#
 #      PLOT POLICY FUNCTION                                 #
 #-----------------------------------------------------------#
 
@@ -165,6 +186,17 @@ i = 0
 for row in range(2):
 	for col in range(3):
 		ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,0])
+		i += 1
+
+icvals = [10,20,30,40,50,60]
+cvals = np.array([grids.c.flat[i] for i in icvals])
+print(xvals)
+
+fig, ax = plt.subplots(nrows=2,ncols=3)
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,0])
 		i += 1
 
 plt.show()
