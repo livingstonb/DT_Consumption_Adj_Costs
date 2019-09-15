@@ -10,7 +10,7 @@ from libc.math cimport log, fabs
 cdef class Simulator:
 	cdef:
 		object p, income, grids
-		double[:,:,:,:] valueSwitch, valueNoSwitch, cSwitchingPolicy
+		double[:,:,:,:] valueDiff, cSwitchingPolicy
 		int nCols
 		int periodsBeforeRedraw
 		int nSim, t, T, randIndex
@@ -26,8 +26,8 @@ cdef class Simulator:
 		self.grids = grids
 
 		self.cSwitchingPolicy = model.cSwitchingPolicy
-		self.valueSwitch = model.valueSwitch
-		self.valueNoSwitch = model.valueNoSwitch
+		self.valueDiff = np.asarray(model.valueSwitch) \
+			- params.adjustCost - np.asarray(model.valueNoSwitch)
 
 		self.nCols = 1
 
@@ -79,8 +79,7 @@ cdef class Simulator:
 			double[:] xWeights, conWeights
 			double[:] cgrid
 			bint switch
-			double valueSwitch, valueNoSwitch, cSwitch
-			double consumption, cash
+			double consumption, cash, myValueDiff, cSwitch
 
 		xIndices = np.zeros(2,dtype=int)
 		conIndices = np.zeros(2,dtype=int)
@@ -111,15 +110,12 @@ cdef class Simulator:
 					conWeights = functions.getInterpolationWeights(cgrid,consumption,conIndices[1])
 
 
-					valueSwitch = xWeights[0] * self.valueSwitch[xIndices[0],0,iz,iyP] \
-						+ xWeights[1] * self.valueSwitch[xIndices[1],0,iz,iyP]
+					myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP] \
+						+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP] \
+						+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP] \
+						+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP]
 
-					valueNoSwitch = xWeights[0] * conWeights[0] * self.valueNoSwitch[xIndices[0],conIndices[0],iz,iyP] \
-						+ xWeights[1] * conWeights[0] * self.valueNoSwitch[xIndices[1],conIndices[0],iz,iyP] \
-						+ xWeights[0] * conWeights[1] * self.valueNoSwitch[xIndices[0],conIndices[1],iz,iyP] \
-						+ xWeights[1] * conWeights[1] * self.valueNoSwitch[xIndices[1],conIndices[1],iz,iyP]
-
-					switch = valueSwitch - self.p.adjustCost > valueNoSwitch
+					switch = myValueDiff > 0
 
 				if switch:
 					self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \

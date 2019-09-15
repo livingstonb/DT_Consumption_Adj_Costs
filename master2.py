@@ -27,7 +27,7 @@ else:
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
-params = load_specifications(locIncomeProcess,index=paramIndex)
+params = load_specifications(locIncomeProcess,name='fast')
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -39,6 +39,7 @@ params.addIncomeParameters(income)
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
 grids = modelObjects.GridCreator(params,income)
+# import pdb; pdb.set_trace()
 
 #---------------------------------------------------------------#
 #      CREATE MODEL                                             #

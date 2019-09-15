@@ -43,7 +43,7 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	n = grid.size
 	m = vals.size
 
-	indices = np.zeros((m),dtype=int)
+	indices = np.empty((m),dtype=int)
 
 	for i in range(m):
 		index = 1
@@ -144,10 +144,9 @@ cpdef tuple interpolate1D(double[:] grid, double pt):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex):
-	cdef double[:] weights
+	cdef double weights[2]
 	cdef double weight1
 
-	weights = np.zeros((2))
 	weight1 = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
 
 	if weight1 < 0:
