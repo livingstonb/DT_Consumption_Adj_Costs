@@ -1,8 +1,13 @@
 import numpy as np
 cimport numpy as np
 
-ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z,
-								long a1, double a2, double a3, double a4) nogil
+cdef struct FnParameters:
+	long nc
+	double riskAver
+	double timeDiscount
+	double deathProb
+
+ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, FnParameters fparams) nogil
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
 
@@ -24,8 +29,7 @@ cdef void getInterpolationWeights(double[:] grid, double pt, long rightIndex, do
 
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
 	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out,
-	double[:] arg1, double[:] arg2,
-	long a1, double a2, double a3, double a4) nogil
+	double[:] arg1, double[:] arg2, FnParameters fparams) nogil
 
 cdef double cmax(double *vals, int nVals) nogil
 

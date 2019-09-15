@@ -167,8 +167,7 @@ cdef void getInterpolationWeights(
 @cython.wraparound(False)
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
 	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out,
-	double[:] arg1, double[:] arg2,
-	long a1, double a2, double a3, double a4) nogil:
+	double[:] arg1, double[:] arg2, FnParameters fparams) nogil:
 
 	cdef double c, d, diff
 	cdef double fc, fd
@@ -178,8 +177,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 	c = a + diff * invGoldenRatioSq
 	d = a + diff * invGoldenRatio 
 
-	fc = f(c,arg1,arg2,a1,a2,a3,a4)
-	fd = f(d,arg1,arg2,a1,a2,a3,a4)
+	fc = f(c,arg1,arg2,fparams)
+	fd = f(d,arg1,arg2,fparams)
 
 	while fabs(c - d) > tol:
 		if fc > fd:
@@ -188,14 +187,14 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			fd = fc
 			diff = diff * invGoldenRatio
 			c = a + diff * invGoldenRatioSq
-			fc = f(c,arg1,arg2,a1,a2,a3,a4)
+			fc = f(c,arg1,arg2,fparams)
 		else:
 			a = c
 			c = d
 			fc = fd
 			diff = diff * invGoldenRatio
 			d = a + diff * invGoldenRatio
-			fd = f(d,arg1,arg2,a1,a2,a3,a4)
+			fd = f(d,arg1,arg2,fparams)
 
 	if fc > fd:
 		out[0] = fc
