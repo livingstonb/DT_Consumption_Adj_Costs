@@ -16,7 +16,7 @@ cdef np.ndarray utilityVec(double riskaver, double[:] con):
 	else:
 		return np.power(con,1-riskaver) / (1-riskaver)
 
-cdef double utility(double riskaver, double con):
+cdef inline double utility(double riskaver, double con):
 	if riskaver == float(1):
 		return log(con)
 	else:
@@ -61,16 +61,14 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef long searchSortedSingleInput(double[:] grid, double val):
+cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil:
 	"""
 	This function finds the index i for which
 	grid[i-1] <= val < grid[i]
 	"""
-	cdef long n, index = 1
+	cdef long index = 1
 
-	n = grid.size
-
-	while index < n - 1:
+	while index < nGrid - 1:
 		if val >= grid[index]:
 			index += 1
 		else:
@@ -82,35 +80,35 @@ cpdef long searchSortedSingleInput(double[:] grid, double val):
 @cython.wraparound(False)
 cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals):
 	cdef:
-		long[:,:] gridIndices
+		long[:] gridIndices
 		double[:,:,:] probabilities
-		long i, j, igrid
+		long i, j, igrid1, igrid2
 		double Pi, gridPt1, gridPt2
 
-	gridIndices = np.zeros((vals.shape[0],vals.shape[1]),dtype=int)
 	probabilities = np.zeros((vals.shape[0],vals.shape[1],grid.shape[0]))
 
 	nGrid = grid.shape[0]
 
 	for j in range(vals.shape[1]):
-		gridIndices[:,j] = searchSortedMultipleInput(grid,vals[:,j])
+		gridIndices = searchSortedMultipleInput(grid,vals[:,j])
 
 		for i in range(vals.shape[0]):
-			igrid = gridIndices[i,j]
+			igrid2 = gridIndices[i]
+			igrid1 = igrid2 - 1
 
-			gridPt1 = grid[igrid-1]
-			gridPt2 = grid[igrid]
+			gridPt1 = grid[igrid1]
+			gridPt2 = grid[igrid2]
 			Pi = (vals[i,j] - gridPt1) / (gridPt2 - gridPt1)
 
 			if Pi < 0:
-				probabilities[i,j,igrid-1] = 1
-				probabilities[i,j,igrid] = 0
+				probabilities[i,j,igrid1] = 1
+				probabilities[i,j,igrid2] = 0
 			elif Pi > 1:
-				probabilities[i,j,igrid-1] = 0
-				probabilities[i,j,igrid] = 1
+				probabilities[i,j,igrid1] = 0
+				probabilities[i,j,igrid2] = 1
 			else:
-				probabilities[i,j,igrid-1] = 1 - Pi
-				probabilities[i,j,igrid] = Pi
+				probabilities[i,j,igrid1] = 1 - Pi
+				probabilities[i,j,igrid2] = Pi
 
 	return probabilities
 
@@ -119,12 +117,14 @@ cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[
 cpdef tuple interpolate1D(double[:] grid, double pt):
 	cdef:
 		int gridIndex
+		int gridIndices1
+		int gridIndices2
 		double gridPt1, gridPt2, proportion2
 		list gridIndices, proportions
 
 	# returns the two indices between which to interpolate
 	# returns the proportions to place on each of the 2 indices
-	gridIndex = searchSortedSingleInput(grid, pt)
+	gridIndex = searchSortedSingleInput(grid, pt, grid.size)
 
 	if gridIndex == 0:
 		gridIndices = [0,1]
@@ -134,8 +134,10 @@ cpdef tuple interpolate1D(double[:] grid, double pt):
 		proportions = [0,1]
 	else:
 		gridIndices = [gridIndex-1,gridIndex]
-		gridPt1 = grid[gridIndices[0]]
-		gridPt2 = grid[gridIndices[1]]
+		gridIndices1 = gridIndices[0]
+		gridIndices2 = gridIndices[1]
+		gridPt1 = grid[gridIndices1]
+		gridPt2 = grid[gridIndices2]
 		proportion2 = (pt - gridPt1) / (gridPt2 - gridPt1)
 		proportions = [1-proportion2,proportion2]
 
@@ -143,23 +145,21 @@ cpdef tuple interpolate1D(double[:] grid, double pt):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex):
-	cdef double weights[2]
+cdef void getInterpolationWeights(
+	double[:] grid, double pt, long rightIndex, double *out) nogil:
 	cdef double weight1
 
 	weight1 = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
 
 	if weight1 < 0:
-		weights[0] = 0
-		weights[1] = 1
+		out[0] = 0
+		out[1] = 1
 	elif weight1 > 1:
-		weights[0] = 1
-		weights[1] = 0
+		out[0] = 1
+		out[1] = 0
 	else:
-		weights[0] = weight1
-		weights[1] = 1 - weight1
-
-	return weights
+		out[0] = weight1
+		out[1] = 1 - weight1
 
 cpdef tuple goldenSectionSearch(object f, double a, double b, 
 	double invGoldenRatio, double invGoldenRatioSq, double tol):

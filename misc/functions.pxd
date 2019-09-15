@@ -11,13 +11,13 @@ cdef np.ndarray marginalUtility(double riskaver, np.ndarray con)
 
 cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals)
 
-cpdef long searchSortedSingleInput(double[:] grid, double val)
+cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
 cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals)
 
 cpdef tuple interpolate1D(double[:] grid, double pt)
 
-cpdef double[:] getInterpolationWeights(double[:] grid, double pt, long rightIndex)
+cdef void getInterpolationWeights(double[:] grid, double pt, long rightIndex, double *out) nogil
 
 cpdef tuple goldenSectionSearch(object f, double a, double b, 
 	double invGoldenRatio, double invGoldenRatioSq, double tol)

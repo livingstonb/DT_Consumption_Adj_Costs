@@ -14,7 +14,9 @@ extensions = [
 				Extension("misc.functions",["misc/functions.pyx"],
 							include_dirs=[np.get_include()]),
 				Extension("model.simulator",["model/simulator.pyx"],
-							include_dirs=[np.get_include()]),
+							include_dirs=[np.get_include()],
+							extra_compile_args=['-fopenmp'],
+        					extra_link_args=['-fopenmp'],),
 				]
 
 setup(	name="DiscreTime",

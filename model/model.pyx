@@ -8,6 +8,8 @@ from misc cimport functions
 import pandas as pd
 from scipy import sparse
 
+from libc.stdlib cimport malloc, free
+
 cdef class Model:
 	cdef:
 		object p, grids, income
@@ -174,12 +176,15 @@ cdef class Model:
 		"""
 		cdef:
 			double emax, Pytrans, assets, cash, yP2
-			double[:] xgrid, cgrid, xWeights
+			double[:] xgrid, cgrid
+			double *xWeights
 			long[:] xIndices
 			int ix, ic, iz, iyP1, iyP2, iyT
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
+
+		xWeights = <double *> malloc(2 * sizeof(double))
 
 		xIndices = np.zeros(2,dtype=int)
 
@@ -201,9 +206,9 @@ cdef class Model:
 
 							for iyT in range(self.p.nyT):
 								cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock
-								xIndices[1] = functions.searchSortedSingleInput(xgrid,cash)
+								xIndices[1] = functions.searchSortedSingleInput(xgrid,cash,self.p.nx)
 								xIndices[0] = xIndices[1] - 1
-								xWeights = functions.getInterpolationWeights(xgrid,cash,xIndices[1])
+								functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights)
 				
 
 								emax += Pytrans * self.income.yTdist[iyT] * (
@@ -212,6 +217,8 @@ cdef class Model:
 									)
 
 						self.EMAX[ix,ic,iz,iyP1] = emax
+
+		free(xWeights)
 
 	def updateValueNoSwitch(self):
 		"""
@@ -299,15 +306,19 @@ cdef class Model:
 		cdef list indices
 		cdef int ind1, ind2
 		cdef double weight1, weight2, u, emOut
-		cdef double[:] weights
+		cdef double *weights
 
-		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch)
+		weights = <double *> malloc(2 * sizeof(double))
+
+		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch, self.p.nc)
 		ind1 = ind2 - 1
-		weights = functions.getInterpolationWeights(cgrid, cSwitch, ind2)
+		functions.getInterpolationWeights(cgrid, cSwitch, ind2, weights)
 		weight1 = weights[0]
 		weight2 = weights[1]
 		u = functions.utility(self.p.riskAver,cSwitch)
 		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
+
+		free(weights)
 
 		return u + self.p.timeDiscount * (1 - self.p.deathProb) * emOUT
 

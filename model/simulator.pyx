@@ -4,8 +4,10 @@ import pandas as pd
 from misc cimport functions
 
 cimport cython
+from cython.parallel import prange, parallel
 
 from libc.math cimport log, fabs
+from libc.stdlib cimport malloc, free
 
 cdef class Simulator:
 	cdef:
@@ -74,57 +76,90 @@ cdef class Simulator:
 	@cython.wraparound(False)
 	def solveDecisions(self):
 		cdef:
-			long i, iyP, iz
-			long[:] xIndices, conIndices
-			double[:] xWeights, conWeights
+			long i, col, nc, nx
 			double[:] cgrid
+			double[:] xgrid
+			double[:,:] csim
+			long[:,:] switched
+
+		conIndices = np.zeros((self.nSim))
+			
+		cgrid = self.grids.c.flat
+		nc = self.p.nc
+		xgrid = self.grids.x.flat
+		nx = self.p.nx
+
+		csim = np.zeros((self.nSim,self.nCols))
+		switched = np.zeros((self.nSim,self.nCols),dtype=int)
+
+		with nogil, parallel():
+			csim[...] = self.csim
+			switched[...] = self.switched
+
+			for col in range(self.nCols):
+
+				for i in prange(self.nSim):
+					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx, csim, switched)
+		self.switched = switched
+		self.csim = np.minimum(csim,self.xsim)
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void findIndividualPolicy(self, long i, long col, double[:] cgrid, 
+		long nc, double[:] xgrid, long nx, double[:,:] csim, long[:,:] switched) nogil:
+		cdef: 
+			long iyP, iz
+			double *xWeights
+			double *conWeights
+			long xIndices[2]
+			long conIndices[2]
 			bint switch
 			double consumption, cash, myValueDiff, cSwitch
 
-		xIndices = np.zeros(2,dtype=int)
-		conIndices = np.zeros(2,dtype=int)
-		xWeights = np.zeros(2)
-		conWeights = np.zeros(2)
-
-		cgrid = self.grids.c.flat
-		for col in range(self.nCols):
-			for i in range(self.nSim):
-
-				iyP = self.yPind[i]
-				iz = self.zind[i]
-
-				consumption = self.csim[i,col]
-				cash = self.xsim[i,col]
-
-				xIndices[1] = functions.searchSortedSingleInput(self.grids.x.flat,cash)
-				xIndices[0] = xIndices[1] - 1
-				xWeights = functions.getInterpolationWeights(self.grids.x.flat,cash,xIndices[1])
-
-				if consumption > cash:
-					# forced to switch consumption
-					switch = True
-				else:
-					# check if switching is optimal
-					conIndices[1] = functions.searchSortedSingleInput(cgrid,consumption)
-					conIndices[0] = conIndices[1] - 1
-					conWeights = functions.getInterpolationWeights(cgrid,consumption,conIndices[1])
+		xWeights = <double *> malloc(2 * sizeof(double))
 
 
-					myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP] \
-						+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP] \
-						+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP] \
-						+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP]
+		iyP = self.yPind[i]
+		iz = self.zind[i]
 
-					switch = myValueDiff > 0
+		consumption = self.csim[i,col]
+		cash = self.xsim[i,col]
 
-				if switch:
-					self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
-							+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
-					self.switched[i,col] = 1
-				else:
-					self.switched[i,col] = 0
+		xIndices[1] = functions.searchSortedSingleInput(xgrid,cash,nx)
+		xIndices[0] = xIndices[1] - 1
+		
+		functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights)
 
-		self.csim = np.minimum(self.csim,self.xsim)
+		if consumption > cash:
+			# forced to switch consumption
+			switch = True
+		else:
+			conWeights = <double *> malloc(2 * sizeof(double))
+
+			# check if switching is optimal
+			conIndices[1] = functions.searchSortedSingleInput(cgrid,consumption,nc)
+			conIndices[0] = conIndices[1] - 1
+			
+			functions.getInterpolationWeights(cgrid,consumption,conIndices[1],conWeights)
+
+
+			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP] \
+				+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP] \
+				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP] \
+				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP]
+
+			switch = myValueDiff > 0
+
+			free(conWeights)
+
+		if switch:
+			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
+					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
+			self.switched[i,col] = 1
+		else:
+			self.switched[i,col] = 0
+
+		free(xWeights)
 
 cdef class EquilibriumSimulator(Simulator):
 
@@ -248,7 +283,7 @@ cdef class EquilibriumSimulator(Simulator):
 
 		# gini
 		giniNumerator = 0
-		for i in range(self.nSim):
+		for i in prange(self.nSim, nogil=True):
 			asim_i = self.asim[i,0]
 			for j in range(self.nSim):
 				giniNumerator += fabs(asim_i - self.asim[j,0])
