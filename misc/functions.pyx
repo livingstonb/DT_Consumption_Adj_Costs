@@ -3,22 +3,23 @@ cimport numpy as np
 cimport cython
 
 from libc.math cimport log, fabs, pow
-from libc.stdlib import malloc, free
+from libc.stdlib cimport malloc, free
+
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
-	if riskaver == float(1):
+	if riskaver == 1.0:
 		return np.log(con)
 	else:
 		return np.power(con,1-riskaver) / (1-riskaver)
 
 cdef np.ndarray utilityVec(double riskaver, double[:] con):
-	if riskaver == float(1):
+	if riskaver == 1.0:
 		return np.log(con)
 	else:
 		return np.power(con,1-riskaver) / (1-riskaver)
 
-cdef inline double utility(double riskaver, double con):
-	if riskaver == float(1):
+cdef inline double utility(double riskaver, double con) nogil:
+	if riskaver == 1.0:
 		return log(con)
 	else:
 		return pow(con,1-riskaver) / (1-riskaver)
@@ -162,8 +163,12 @@ cdef void getInterpolationWeights(
 		out[0] = weight1
 		out[1] = 1 - weight1
 
-cdef void goldenSectionSearch(object f, double a, double b, 
-	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out) nogil:
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
+	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out,
+	double[:] arg1, double[:] arg2,
+	long a1, double a2, double a3, double a4) nogil:
 
 	cdef double c, d, diff
 	cdef double fc, fd
@@ -173,8 +178,8 @@ cdef void goldenSectionSearch(object f, double a, double b,
 	c = a + diff * invGoldenRatioSq
 	d = a + diff * invGoldenRatio 
 
-	fc = f(c)
-	fd = f(d)
+	fc = f(c,arg1,arg2,a1,a2,a3,a4)
+	fd = f(d,arg1,arg2,a1,a2,a3,a4)
 
 	while fabs(c - d) > tol:
 		if fc > fd:
@@ -183,14 +188,14 @@ cdef void goldenSectionSearch(object f, double a, double b,
 			fd = fc
 			diff = diff * invGoldenRatio
 			c = a + diff * invGoldenRatioSq
-			fc = f(c)
+			fc = f(c,arg1,arg2,a1,a2,a3,a4)
 		else:
 			a = c
 			c = d
 			fc = fd
 			diff = diff * invGoldenRatio
 			d = a + diff * invGoldenRatio
-			fd = f(d)
+			fd = f(d,arg1,arg2,a1,a2,a3,a4)
 
 	if fc > fd:
 		out[0] = fc
@@ -199,8 +204,10 @@ cdef void goldenSectionSearch(object f, double a, double b,
 		out[0] = fd
 		out[1] = d
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cdef double cmax(double *vals, int nVals) nogil:
-	cdef int i
+	cdef long i
 	cdef double currentMax, currentVal
 
 	currentMax = vals[0]
@@ -212,8 +219,10 @@ cdef double cmax(double *vals, int nVals) nogil:
 
 	return currentMax
 
-cdef double cargmax(double *vals, int nVals) nogil:
-	cdef int i, currentArgMax = 0
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef long cargmax(double *vals, int nVals) nogil:
+	cdef long i, currentArgMax = 0
 	cdef double currentMax, currentVal
 
 	currentMax = vals[0]

@@ -3,14 +3,17 @@ cimport numpy as np
 
 cimport cython
 
-from misc import functions
 from misc cimport functions
+
 import pandas as pd
 from scipy import sparse
 
-from cython.parallel import prange
+from cython.parallel import prange, parallel
 from libc.stdlib cimport malloc, free
-from libc.math import fmin
+from libc.math cimport fmin
+
+ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z,
+								long a1, double a2, double a3, double a4) nogil
 
 cdef class Model:
 	cdef:
@@ -234,7 +237,7 @@ cdef class Model:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	def maximizeValueFromSwitching(self, findPolicy=False):
+	cdef maximizeValueFromSwitching(self, bint findPolicy=False):
 		"""
 		Updates self.valueSwitch by first approximating EMAX(x,c,z,yP), defined as
 		E[V(R(x-c)+yP'yT', c, z, yP')|x,c,z,yP]. This approximation is done by
@@ -243,13 +246,14 @@ cdef class Model:
 		(x,z,yP)-space by interpolating u(c) and EMAX(c) at each iteration.
 		"""
 		cdef:
-			int iyP, ix, iz, ii, nSections, i, nx
+			long iyP, ix, iz, nSections, i, nx, nz
 			double xval, maxAdmissibleC, invGoldenRatio, invGoldenRatioSq
-			np.ndarray[np.float64_t, ndim=1] cVals, funVals
+			double cMin, cMax
 			double[:] sections
-			np.ndarray[np.float64_t, ndim=4] EMAX
 			tuple bounds, bound
 			double[:] xgrid, cgrid
+			long nyP, nc
+			double riskAver, timeDiscount, deathProb
 
 		if findPolicy:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
@@ -260,6 +264,12 @@ cdef class Model:
 		cMax = self.p.cMax
 
 		nx = self.p.nx
+		nz = self.p.nz
+		nc = self.p.nc
+
+		riskAver = self.p.riskAver
+		timeDiscount = self.p.timeDiscount
+		deathProb = self.p.deathProb
 
 		invGoldenRatio = 1 / ((np.sqrt(5) + 1) / 2)
 		invGoldenRatioSq = np.power(invGoldenRatio,2)
@@ -267,98 +277,116 @@ cdef class Model:
 		nSections = 5
 		sections = np.linspace(1/nSections,1,num=nSections)
 
-		cVals = np.zeros((nSections+2,))
-		funVals = np.zeros((nSections+2,))
-
 		if not findPolicy:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
-		
-		for iyP in prange(self.p.nyP, nogil=True):
-			self.valueForOneIncomeBlock(xgrid, cgrid, cMin, cMax, 
-				nSections, invGoldenRatio, invGoldenRatioSq, sections)
+		nyP = self.p.nyP
+		with nogil, parallel():
+			
+			for iyP in prange(nyP):
+				self.valueForOneIncomeBlock(xgrid, nx, cgrid, cMin, cMax, nz,
+					nSections, invGoldenRatio, invGoldenRatioSq, sections, findPolicy, iyP,
+					nc, riskAver, timeDiscount, deathProb)
 			
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void valueForOneIncomeBlock(self, double[:] xgrid, int nx, double[:] cgrid, double cMin, double cMax,
-		int nSections, double invGoldenRatio, double invGoldenRatioSq, double[:] sections) nogil:
+	cdef void valueForOneIncomeBlock(self, double[:] xgrid, long nx, double[:] cgrid, double cMin, double cMax,
+		long nz, long nSections, double invGoldenRatio, double invGoldenRatioSq, double[:] sections, bint findPolicy,
+		long iyP, long nc, double riskAver, double timeDiscount, double deathProb) nogil:
 		cdef:
-			int ix, ii, iz
+			long ix, ii, iz
 			double xval, maxAdmissibleC
-			double[:,:] bounds
+			double[:] emaxVec
+			double bounds[5][2]
 			double *cVals
 			double *funVals
 			double *gssResults
+			objectiveFn iteratorFn
+			long nVals
 
-		bounds = <double[nSections,2] *> malloc(nSections * 2 * sizeof(double))
-		bounds[0,0] = cMin
+		nVals = nSections + 2
 
-		cVals = <double *> malloc((nSections+2) * sizeof(double))
-		funVals = <double *> malloc((nSections+2) * sizeof(double))
+		# bounds = <double[5][2] *> malloc(nSections * 2 * sizeof(double))
+		bounds[0][0] = cMin
+
+		cVals = <double *> malloc(nVals * sizeof(double))
+		funVals = <double *> malloc(nVals * sizeof(double))
 		gssResults = <double *> malloc(2 * sizeof(double))
 
 		for ix in range(nx):
 			xval = xgrid[ix]
 			maxAdmissibleC = fmin(xval,cMax)
 
-			bounds[0,1] = maxAdmissibleC * sections[0]
-			for ii in range(1,nSections-1):
-				bounds[ii+1,0] = maxAdmissibleC * sections[ii]
-				bounds[ii+1,1] = maxAdmissibleC * sections[ii+1]
+			bounds[0][1] = maxAdmissibleC * sections[0]
+			for ii in range(1,nSections):
+				bounds[ii][0] = maxAdmissibleC * sections[ii-1]
+				bounds[ii][1] = maxAdmissibleC * sections[ii]
 
-			for iz in range(self.p.nz):
-				iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,self.EMAX[ix,:,iz,iyP])
+			for iz in range(nz):
+				iteratorFn = <objectiveFn> self.findValueFromSwitching
+
+				emaxVec = self.EMAX[ix,:,iz,iyP]
 
 				for ii in range(nSections):
 					functions.goldenSectionSearch(iteratorFn,
-						bounds[ii,0],bounds[ii,1],invGoldenRatio,invGoldenRatioSq,1e-8,gssResults)
+						bounds[ii][0], bounds[ii][1], invGoldenRatio, invGoldenRatioSq, 1e-8,
+						gssResults, cgrid, emaxVec, nc, riskAver, timeDiscount, deathProb)
 					funVals[ii] = gssResults[0]
 					cVals[ii] = gssResults[1]
+				ii = nSections
 
 				# try consuming cmin
 				cVals[ii] = cMin
-				funVals[ii] = iteratorFn(cMin)
+				funVals[ii] = iteratorFn(cMin, cgrid, emaxVec, nc, riskAver, timeDiscount, deathProb)
 				ii += 1
 
 				# try consuming xval (or cmax)
 				cVals[ii] = maxAdmissibleC
-				funVals[ii] = iteratorFn(maxAdmissibleC)
+				funVals[ii] = iteratorFn(maxAdmissibleC, cgrid, emaxVec, nc, riskAver, timeDiscount, deathProb)
 
 				if findPolicy:
-					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,nSections+2)]
+					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,nVals)]
 				else:
-					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,nSections+2)
+					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,nVals)
 
-		free(bounds)
 		free(cVals)
 		free(funVals)
 		free(gssResults)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em):
+	cdef double findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] em,
+		long nc, double riskAver, double timeDiscount, double deathProb) nogil:
 		"""
 		Output is u(cSwitch) + beta * EMAX(cSwitch)
 		"""
-		cdef list indices
-		cdef int ind1, ind2
-		cdef double weight1, weight2, u, emOut
+		cdef long ind1, ind2
+		cdef double weight1, weight2, u, emOut, value
+		cdef double em1, em2
 		cdef double *weights
 
 		weights = <double *> malloc(2 * sizeof(double))
 
-		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch, self.p.nc)
+		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch, nc)
 		ind1 = ind2 - 1
 		functions.getInterpolationWeights(cgrid, cSwitch, ind2, weights)
+
 		weight1 = weights[0]
 		weight2 = weights[1]
-		u = functions.utility(self.p.riskAver,cSwitch)
-		emOUT = weight1 * em[ind1] + weight2 * em[ind2]
+
+		em1 = em[ind1]
+		em2 = em[ind2]
+
+		u = functions.utility(riskAver,cSwitch)
+
+		emOUT = weight1 * em1 + weight2 * em2
 
 		free(weights)
 
-		return u + self.p.timeDiscount * (1 - self.p.deathProb) * emOUT
+		value = u + timeDiscount * (1 - deathProb) * emOUT
+
+		return value
 
 	def resetDiscountRate(self, newTimeDiscount):
 		self.p.timeDiscount = newTimeDiscount

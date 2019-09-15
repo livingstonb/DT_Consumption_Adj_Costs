@@ -22,7 +22,7 @@ locIncomeProcess = os.path.join(
 if len(sys.argv) > 1:
 	paramIndex = sys.argv[1]
 else:
-	paramIndex = 0
+	paramIndex = 1
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
