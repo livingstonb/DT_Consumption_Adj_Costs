@@ -5,40 +5,37 @@ cimport cython
 from libc.math cimport log, fabs, pow
 from libc.stdlib cimport malloc, free
 
-cdef double GOLDEN_RATIO = 5.0
+cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
+cdef double INV_GOLDEN_RATIO_SQ = 0.38196601125010509747
 
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
-	if riskaver == 1.0:
-		return np.log(con)
-	else:
-		return np.power(con,1-riskaver) / (1-riskaver)
-
-cdef np.ndarray utilityVec(double riskaver, double[:] con):
+	"""
+	Utility function for a 4D array.
+	"""
 	if riskaver == 1.0:
 		return np.log(con)
 	else:
 		return np.power(con,1-riskaver) / (1-riskaver)
 
 cdef inline double utility(double riskaver, double con) nogil:
+	"""
+	Utility function for a single value.
+	"""
 	if riskaver == 1.0:
 		return log(con)
 	else:
 		return pow(con,1-riskaver) / (1-riskaver)
 
-cdef np.ndarray marginalUtility(double riskaver, np.ndarray con):
-	"""
-	Returns the first derivative of the utility function
-	"""
-	u = np.power(con,-riskaver)
-	return u
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	"""
-	This function finds the index i for which
-	grid[i-1] <= val < grid[i]
+	For each value in vals, this function finds the index i for which
+	grid[i-1] <= value < grid[i], with the exception that i = 0 is 
+	taken to be i = 1 (i.e. 0 is never an output). Each element i
+	of the output can be used as the index of the second value for
+	interpolation.
 	"""
 	cdef long n, m, i, index
 	cdef double currentVal
@@ -67,8 +64,11 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 @cython.wraparound(False)
 cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil:
 	"""
-	This function finds the index i for which
-	grid[i-1] <= val < grid[i]
+	For the value val, this function finds the index i for which
+	grid[i-1] <= val < grid[i], with the exception that i = 0 is 
+	taken to be i = 1 (i.e. 0 is never an output). The output can
+	be used as the index of the second value for
+	interpolation.
 	"""
 	cdef long index = 1
 
@@ -83,6 +83,14 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals):
+	"""
+	This function interpolates vals onto grid. If grid is of dimension N and vals is
+	of dimension (M,L), output is dimension (M,L,N). Element (m,l,n) of the output
+	is the weight that should be placed on grid point n for element (m,l) of vals.
+	No extrapolation is performed; for any input that is outside the bounds of grid,
+	the interpolated value is taken to be either the lowest or the highest value of
+	grid.
+	"""
 	cdef:
 		long[:] gridIndices
 		double[:,:,:] probabilities
@@ -118,39 +126,16 @@ cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef tuple interpolate1D(double[:] grid, double pt):
-	cdef:
-		int gridIndex
-		int gridIndices1
-		int gridIndices2
-		double gridPt1, gridPt2, proportion2
-		list gridIndices, proportions
-
-	# returns the two indices between which to interpolate
-	# returns the proportions to place on each of the 2 indices
-	gridIndex = searchSortedSingleInput(grid, pt, grid.size)
-
-	if gridIndex == 0:
-		gridIndices = [0,1]
-		proportions = [1,0]
-	elif gridIndex == np.size(grid):
-		gridIndices = [grid.shape[0]-2,grid.shape[0]-1]
-		proportions = [0,1]
-	else:
-		gridIndices = [gridIndex-1,gridIndex]
-		gridIndices1 = gridIndices[0]
-		gridIndices2 = gridIndices[1]
-		gridPt1 = grid[gridIndices1]
-		gridPt2 = grid[gridIndices2]
-		proportion2 = (pt - gridPt1) / (gridPt2 - gridPt1)
-		proportions = [1-proportion2,proportion2]
-
-	return (gridIndices, proportions)
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
 cdef void getInterpolationWeights(
 	double[:] grid, double pt, long rightIndex, double *out) nogil:
+	"""
+	This function finds the weights placed on the grid value below pt
+	and the grid value above pt when interpolating pt onto grid.
+
+	rightIndex is the index in grid of the grid value above or equal to
+	pt, and out is a pointer to a double array of length 2 where the
+	weights will be stored.
+	"""
 	cdef double weight1
 
 	weight1 = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
@@ -168,16 +153,25 @@ cdef void getInterpolationWeights(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out,
-	double[:] arg1, double[:] arg2, FnParameters fparams) nogil:
+	double tol, double* out, double[:] arg1, double[:] arg2, 
+	FnParameters fparams) nogil:
+	"""
+	This function iterates over the objective function f using
+	the golden section search method in the interval (a,b).
 
+	The maximum function value is supplied to out[0] and the
+	maximizer is supplied to out[1]. Arguments of f must be arg1,
+	arg2, and fparams.
+
+	Algorithm taken from Wikipedia.
+	"""
 	cdef double c, d, diff
 	cdef double fc, fd
 
 	diff = b - a
 
-	c = a + diff * invGoldenRatioSq
-	d = a + diff * invGoldenRatio 
+	c = a + diff * INV_GOLDEN_RATIO_SQ
+	d = a + diff * INV_GOLDEN_RATIO 
 
 	fc = f(c,arg1,arg2,fparams)
 	fd = f(d,arg1,arg2,fparams)
@@ -187,15 +181,15 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			b = d
 			d = c
 			fd = fc
-			diff = diff * invGoldenRatio
-			c = a + diff * invGoldenRatioSq
+			diff = diff * INV_GOLDEN_RATIO
+			c = a + diff * INV_GOLDEN_RATIO_SQ
 			fc = f(c,arg1,arg2,fparams)
 		else:
 			a = c
 			c = d
 			fc = fd
-			diff = diff * invGoldenRatio
-			d = a + diff * invGoldenRatio
+			diff = diff * INV_GOLDEN_RATIO
+			d = a + diff * INV_GOLDEN_RATIO
 			fd = f(d,arg1,arg2,fparams)
 
 	if fc > fd:
@@ -208,6 +202,10 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double cmax(double *vals, int nVals) nogil:
+	"""
+	Finds the maximum in 'vals'. Length of input
+	must be supplied.
+	"""
 	cdef long i
 	cdef double currentMax, currentVal
 
@@ -223,6 +221,10 @@ cdef double cmax(double *vals, int nVals) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef long cargmax(double *vals, int nVals) nogil:
+	"""
+	Finds the argmax of 'vals'. Length of input
+	must be supplied.
+	"""
 	cdef long i, currentArgMax = 0
 	cdef double currentMax, currentVal
 

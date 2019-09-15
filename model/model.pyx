@@ -14,6 +14,10 @@ from libc.stdlib cimport malloc, free
 from libc.math cimport fmin, pow, sqrt
 
 cdef class Model:
+	"""
+	This extension class solves for the value function of a heterogenous
+	agent model with disutility of consumption adjustment.
+	"""
 	cdef:
 		object p, grids, income
 		double nextMPCShock
@@ -41,6 +45,8 @@ cdef class Model:
 		if EMAX is None:
 			self.EMAXPassedAsArgument = False
 		else:
+			# EMAX is based on expectation of a future shock,
+			# do not update with value function of current model
 			self.EMAXPassedAsArgument = True
 			self.EMAX = EMAX
 			
@@ -102,9 +108,9 @@ cdef class Model:
 	@cython.wraparound(False)
 	def constructInterpolantForEMAX(self):
 		"""
-		This method constructs an interpolant ndarray 'interpMat' such that
-		interpMat @ valueFunction(:) = E[V]. That is, the expected continuation 
-		value of being in state (x_i,ctilde,z_k,yP_k) and choosing to consume c_j, 
+		This method constructs an interpolant array interpMat such that
+		interpMat * valueFunction(:) = E[V]. That is, the expected continuation 
+		value of being in state (x_i,~,z_k,yP_k) and choosing to consume c_j, 
 		the (i,j,k,l)-th element of the matrix product of interpMat and 
 		valueFunction(:) is the quantity below:
 
@@ -112,7 +118,8 @@ cdef class Model:
 
 		where the expectation is taken over yP' and yT'.
 
-		Output is stored in self.interpMat.
+		Output is stored in self.interpMat. Note that this array is constructed
+		in Fortran style, must use order='F' for matrix multiplication.
 		"""
 		cdef:
 			int iyP1, iyP2, ic, iz, i
@@ -158,7 +165,7 @@ cdef class Model:
 
 	def updateValueFunction(self):
 		"""
-		This method updates self.valueFunction by finding max(valueSwitch,valueNoSwitch),
+		This method updates self.valueFunction by finding max(valueSwitch-adjustCost,valueNoSwitch),
 		where valueSwitch is used wherever c > x in the state space.
 		"""
 		self.valueFunction = np.where(self.grids.mustSwitch,
@@ -167,6 +174,9 @@ cdef class Model:
 			)
 
 	def updateEMAX(self):
+		"""
+		This method computes E[V] from the most recent value function iteration.
+		"""
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
 				).reshape(self.grids.matrixDim,order='F')
 
@@ -225,7 +235,7 @@ cdef class Model:
 
 	def updateValueNoSwitch(self):
 		"""
-		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * E[V(c)]
+		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
 		"""
 		self.valueNoSwitch = functions.utilityMat(self.p.riskAver,self.grids.c.matrix) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
@@ -237,11 +247,9 @@ cdef class Model:
 	@cython.wraparound(False)
 	cdef maximizeValueFromSwitching(self, bint findPolicy=False):
 		"""
-		Updates self.valueSwitch by first approximating EMAX(x,c,z,yP), defined as
-		E[V(R(x-c)+yP'yT', c, z, yP')|x,c,z,yP]. This approximation is done by
-		interpolating the sums over income transitions using interpMat. Then a
-		maximization is done over u(c) + beta * EMAX at each point in the
-		(x,z,yP)-space by interpolating u(c) and EMAX(c) at each iteration.
+		Updates self.valueSwitch via a maximization over u(c) + beta * EMAX(c)
+		at each point in the (x,z,yP)-space by computing u(c) and interpolating 
+		EMAX(c) at each iteration.
 		"""
 		cdef:
 			long iyP
@@ -283,11 +291,10 @@ cdef class Model:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void valueForOneIncomeBlock(self, double[:] xgrid, double[:] cgrid,
-		double[:] sections, bint findPolicy,long iyP, FnParameters fparams) nogil:
+		double[:] sections, bint findPolicy, long iyP, FnParameters fparams) nogil:
 		cdef:
 			long ix, ii, iz
 			double xval, maxAdmissibleC
-			double invGoldenRatio, invGoldenRatioSq
 			double[:] emaxVec
 			double bounds[5][2]
 			double *cVals
@@ -297,9 +304,6 @@ cdef class Model:
 			long nVals
 
 		nVals = fparams.nSections + 2
-
-		invGoldenRatio = 1 / ((sqrt(5) + 1) / 2)
-		invGoldenRatioSq = pow(invGoldenRatio,2)
 
 		# bounds = <double[5][2] *> malloc(nSections * 2 * sizeof(double))
 		bounds[0][0] = fparams.cMin
@@ -323,9 +327,8 @@ cdef class Model:
 				emaxVec = self.EMAX[ix,:,iz,iyP]
 
 				for ii in range(fparams.nSections):
-					functions.goldenSectionSearch(iteratorFn,
-						bounds[ii][0], bounds[ii][1], invGoldenRatio, invGoldenRatioSq, 
-						1e-8, gssResults, cgrid, emaxVec, fparams)
+					functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
+						bounds[ii][1],1e-8, gssResults, cgrid, emaxVec, fparams)
 					funVals[ii] = gssResults[0]
 					cVals[ii] = gssResults[1]
 				ii = fparams.nSections
