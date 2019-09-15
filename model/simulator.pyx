@@ -79,8 +79,6 @@ cdef class Simulator:
 			long i, col, nc, nx
 			double[:] cgrid
 			double[:] xgrid
-			double[:,:] csim
-			long[:,:] switched
 
 		conIndices = np.zeros((self.nSim))
 			
@@ -89,24 +87,18 @@ cdef class Simulator:
 		xgrid = self.grids.x.flat
 		nx = self.p.nx
 
-		csim = np.zeros((self.nSim,self.nCols))
-		switched = np.zeros((self.nSim,self.nCols),dtype=int)
-
 		with nogil, parallel():
-			csim[...] = self.csim
-			switched[...] = self.switched
 
 			for col in range(self.nCols):
 
 				for i in prange(self.nSim):
-					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx, csim, switched)
-		self.switched = switched
-		self.csim = np.minimum(csim,self.xsim)
+					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
+		self.csim = np.minimum(self.csim,self.xsim)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void findIndividualPolicy(self, long i, long col, double[:] cgrid, 
-		long nc, double[:] xgrid, long nx, double[:,:] csim, long[:,:] switched) nogil:
+		long nc, double[:] xgrid, long nx) nogil:
 		cdef: 
 			long iyP, iz
 			double *xWeights
