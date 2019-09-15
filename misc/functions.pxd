@@ -19,5 +19,9 @@ cpdef tuple interpolate1D(double[:] grid, double pt)
 
 cdef void getInterpolationWeights(double[:] grid, double pt, long rightIndex, double *out) nogil
 
-cpdef tuple goldenSectionSearch(object f, double a, double b, 
-	double invGoldenRatio, double invGoldenRatioSq, double tol)
+cdef void goldenSectionSearch(object f, double a, double b, 
+	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out) nogil
+
+cdef double cmax(double *vals, int nVals) nogil
+
+cdef double cargmax(double *vals, int nVals) nogil

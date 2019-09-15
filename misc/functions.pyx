@@ -3,6 +3,7 @@ cimport numpy as np
 cimport cython
 
 from libc.math cimport log, fabs, pow
+from libc.stdlib import malloc, free
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	if riskaver == float(1):
@@ -161,8 +162,8 @@ cdef void getInterpolationWeights(
 		out[0] = weight1
 		out[1] = 1 - weight1
 
-cpdef tuple goldenSectionSearch(object f, double a, double b, 
-	double invGoldenRatio, double invGoldenRatioSq, double tol):
+cdef void goldenSectionSearch(object f, double a, double b, 
+	double invGoldenRatio, double invGoldenRatioSq, double tol, double* out) nogil:
 
 	cdef double c, d, diff
 	cdef double fc, fd
@@ -192,6 +193,35 @@ cpdef tuple goldenSectionSearch(object f, double a, double b,
 			fd = f(d)
 
 	if fc > fd:
-		return fc, c #(a + d) / 2
+		out[0] = fc
+		out[1] = c
 	else:
-		return fd, d #(c + b) / 2
+		out[0] = fd
+		out[1] = d
+
+cdef double cmax(double *vals, int nVals) nogil:
+	cdef int i
+	cdef double currentMax, currentVal
+
+	currentMax = vals[0]
+
+	for i in range(1,nVals):
+		currentVal = vals[i]
+		if currentVal > currentMax:
+			currentMax = currentVal
+
+	return currentMax
+
+cdef double cargmax(double *vals, int nVals) nogil:
+	cdef int i, currentArgMax = 0
+	cdef double currentMax, currentVal
+
+	currentMax = vals[0]
+
+	for i in range(1,nVals):
+		currentVal = vals[i]
+		if currentVal > currentMax:
+			currentMax = currentVal
+			currentArgMax = i
+
+	return currentArgMax

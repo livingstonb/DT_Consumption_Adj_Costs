@@ -8,7 +8,9 @@ from misc cimport functions
 import pandas as pd
 from scipy import sparse
 
+from cython.parallel import prange
 from libc.stdlib cimport malloc, free
+from libc.math import fmin
 
 cdef class Model:
 	cdef:
@@ -241,17 +243,23 @@ cdef class Model:
 		(x,z,yP)-space by interpolating u(c) and EMAX(c) at each iteration.
 		"""
 		cdef:
-			int iyP, ix, iz, ii, nSections, i
+			int iyP, ix, iz, ii, nSections, i, nx
 			double xval, maxAdmissibleC, invGoldenRatio, invGoldenRatioSq
 			np.ndarray[np.float64_t, ndim=1] cVals, funVals
-			double[:] cgrid, util, sections
+			double[:] sections
 			np.ndarray[np.float64_t, ndim=4] EMAX
-			tuple cBounds, bounds, bound
+			tuple bounds, bound
+			double[:] xgrid, cgrid
 
 		if findPolicy:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
+		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
+		cMin = self.p.cMin
+		cMax = self.p.cMax
+
+		nx = self.p.nx
 
 		invGoldenRatio = 1 / ((np.sqrt(5) + 1) / 2)
 		invGoldenRatioSq = np.power(invGoldenRatio,2)
@@ -265,37 +273,67 @@ cdef class Model:
 		if not findPolicy:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
-		for iyP in range(self.p.nyP):
+		
+		for iyP in prange(self.p.nyP, nogil=True):
+			self.valueForOneIncomeBlock(xgrid, cgrid, cMin, cMax, 
+				nSections, invGoldenRatio, invGoldenRatioSq, sections)
+			
 
-			for ix in range(self.p.nx):
-				xval = self.grids.x.flat[ix]
-				maxAdmissibleC = np.minimum(xval,self.p.cMax)
-				cBounds = ((self.p.cMin,maxAdmissibleC),)
-				bounds = tuple((maxAdmissibleC*sections[i],maxAdmissibleC*sections[i+1]) for i in range(nSections-1))
-				bounds = ((self.p.cMin,maxAdmissibleC*sections[0]),) + bounds
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void valueForOneIncomeBlock(self, double[:] xgrid, int nx, double[:] cgrid, double cMin, double cMax,
+		int nSections, double invGoldenRatio, double invGoldenRatioSq, double[:] sections) nogil:
+		cdef:
+			int ix, ii, iz
+			double xval, maxAdmissibleC
+			double[:,:] bounds
+			double *cVals
+			double *funVals
+			double *gssResults
 
-				for iz in range(self.p.nz):
-					iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,self.EMAX[ix,:,iz,iyP])
+		bounds = <double[nSections,2] *> malloc(nSections * 2 * sizeof(double))
+		bounds[0,0] = cMin
 
-					ii = 0
-					for bound in bounds:
-						funVals[ii], cVals[ii] = functions.goldenSectionSearch(iteratorFn,
-							bound[0],bound[1],invGoldenRatio,invGoldenRatioSq,1e-8)
-						ii += 1
+		cVals = <double *> malloc((nSections+2) * sizeof(double))
+		funVals = <double *> malloc((nSections+2) * sizeof(double))
+		gssResults = <double *> malloc(2 * sizeof(double))
 
-					# try consuming cmin
-					cVals[ii] = self.p.cMin
-					funVals[ii] = iteratorFn(self.p.cMin)
-					ii += 1
+		for ix in range(nx):
+			xval = xgrid[ix]
+			maxAdmissibleC = fmin(xval,cMax)
 
-					# try consuming xval (or cmax)
-					cVals[ii] = maxAdmissibleC
-					funVals[ii] = iteratorFn(maxAdmissibleC)
+			bounds[0,1] = maxAdmissibleC * sections[0]
+			for ii in range(1,nSections-1):
+				bounds[ii+1,0] = maxAdmissibleC * sections[ii]
+				bounds[ii+1,1] = maxAdmissibleC * sections[ii+1]
 
-					if findPolicy:
-						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[funVals.argmax()]
-					else:
-						self.valueSwitch[ix,0,iz,iyP] = funVals.max()
+			for iz in range(self.p.nz):
+				iteratorFn = lambda c: self.findValueFromSwitching(c,cgrid,self.EMAX[ix,:,iz,iyP])
+
+				for ii in range(nSections):
+					functions.goldenSectionSearch(iteratorFn,
+						bounds[ii,0],bounds[ii,1],invGoldenRatio,invGoldenRatioSq,1e-8,gssResults)
+					funVals[ii] = gssResults[0]
+					cVals[ii] = gssResults[1]
+
+				# try consuming cmin
+				cVals[ii] = cMin
+				funVals[ii] = iteratorFn(cMin)
+				ii += 1
+
+				# try consuming xval (or cmax)
+				cVals[ii] = maxAdmissibleC
+				funVals[ii] = iteratorFn(maxAdmissibleC)
+
+				if findPolicy:
+					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,nSections+2)]
+				else:
+					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,nSections+2)
+
+		free(bounds)
+		free(cVals)
+		free(funVals)
+		free(gssResults)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
