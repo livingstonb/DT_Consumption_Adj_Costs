@@ -101,15 +101,11 @@ cdef class Simulator:
 		long nc, double[:] xgrid, long nx) nogil:
 		cdef: 
 			long iyP, iz
-			double *xWeights
-			double *conWeights
+			double xWeights[2], conWeights[2]
 			long xIndices[2]
 			long conIndices[2]
 			bint switch
 			double consumption, cash, myValueDiff, cSwitch
-
-		xWeights = <double *> malloc(2 * sizeof(double))
-
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -120,19 +116,17 @@ cdef class Simulator:
 		xIndices[1] = functions.searchSortedSingleInput(xgrid,cash,nx)
 		xIndices[0] = xIndices[1] - 1
 		
-		functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights)
+		functions.getInterpolationWeights(xgrid,cash,xIndices[1],&xWeights[0])
 
 		if consumption > cash:
 			# forced to switch consumption
 			switch = True
 		else:
-			conWeights = <double *> malloc(2 * sizeof(double))
-
 			# check if switching is optimal
 			conIndices[1] = functions.searchSortedSingleInput(cgrid,consumption,nc)
 			conIndices[0] = conIndices[1] - 1
 			
-			functions.getInterpolationWeights(cgrid,consumption,conIndices[1],conWeights)
+			functions.getInterpolationWeights(cgrid,consumption,conIndices[1],&conWeights[0])
 
 
 			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP] \
@@ -142,8 +136,6 @@ cdef class Simulator:
 
 			switch = myValueDiff > 0
 
-			free(conWeights)
-
 		if switch:
 			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
 					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
@@ -151,7 +143,6 @@ cdef class Simulator:
 		else:
 			self.switched[i,col] = 0
 
-		free(xWeights)
 
 cdef class EquilibriumSimulator(Simulator):
 

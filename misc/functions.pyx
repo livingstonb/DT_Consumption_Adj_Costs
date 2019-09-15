@@ -3,7 +3,6 @@ cimport numpy as np
 cimport cython
 
 from libc.math cimport log, fabs, pow
-from libc.stdlib cimport malloc, free
 
 cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
 cdef double INV_GOLDEN_RATIO_SQ = 0.38196601125010509747

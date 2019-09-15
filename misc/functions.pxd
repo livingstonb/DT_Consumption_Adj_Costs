@@ -1,17 +1,19 @@
 import numpy as np
 cimport numpy as np
 
+# structure to hold parameters for objective function
+# used by golden section search
 cdef struct FnParameters:
 	long nx
 	long nc
 	long nz
-	long nSections
 	double cMin
 	double cMax
 	double riskAver
 	double timeDiscount
 	double deathProb
 
+# function pointer for golden section search
 ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, FnParameters fparams) nogil
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
