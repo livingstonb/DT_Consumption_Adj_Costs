@@ -5,6 +5,8 @@ cimport cython
 from libc.math cimport log, fabs, pow
 from libc.stdlib cimport malloc, free
 
+cdef double GOLDEN_RATIO = 5.0
+
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	if riskaver == 1.0:

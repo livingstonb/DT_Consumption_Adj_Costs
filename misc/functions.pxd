@@ -2,7 +2,12 @@ import numpy as np
 cimport numpy as np
 
 cdef struct FnParameters:
+	long nx
 	long nc
+	long nz
+	long nSections
+	double cMin
+	double cMax
 	double riskAver
 	double timeDiscount
 	double deathProb

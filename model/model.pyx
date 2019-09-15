@@ -11,7 +11,7 @@ from scipy import sparse
 
 from cython.parallel import prange, parallel
 from libc.stdlib cimport malloc, free
-from libc.math cimport fmin
+from libc.math cimport fmin, pow, sqrt
 
 cdef class Model:
 	cdef:
@@ -244,13 +244,11 @@ cdef class Model:
 		(x,z,yP)-space by interpolating u(c) and EMAX(c) at each iteration.
 		"""
 		cdef:
-			long iyP, ix, iz, nSections, i, nx, nz
-			double xval, maxAdmissibleC, invGoldenRatio, invGoldenRatioSq
-			double cMin, cMax
+			long iyP
+			double invGoldenRatio, invGoldenRatioSq
 			double[:] sections
-			tuple bounds, bound
 			double[:] xgrid, cgrid
-			long nyP, nc
+			long nyP
 			FnParameters fparams
 
 		if findPolicy:
@@ -258,23 +256,18 @@ cdef class Model:
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
-		cMin = self.p.cMin
-		cMax = self.p.cMax
 
-		nx = self.p.nx
-		nz = self.p.nz
-		nc = self.p.nc
-
+		fparams.nx = self.p.nx
+		fparams.cMin = self.p.cMin
+		fparams.cMax = self.p.cMax
+		fparams.nz = self.p.nz
 		fparams.nc = self.p.nc
 		fparams.riskAver = self.p.riskAver
 		fparams.timeDiscount = self.p.timeDiscount
 		fparams.deathProb = self.p.deathProb
+		fparams.nSections = 5
 
-		invGoldenRatio = 1 / ((np.sqrt(5) + 1) / 2)
-		invGoldenRatioSq = np.power(invGoldenRatio,2)
-
-		nSections = 5
-		sections = np.linspace(1/nSections,1,num=nSections)
+		sections = np.linspace(1/fparams.nSections,1,num=fparams.nSections)
 
 		if not findPolicy:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
@@ -283,19 +276,18 @@ cdef class Model:
 		with nogil, parallel():
 			
 			for iyP in prange(nyP):
-				self.valueForOneIncomeBlock(xgrid, nx, cgrid, cMin, cMax, nz,
-					nSections, invGoldenRatio, invGoldenRatioSq, sections, findPolicy, 
+				self.valueForOneIncomeBlock(xgrid, cgrid, sections, findPolicy, 
 					iyP, fparams)
 			
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void valueForOneIncomeBlock(self, double[:] xgrid, long nx, double[:] cgrid, double cMin, double cMax,
-		long nz, long nSections, double invGoldenRatio, double invGoldenRatioSq, double[:] sections, bint findPolicy,
-		long iyP, FnParameters fparams) nogil:
+	cdef void valueForOneIncomeBlock(self, double[:] xgrid, double[:] cgrid,
+		double[:] sections, bint findPolicy,long iyP, FnParameters fparams) nogil:
 		cdef:
 			long ix, ii, iz
 			double xval, maxAdmissibleC
+			double invGoldenRatio, invGoldenRatioSq
 			double[:] emaxVec
 			double bounds[5][2]
 			double *cVals
@@ -304,40 +296,43 @@ cdef class Model:
 			objectiveFn iteratorFn
 			long nVals
 
-		nVals = nSections + 2
+		nVals = fparams.nSections + 2
+
+		invGoldenRatio = 1 / ((sqrt(5) + 1) / 2)
+		invGoldenRatioSq = pow(invGoldenRatio,2)
 
 		# bounds = <double[5][2] *> malloc(nSections * 2 * sizeof(double))
-		bounds[0][0] = cMin
+		bounds[0][0] = fparams.cMin
 
 		cVals = <double *> malloc(nVals * sizeof(double))
 		funVals = <double *> malloc(nVals * sizeof(double))
 		gssResults = <double *> malloc(2 * sizeof(double))
 
-		for ix in range(nx):
+		for ix in range(fparams.nx):
 			xval = xgrid[ix]
-			maxAdmissibleC = fmin(xval,cMax)
+			maxAdmissibleC = fmin(xval,fparams.cMax)
 
 			bounds[0][1] = maxAdmissibleC * sections[0]
-			for ii in range(1,nSections):
+			for ii in range(1,fparams.nSections):
 				bounds[ii][0] = maxAdmissibleC * sections[ii-1]
 				bounds[ii][1] = maxAdmissibleC * sections[ii]
 
-			for iz in range(nz):
+			for iz in range(fparams.nz):
 				iteratorFn = <objectiveFn> self.findValueFromSwitching
 
 				emaxVec = self.EMAX[ix,:,iz,iyP]
 
-				for ii in range(nSections):
+				for ii in range(fparams.nSections):
 					functions.goldenSectionSearch(iteratorFn,
-						bounds[ii][0], bounds[ii][1], invGoldenRatio, invGoldenRatioSq, 1e-8,
-						gssResults, cgrid, emaxVec, fparams)
+						bounds[ii][0], bounds[ii][1], invGoldenRatio, invGoldenRatioSq, 
+						1e-8, gssResults, cgrid, emaxVec, fparams)
 					funVals[ii] = gssResults[0]
 					cVals[ii] = gssResults[1]
-				ii = nSections
+				ii = fparams.nSections
 
 				# try consuming cmin
-				cVals[ii] = cMin
-				funVals[ii] = iteratorFn(cMin, cgrid, emaxVec, fparams)
+				cVals[ii] = fparams.cMin
+				funVals[ii] = iteratorFn(fparams.cMin, cgrid, emaxVec, fparams)
 				ii += 1
 
 				# try consuming xval (or cmax)
