@@ -101,7 +101,8 @@ cdef class Simulator:
 		long nc, double[:] xgrid, long nx) nogil:
 		cdef: 
 			long iyP, iz
-			double xWeights[2], conWeights[2]
+			double xWeights[2]
+			double conWeights[2]
 			long xIndices[2]
 			long conIndices[2]
 			bint switch

@@ -88,7 +88,7 @@ cdef class Params:
 
 		# consumption grid
 		self.nc = 50
-		self.cMin = 0.0001
+		self.cMin = 1e-6
 		self.cMax = 3
 		self.cGridCurv = 0.08
 

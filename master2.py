@@ -27,7 +27,7 @@ else:
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
-params = load_specifications(locIncomeProcess,name='fast')
+params = load_specifications(locIncomeProcess,index=paramIndex)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #

@@ -29,42 +29,27 @@ cdef class Model:
 		object p, grids, income
 		double nextMPCShock
 		tuple dims, dims_yT
-		bint EMAXPassedAsArgument
-		dict nextModel, stats
-		# np.ndarray[np.float64_t, ndim=4] valueNoSwitch, valueSwitch, valueFunction
-		# np.ndarray[np.float64_t, ndim=2] interpMat
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
 		public double[:,:,:,:] EMAX
 		object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 
-	def __init__(self, params, income, grids, EMAX=None, nextMPCShock=0):
+	def __init__(self, params, income, grids):
 
 		self.p = params
 		self.grids = grids
 		self.income = income
 
-		self.nextMPCShock = nextMPCShock
+		self.nextMPCShock = 0
 
 		self.dims = (params.nx, params.nc, params.nz, params.nyP)
 		self.dims_yT = self.dims + (self.p.nyT,)
 
-		if EMAX is None:
-			self.EMAXPassedAsArgument = False
-		else:
-			# EMAX is based on expectation of a future shock,
-			# do not update with value function of current model
-			self.EMAXPassedAsArgument = True
-			self.EMAX = EMAX
-			
-		self.stats = dict()
-
 		self.initialize()
 
 	def initialize(self):
-		if not self.EMAXPassedAsArgument:
-			print('Constructing interpolant for EMAX')
-			self.constructInterpolantForEMAX()
+		print('Constructing interpolant array for EMAX')
+		self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
 		valueGuess = functions.utilityMat(self.p.riskAver,self.grids.c.matrix
@@ -84,9 +69,8 @@ cdef class Model:
 
 			Vprevious = self.valueFunction.copy()
 
-			if not self.EMAXPassedAsArgument:
-				# update EMAX = E[V|x,c,z,yP], where c is chosen c
-				self.updateEMAX()
+			# update EMAX = E[V|x,c,z,yP], where c is chosen c
+			self.updateEMAX()
 
 			# update value function of not switching
 			self.updateValueNoSwitch()
@@ -376,3 +360,18 @@ cdef class Model:
 
 	def resetDiscountRate(self, newTimeDiscount):
 		self.p.timeDiscount = newTimeDiscount
+
+cdef class ModelWithNews(Model):
+	def __init__(self, params, income, grids, EMAX, valueGuess, nextMPCShock):
+		super().__init__(self, params, income, grids)
+
+		self.nextMPCShock = nextMPCShock
+		self.EMAX = EMAX
+		self.valueFunction = valueGuess
+
+	def initialize(self):
+		pass
+
+	def updateEMAX(self):
+		# EMAX comes from next period's model
+		pass
