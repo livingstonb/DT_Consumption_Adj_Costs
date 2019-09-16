@@ -8,7 +8,9 @@ Options.buffer_max_dims = 10
 
 extensions = [
 				Extension("model.model",["model/model.pyx"],
-							include_dirs=[np.get_include()]),
+							include_dirs=[np.get_include()],
+							extra_compile_args=['-fopenmp'],
+        					extra_link_args=['-fopenmp'],),
 				Extension("model.modelObjects",["model/modelObjects.pyx"],
 							include_dirs=[np.get_include()]),
 				Extension("misc.functions",["misc/functions.pyx"],
