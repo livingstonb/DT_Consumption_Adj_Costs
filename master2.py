@@ -175,7 +175,7 @@ print(mpcSimulator.mpcs.to_string())
 #      PLOT POLICY FUNCTION                                 #
 #-----------------------------------------------------------#
 
-cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch) - params.adjustCost
+cSwitch = np.asarray(model.valueFunction) == (np.asarray(model.valueSwitch) - params.adjustCost)
 cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
 ixvals = [10,20,30,40,50,60]
@@ -198,6 +198,15 @@ i = 0
 for row in range(2):
 	for col in range(3):
 		ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,0])
+		i += 1
+
+plt.show()
+
+fig, ax = plt.subplots(nrows=2,ncols=3)
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.x.flat,model.cSwitchingPolicy[:,0,0,0])
 		i += 1
 
 plt.show()

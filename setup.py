@@ -19,6 +19,8 @@ extensions = [
 							include_dirs=[np.get_include()],
 							extra_compile_args=['-fopenmp'],
         					extra_link_args=['-fopenmp'],),
+				Extension("misc.tester",["misc/tester.pyx"],
+							include_dirs=[np.get_include()]),
 				]
 
 setup(	name="DiscreTime",

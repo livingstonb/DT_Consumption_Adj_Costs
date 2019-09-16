@@ -229,8 +229,6 @@ cdef class Model:
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
 
-		self.valueNoSwitch = np.reshape(self.valueNoSwitch,self.grids.matrixDim)
-
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef maximizeValueFromSwitching(self, bint findPolicy=False):
