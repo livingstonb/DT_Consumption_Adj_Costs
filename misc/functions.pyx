@@ -36,7 +36,7 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	of the output can be used as the index of the second value for
 	interpolation.
 	"""
-	cdef long n, m, i, index
+	cdef long n, m, i
 	cdef double currentVal
 	cdef long[:] indices
 
@@ -46,16 +46,9 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	indices = np.empty((m),dtype=int)
 
 	for i in range(m):
-		index = 1
 		currentVal = vals[i]
 
-		while index < n - 1:
-			if currentVal >= grid[index]:
-				index += 1
-			else:
-				break
-
-		indices[i] = index
+		indices[i] = fastSearchSingleInput(grid, currentVal, n)
 
 	return indices
 
@@ -78,6 +71,36 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 			break
 
 	return index
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
+	cdef long lower, upper, midpt
+	cdef double valMidpt
+
+	if val >= grid[nGrid-1]:
+		return nGrid - 1
+	elif val <= grid[0]:
+		return 1
+
+	lower = -1
+	upper = nGrid
+
+	while (upper - lower) > 1:
+		midpt = (upper + lower) >> 1
+		valMidpt = grid[midpt]
+
+		if val == valMidpt:
+			return midpt + 1
+		elif val > valMidpt:
+			lower = midpt
+		else:
+			upper = midpt
+
+	if val > valMidpt:
+		return midpt + 1
+	else:
+		return midpt
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -153,7 +176,7 @@ cdef void getInterpolationWeights(
 @cython.wraparound(False)
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
 	double tol, double* out, double[:] arg1, double[:] arg2,
-	double *arg3, FnParameters fparams) nogil:
+	FnParameters fparams) nogil:
 	"""
 	This function iterates over the objective function f using
 	the golden section search method in the interval (a,b).
@@ -172,8 +195,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 	c = a + diff * INV_GOLDEN_RATIO_SQ
 	d = a + diff * INV_GOLDEN_RATIO 
 
-	fc = f(c,arg1,arg2,arg3,fparams)
-	fd = f(d,arg1,arg2,arg3,fparams)
+	fc = f(c,arg1,arg2,fparams)
+	fd = f(d,arg1,arg2,fparams)
 
 	while fabs(c - d) > tol:
 		if fc > fd:
@@ -182,14 +205,14 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			fd = fc
 			diff = diff * INV_GOLDEN_RATIO
 			c = a + diff * INV_GOLDEN_RATIO_SQ
-			fc = f(c,arg1,arg2,arg3,fparams)
+			fc = f(c,arg1,arg2,fparams)
 		else:
 			a = c
 			c = d
 			fc = fd
 			diff = diff * INV_GOLDEN_RATIO
 			d = a + diff * INV_GOLDEN_RATIO
-			fd = f(d,arg1,arg2,arg3,fparams)
+			fd = f(d,arg1,arg2,fparams)
 
 	if fc > fd:
 		out[0] = fc

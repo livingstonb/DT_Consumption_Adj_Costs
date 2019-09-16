@@ -16,13 +16,15 @@ cdef struct FnParameters:
 
 # function pointer for golden section search
 ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, 
-	double *p, FnParameters fparams) nogil
+	FnParameters fparams) nogil
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
 
 cdef double utility(double riskaver, double con) nogil
 
 cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals)
+
+cpdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil
 
 cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
@@ -32,7 +34,7 @@ cdef void getInterpolationWeights(double[:] grid, double pt, long rightIndex, do
 
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
 	double tol, double* out, double[:] arg1, double[:] arg2, 
-	double *arg3, FnParameters fparams) nogil
+	FnParameters fparams) nogil
 
 cdef double cmax(double *vals, int nVals) nogil
 

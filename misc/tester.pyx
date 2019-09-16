@@ -3,6 +3,7 @@ from misc cimport spline
 import numpy as np
 cimport numpy as np
 
+cimport cython
 from libc.stdlib cimport malloc, free
 
 from matplotlib import pyplot as plt
@@ -65,3 +66,57 @@ def testCubicInterp():
 
 	plt.plot(grid,values)
 	plt.show()
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def testFastSearch(double[:] draws):
+	cdef long i, nGrid
+	cdef double[:] grid
+	cdef long[:] indices
+
+	indices = np.zeros(draws.size,dtype=int)
+
+	nGrid = 800
+	grid = np.linspace(0,5,num=nGrid)
+
+	for i in range(draws.size):
+		indices[i] = functions.fastSearchSingleInput(grid, draws[i], nGrid)
+
+	return indices
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def testNaiveSearch(double[:] draws):
+	cdef long i, nGrid
+	cdef double[:] grid
+	cdef long[:] indices
+
+	indices = np.zeros(draws.size,dtype=int)
+
+	nGrid = 800
+	grid = np.linspace(0,5,num=nGrid)
+
+	for i in range(draws.size):
+		indices[i] = functions.searchSortedSingleInput(grid, draws[i], nGrid)
+
+	return indices
+
+def checkSearch(runs):
+	cdef long[:] indicesFast
+	cdef long[:] indicesNaive
+	draws = np.random.random(runs) * 5
+
+	indicesFast = testFastSearch(draws)
+	indicesNaive = testNaiveSearch(draws)
+
+	nGrid = 800
+	grid = np.linspace(0,5,num=nGrid)
+
+	for i in range(runs):
+		if not (indicesFast[i] == indicesNaive[i]):
+			print(f'index from fast algorithm = {indicesFast[i]}')
+			print(f'index from slow algorithm = {indicesNaive[i]}')
+
+			print(f'grid value at {indicesFast[i]} = {grid[indicesFast[i]]}')
+			print(f'grid value at {indicesNaive[i]} = {grid[indicesNaive[i]]}')
+			print(f'draw value = {draws[i]}')

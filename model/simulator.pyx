@@ -125,7 +125,7 @@ cdef class Simulator:
 		consumption = self.csim[i,col]
 		cash = self.xsim[i,col]
 
-		xIndices[1] = functions.searchSortedSingleInput(xgrid,cash,nx)
+		xIndices[1] = functions.fastSearchSingleInput(xgrid,cash,nx)
 		xIndices[0] = xIndices[1] - 1
 		
 		functions.getInterpolationWeights(xgrid,cash,xIndices[1],&xWeights[0])
@@ -135,7 +135,7 @@ cdef class Simulator:
 			switch = True
 		else:
 			# check if switching is optimal
-			conIndices[1] = functions.searchSortedSingleInput(cgrid,consumption,nc)
+			conIndices[1] = functions.fastSearchSingleInput(cgrid,consumption,nc)
 			conIndices[0] = conIndices[1] - 1
 			
 			functions.getInterpolationWeights(cgrid,consumption,conIndices[1],&conWeights[0])
