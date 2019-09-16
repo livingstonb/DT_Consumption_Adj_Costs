@@ -12,25 +12,19 @@ cimport cython
 
 from misc cimport functions
 from misc.functions cimport objectiveFn, FnParameters
+from misc cimport spline
 
 import pandas as pd
 from scipy import sparse
 
 from cython.parallel import prange, parallel
 from libc.math cimport fmin, pow, sqrt
-
-cdef extern from "spline.h":
-	int spline( float *x   , float *y   , int  n   , 
-                    float  yp1 , float  ypn , float *y2 )
-
-	int splint( float *xa , float *ya , float *y2a , 
-                    int n    , float x   , float *y   )
-
+from libc.stdlib cimport malloc, free
 
 
 cdef enum:
 	# number of sections to try in golden section search
-	NSECTIONS = 10
+	NSECTIONS = 50
 
 	# number of sections + boundaries
 	NVALUES = NSECTIONS + 2
@@ -100,7 +94,7 @@ cdef class Model:
 				np.asarray(self.valueFunction) - np.asarray(Vprevious)
 				).flatten().max()
 
-			if np.mod(iteration,10) == 0:
+			if np.mod(iteration,50) == 0:
 				print(f'    Iteration {iteration}, norm of |V1-V| = {distance}')
 
 			iteration += 1
@@ -195,14 +189,17 @@ cdef class Model:
 		"""
 		cdef:
 			double emax, Pytrans, assets, cash, yP2
-			double[:] xgrid, cgrid
+			double[:] xgrid, cgrid, valueVec
 			double xWeights[2]
 			double *xWeights_ptr = xWeights
+			double *yderivs
 			long[:] xIndices
 			int ix, ic, iz, iyP1, iyP2, iyT
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
+
+		yderivs = <double *> malloc(self.p.nx * sizeof(double))
 
 		xIndices = np.zeros(2,dtype=int)
 
@@ -222,17 +219,25 @@ cdef class Model:
 							Pytrans = self.income.yPtrans[iyP1,iyP2]
 							yP2 = self.income.yPgrid[iyP2]
 
+							if self.p.cubicInterp:
+								valueVec = self.valueFunction[:,ic,iz,iyP2]
+								spline.spline(&xgrid[0], &valueVec[0], self.p.nx, 1.0e30, 1.0e30, yderivs)
+
 							for iyT in range(self.p.nyT):
 								cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock
-								xIndices[1] = functions.searchSortedSingleInput(xgrid,cash,self.p.nx)
-								xIndices[0] = xIndices[1] - 1
-								functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights_ptr)
-				
+								if self.p.cubicInterp:
+									emax += Pytrans * self.income.yTdist[iyT] * \
+										spline.splint(&xgrid[0], &valueVec[0], yderivs, self.p.nx, cash)
+								else:
+									xIndices[1] = functions.searchSortedSingleInput(xgrid,cash,self.p.nx)
+									xIndices[0] = xIndices[1] - 1
+									functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights_ptr)
+					
 
-								emax += Pytrans * self.income.yTdist[iyT] * (
-									xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
-									+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
-									)
+									emax += Pytrans * self.income.yTdist[iyT] * (
+										xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
+										+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
+										)
 
 						self.EMAX[ix,ic,iz,iyP1] = emax
 
@@ -274,6 +279,7 @@ cdef class Model:
 		fparams.riskAver = self.p.riskAver
 		fparams.timeDiscount = self.p.timeDiscount
 		fparams.deathProb = self.p.deathProb
+		fparams.cubicInterp = self.p.cubicInterp
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
 
@@ -307,9 +313,12 @@ cdef class Model:
 			double gssResults[2]
 			double cVals[NVALUES]
 			double funVals[NVALUES]
+			double *yderivs
 			objectiveFn iteratorFn
 
 		bounds[0][0] = fparams.cMin
+
+		yderivs = <double *> malloc(fparams.nc * sizeof(double))
 
 		for ix in range(fparams.nx):
 			xval = xgrid[ix]
@@ -324,32 +333,36 @@ cdef class Model:
 				iteratorFn = <objectiveFn> self.findValueFromSwitching
 
 				emaxVec = self.EMAX[ix,:,iz,iyP]
+				if fparams.cubicInterp:
+					spline.spline(&cgrid[0], &emaxVec[0], fparams.nc, 1.0e30, 1.0e30, yderivs)
 
 				for ii in range(NSECTIONS):
 					functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
-						bounds[ii][1],1e-8, &gssResults[0], cgrid, emaxVec, fparams)
+						bounds[ii][1],1e-8, &gssResults[0], cgrid, emaxVec, yderivs, fparams)
 					funVals[ii] = gssResults[0]
 					cVals[ii] = gssResults[1]
 				ii = NSECTIONS
 
 				# try consuming cmin
 				cVals[ii] = fparams.cMin
-				funVals[ii] = self.findValueFromSwitching(fparams.cMin, cgrid, emaxVec, fparams)
+				funVals[ii] = self.findValueFromSwitching(fparams.cMin, cgrid, emaxVec, yderivs, fparams)
 				ii += 1
 
 				# try consuming xval (or cmax)
 				cVals[ii] = maxAdmissibleC
-				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, cgrid, emaxVec, fparams)
+				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, cgrid, emaxVec, yderivs, fparams)
 
 				if findPolicy:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
 				else:
 					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES)
 
+		free(yderivs)
+
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef double findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] emaxVec,
-		FnParameters fparams) nogil:
+		double *yderivs, FnParameters fparams) nogil:
 		"""
 		Outputs the value u(cSwitch) + beta * EMAX(cSwitch) for a given cSwitch.
 		"""
@@ -357,20 +370,27 @@ cdef class Model:
 		cdef double weight1, weight2, u, emax, value
 		cdef double em1, em2
 		cdef double weights[2]
+		
+		if fparams.cubicInterp:
+			emax = spline.splint(&cgrid[0], &emaxVec[0], yderivs, fparams.nc, cSwitch)
 
-		ind2 = functions.searchSortedSingleInput(cgrid, cSwitch, fparams.nc)
-		ind1 = ind2 - 1
-		functions.getInterpolationWeights(cgrid, cSwitch, ind2, &weights[0])
+			maxEMAX = functions.cmax(&emaxVec[0], fparams.nc)
+			minEMAX = functions.cmin(&emaxVec[0], fparams.nc)
 
-		weight1 = weights[0]
-		weight2 = weights[1]
+		else:
+			ind2 = functions.searchSortedSingleInput(cgrid, cSwitch, fparams.nc)
+			ind1 = ind2 - 1
+			functions.getInterpolationWeights(cgrid, cSwitch, ind2, &weights[0])
 
-		em1 = emaxVec[ind1]
-		em2 = emaxVec[ind2]
+			weight1 = weights[0]
+			weight2 = weights[1]
+
+			em1 = emaxVec[ind1]
+			em2 = emaxVec[ind2]
+
+			emax = weight1 * em1 + weight2 * em2
 
 		u = functions.utility(fparams.riskAver,cSwitch)
-
-		emax = weight1 * em1 + weight2 * em2
 		value = u + fparams.timeDiscount * (1 - fparams.deathProb) * emax
 
 		return value

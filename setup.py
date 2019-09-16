@@ -7,12 +7,11 @@ from Cython.Compiler import Options
 
 Options.buffer_max_dims = 10
 
-if platform.system() == "Darwin":
-	compileArgs = []
-elif platform.system() == "Linux":
+if platform.system() == "Linux":
 	compileArgs = ['-fopenmp']
 else:
-	raise Exception('Unsupported operating system')
+	compileArgs = []
+
 
 extensions = [
 				Extension("model.model",["model/model.pyx"],
@@ -25,6 +24,8 @@ extensions = [
 
 				Extension("misc.functions",["misc/functions.pyx"],
 							include_dirs=[np.get_include()]),
+
+				Extension("misc.spline",["misc/spline.pyx"]),
 
 				Extension("model.simulator",["model/simulator.pyx"],
 							include_dirs=[np.get_include()],

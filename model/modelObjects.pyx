@@ -24,6 +24,7 @@ cdef class Params:
 		public double tolWealthTarget, wealthTarget
 		public bint iterateBeta, MPCsOutOfNews, Bequests
 		public bint noTransIncome, noPersIncome
+		public bint cubicInterp
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
 		public int xMax, nx
@@ -90,7 +91,7 @@ cdef class Params:
 		self.nc = 50
 		self.cMin = 1e-6
 		self.cMax = 3
-		self.cGridCurv = 0.08
+		self.cGridCurv = 0.15
 
 		# options
 		self.MPCsOutOfNews = False
@@ -107,6 +108,9 @@ cdef class Params:
 		self.riskAver = 1
 		self.adjustCost = 1
 		self.timeDiscount = 0.8
+
+		# interpolation of EMAX when maximizing utility of switching
+		self.cubicInterp = False
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #

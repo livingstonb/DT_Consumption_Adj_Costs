@@ -15,7 +15,7 @@ cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	if riskaver == 1.0:
 		return np.log(con)
 	else:
-		return np.power(con,1-riskaver) / (1-riskaver)
+		return np.power(con,1.0-riskaver) / (1.0-riskaver)
 
 cdef inline double utility(double riskaver, double con) nogil:
 	"""
@@ -24,7 +24,7 @@ cdef inline double utility(double riskaver, double con) nogil:
 	if riskaver == 1.0:
 		return log(con)
 	else:
-		return pow(con,1-riskaver) / (1-riskaver)
+		return pow(con,1.0-riskaver) / (1.0-riskaver)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -152,8 +152,8 @@ cdef void getInterpolationWeights(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, double[:] arg1, double[:] arg2, 
-	FnParameters fparams) nogil:
+	double tol, double* out, double[:] arg1, double[:] arg2,
+	double *arg3, FnParameters fparams) nogil:
 	"""
 	This function iterates over the objective function f using
 	the golden section search method in the interval (a,b).
@@ -172,8 +172,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 	c = a + diff * INV_GOLDEN_RATIO_SQ
 	d = a + diff * INV_GOLDEN_RATIO 
 
-	fc = f(c,arg1,arg2,fparams)
-	fd = f(d,arg1,arg2,fparams)
+	fc = f(c,arg1,arg2,arg3,fparams)
+	fd = f(d,arg1,arg2,arg3,fparams)
 
 	while fabs(c - d) > tol:
 		if fc > fd:
@@ -182,14 +182,14 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			fd = fc
 			diff = diff * INV_GOLDEN_RATIO
 			c = a + diff * INV_GOLDEN_RATIO_SQ
-			fc = f(c,arg1,arg2,fparams)
+			fc = f(c,arg1,arg2,arg3,fparams)
 		else:
 			a = c
 			c = d
 			fc = fd
 			diff = diff * INV_GOLDEN_RATIO
 			d = a + diff * INV_GOLDEN_RATIO
-			fd = f(d,arg1,arg2,fparams)
+			fd = f(d,arg1,arg2,arg3,fparams)
 
 	if fc > fd:
 		out[0] = fc
@@ -216,6 +216,25 @@ cdef double cmax(double *vals, int nVals) nogil:
 			currentMax = currentVal
 
 	return currentMax
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef double cmin(double *vals, int nVals) nogil:
+	"""
+	Finds the minimum in 'vals'. Length of input
+	must be supplied.
+	"""
+	cdef long i
+	cdef double currentMin, currentVal
+
+	currentMin = vals[0]
+
+	for i in range(1,nVals):
+		currentVal = vals[i]
+		if currentVal < currentMin:
+			currentMin = currentVal
+
+	return currentMin
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

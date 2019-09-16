@@ -5,5 +5,5 @@ python setup.py build_ext --inplace --build-temp temp
 rm -rf temp
 
 if [ "$1" == "run" ]; then
-	python master2.py
+	ipython -i master.py
 fi

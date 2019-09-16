@@ -1,11 +1,11 @@
-static int klo = -1 ;
-static int khi = -1 ;
+// static int klo = -1 ;
+// static int khi = -1 ;
 
-static int spline( float *x   , float *y   , int  n   , 
-                    float  yp1 , float  ypn , float *y2 );
+int spline( double *x   , double *y   , int  n   , 
+                    double  yp1 , double  ypn , double *y2 );
 
-static int splint( float *xa , float *ya , float *y2a , 
-                    int n    , float x   , float *y   );
+int splint( double *xa , double *ya , double *y2a , 
+                    int n    , double x   , double *y   );
 
-int spline1_c( float *xi , float *yi , int *nin  ,
-                float *xo , float *yo , int *nout );
+int spline1_c( double *xi , double *yi , int *nin  ,
+                double *xo , double *yo , int *nout );

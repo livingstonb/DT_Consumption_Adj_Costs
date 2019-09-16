@@ -1,6 +1,11 @@
 from misc cimport functions
+from misc cimport spline
 import numpy as np
 cimport numpy as np
+
+from libc.stdlib cimport malloc, free
+
+from matplotlib import pyplot as plt
 
 def testGSS():
 	pass
@@ -35,3 +40,28 @@ def testInterpolation():
 		print(f'Random number = {num}')
 		print(f'    index = {index}')
 		print(f'    weights = {weights}')
+
+def testCubicInterp():
+	cdef double[:] yderivs
+	cdef long nVals
+	cdef double[:] grid
+	cdef double[:] values
+
+	nVals = 10
+	nPts = 20
+
+	yderivs = np.empty(nVals)
+
+	grid = np.linspace(0,5,num=nVals)
+	values = np.sort(np.random.random(nVals)) * 100
+
+	xvals = np.random.random(nPts) * 5
+
+	spline.spline(&grid[0], &values[0], nVals, 1.0e30, 1.0e30, &yderivs[0])
+
+	for i in range(nPts):
+		predicted = spline.splint(&grid[0], &values[0], &yderivs[0], nVals, xvals[i])
+		print(f'At point {xvals[i]}, predicted value = {predicted}')
+
+	plt.plot(grid,values)
+	plt.show()

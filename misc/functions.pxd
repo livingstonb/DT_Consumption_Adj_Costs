@@ -12,9 +12,11 @@ cdef struct FnParameters:
 	double riskAver
 	double timeDiscount
 	double deathProb
+	bint cubicInterp
 
 # function pointer for golden section search
-ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, FnParameters fparams) nogil
+ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, 
+	double *p, FnParameters fparams) nogil
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
 
@@ -30,8 +32,10 @@ cdef void getInterpolationWeights(double[:] grid, double pt, long rightIndex, do
 
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
 	double tol, double* out, double[:] arg1, double[:] arg2, 
-	FnParameters fparams) nogil
+	double *arg3, FnParameters fparams) nogil
 
 cdef double cmax(double *vals, int nVals) nogil
+
+cdef double cmin(double *vals, int nVals) nogil
 
 cdef long cargmax(double *vals, int nVals) nogil
