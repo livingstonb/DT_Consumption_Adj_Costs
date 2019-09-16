@@ -1,3 +1,10 @@
+IF UNAME_SYSNAME == "Linux":
+	cdef enum:
+		OPENMP = True
+ELSE:
+	cdef enum:
+		OPENMP = False
+
 import numpy as np
 cimport numpy as np
 
@@ -12,10 +19,18 @@ from scipy import sparse
 from cython.parallel import prange, parallel
 from libc.math cimport fmin, pow, sqrt
 
+cdef extern from "spline.h":
+	int spline( float *x   , float *y   , int  n   , 
+                    float  yp1 , float  ypn , float *y2 )
+
+	int splint( float *xa , float *ya , float *y2a , 
+                    int n    , float x   , float *y   )
+
+
 
 cdef enum:
-	# number of sections to use in golden section search
-	NSECTIONS = 5
+	# number of sections to try in golden section search
+	NSECTIONS = 10
 
 	# number of sections + boundaries
 	NVALUES = NSECTIONS + 2
@@ -266,11 +281,15 @@ cdef class Model:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
 		nyP = self.p.nyP
-		with nogil, parallel():
-			
-			for iyP in prange(nyP):
+
+		if OPENMP:
+			for iyP in prange(nyP, nogil=True):
 				self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
 					findPolicy, iyP, fparams)
+		else:
+			for iyP in range(nyP):
+					self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
+						findPolicy, iyP, fparams)
 			
 
 	@cython.boundscheck(False)
@@ -315,12 +334,12 @@ cdef class Model:
 
 				# try consuming cmin
 				cVals[ii] = fparams.cMin
-				funVals[ii] = iteratorFn(fparams.cMin, cgrid, emaxVec, fparams)
+				funVals[ii] = self.findValueFromSwitching(fparams.cMin, cgrid, emaxVec, fparams)
 				ii += 1
 
 				# try consuming xval (or cmax)
 				cVals[ii] = maxAdmissibleC
-				funVals[ii] = iteratorFn(maxAdmissibleC, cgrid, emaxVec, fparams)
+				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, cgrid, emaxVec, fparams)
 
 				if findPolicy:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
