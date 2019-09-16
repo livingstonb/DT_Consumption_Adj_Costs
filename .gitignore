@@ -6,5 +6,4 @@ temp
 *.DS_Store
 *.sublime-workspace
 *.c
-!spline.c
 *.so
