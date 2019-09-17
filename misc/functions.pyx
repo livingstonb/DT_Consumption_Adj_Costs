@@ -192,25 +192,24 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 
 	diff = b - a
 
-	c = a + diff * INV_GOLDEN_RATIO_SQ
+	c = b - diff * INV_GOLDEN_RATIO
 	d = a + diff * INV_GOLDEN_RATIO 
 
 	fc = f(c,arg1,arg2,fparams)
 	fd = f(d,arg1,arg2,fparams)
 
 	while fabs(c - d) > tol:
+		diff = b - a
 		if fc > fd:
 			b = d
 			d = c
 			fd = fc
-			diff = diff * INV_GOLDEN_RATIO
-			c = a + diff * INV_GOLDEN_RATIO_SQ
+			c = b - diff * INV_GOLDEN_RATIO
 			fc = f(c,arg1,arg2,fparams)
 		else:
 			a = c
 			c = d
 			fc = fd
-			diff = diff * INV_GOLDEN_RATIO
 			d = a + diff * INV_GOLDEN_RATIO
 			fd = f(d,arg1,arg2,fparams)
 

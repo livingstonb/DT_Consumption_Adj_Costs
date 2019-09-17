@@ -95,14 +95,13 @@ cdef class Simulator:
 		xgrid = self.grids.x.flat
 		nx = self.p.nx
 
-		if OPENMP:
-			for col in prange(self.nCols, nogil=True):
-				for i in prange(self.nSim):
+		for col in range(self.nCols):
+			if OPENMP:
+				for i in prange(self.nSim,nogil=True):
 					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
-		else:
-			for col in range(self.nCols):
-					for i in range(self.nSim):
-						self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
+			else:
+				for i in range(self.nSim):
+					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
 
 		self.csim = np.minimum(self.csim,self.xsim)
 
