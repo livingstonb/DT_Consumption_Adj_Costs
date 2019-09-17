@@ -5,8 +5,6 @@ cimport cython
 from libc.math cimport log, fabs, pow
 
 cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
-cdef double INV_GOLDEN_RATIO_SQ = 0.38196601125010509747
-
 
 cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	"""
@@ -74,7 +72,7 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
+cdef inline long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
 	cdef long lower, upper, midpt
 	cdef double valMidpt
 

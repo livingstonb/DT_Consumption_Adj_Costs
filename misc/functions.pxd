@@ -24,7 +24,7 @@ cdef double utility(double riskaver, double con) nogil
 
 cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals)
 
-cpdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil
+cdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil
 
 cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
