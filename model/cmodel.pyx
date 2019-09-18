@@ -109,59 +109,59 @@ cdef class CModel:
 
 		self.interpMat = sparse.bmat(blockMats)
 
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
-	def updateEMAXslow(self):
-		"""
-		This method can be used to double check the construction of the
-		interpolation matrix for updating EMAT.
-		"""
-		cdef:
-			double emax, Pytrans, assets, cash, yP2
-			double[:] xgrid, cgrid, valueVec
-			double xWeights[2]
-			double *xWeights_ptr = xWeights
-			double *yderivs
-			long[:] xIndices
-			int ix, ic, iz, iyP1, iyP2, iyT
+	# @cython.boundscheck(False)
+	# @cython.wraparound(False)
+	# def updateEMAXslow(self):
+	# 	"""
+	# 	This method can be used to double check the construction of the
+	# 	interpolation matrix for updating EMAT.
+	# 	"""
+	# 	cdef:
+	# 		double emax, Pytrans, assets, cash, yP2
+	# 		double[:] xgrid, cgrid, valueVec
+	# 		double xWeights[2]
+	# 		double *xWeights_ptr = xWeights
+	# 		double *yderivs
+	# 		long[:] xIndices
+	# 		int ix, ic, iz, iyP1, iyP2, iyT
 
-		xgrid = self.grids.x.flat
-		cgrid = self.grids.c.flat
+	# 	xgrid = self.grids.x.flat
+	# 	cgrid = self.grids.c.flat
 
-		yderivs = <double *> malloc(self.p.nx * sizeof(double))
+	# 	yderivs = <double *> malloc(self.p.nx * sizeof(double))
 
-		xIndices = np.zeros(2,dtype=int)
+	# 	xIndices = np.zeros(2,dtype=int)
 
-		self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+	# 	self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
 		
-		for ix in range(self.p.nx):
+	# 	for ix in range(self.p.nx):
 
-			for ic in range(self.p.nc):
-				assets = self.p.R * (xgrid[ix] - cgrid[ic])
+	# 		for ic in range(self.p.nc):
+	# 			assets = self.p.R * (xgrid[ix] - cgrid[ic])
 
-				for iz in range(self.p.nz):
+	# 			for iz in range(self.p.nz):
 
-					for iyP1 in range(self.p.nyP):
-						emax = 0
+	# 				for iyP1 in range(self.p.nyP):
+	# 					emax = 0
 
-						for iyP2 in range(self.p.nyP):
-							Pytrans = self.income.yPtrans[iyP1,iyP2]
-							yP2 = self.income.yPgrid[iyP2]
+	# 					for iyP2 in range(self.p.nyP):
+	# 						Pytrans = self.income.yPtrans[iyP1,iyP2]
+	# 						yP2 = self.income.yPgrid[iyP2]
 
-							for iyT in range(self.p.nyT):
-								cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock
+	# 						for iyT in range(self.p.nyT):
+	# 							cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock
 
-								xIndices[1] = functions.fastSearchSingleInput(xgrid,cash,self.p.nx)
-								xIndices[0] = xIndices[1] - 1
-								functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights_ptr)
+	# 							xIndices[1] = functions.fastSearchSingleInput(xgrid,cash,self.p.nx)
+	# 							xIndices[0] = xIndices[1] - 1
+	# 							functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights_ptr)
 				
 
-								emax += Pytrans * self.income.yTdist[iyT] * (
-									xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
-									+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
-									)
+	# 							emax += Pytrans * self.income.yTdist[iyT] * (
+	# 								xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
+	# 								+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
+	# 								)
 
-						self.EMAX[ix,ic,iz,iyP1] = emax
+	# 					self.EMAX[ix,ic,iz,iyP1] = emax
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -273,21 +273,13 @@ cdef class CModel:
 		Outputs the value u(cSwitch) + beta * EMAX(cSwitch) for a given cSwitch.
 		"""
 		cdef long ind1, ind2
-		cdef double weight1, weight2, u, emax, value
-		cdef double em1, em2
+		cdef double u, emax, value
 		cdef double weights[2]
+		cdef long indices[2]
 		
-		ind2 = functions.fastSearchSingleInput(cgrid, cSwitch, fparams.nc)
-		ind1 = ind2 - 1
-		functions.getInterpolationWeights(cgrid, cSwitch, ind2, &weights[0])
+		functions.getInterpolationWeights(cgrid, cSwitch, fparams.nc, &indices[0], &weights[0])
 
-		weight1 = weights[0]
-		weight2 = weights[1]
-
-		em1 = emaxVec[ind1]
-		em2 = emaxVec[ind2]
-
-		emax = weight1 * em1 + weight2 * em2
+		emax = weights[0] * emaxVec[indices[0]] + weights[1] * emaxVec[indices[1]]
 
 		u = functions.utility(fparams.riskAver,cSwitch)
 		value = u + fparams.timeDiscount * (1 - fparams.deathProb) * emax

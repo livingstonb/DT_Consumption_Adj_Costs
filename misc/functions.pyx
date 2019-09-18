@@ -72,7 +72,7 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
+cdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
 	cdef long lower, upper, midpt = 0
 	cdef double valMidpt = 0.0
 
@@ -147,7 +147,7 @@ cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void getInterpolationWeights(
-	double[:] grid, double pt, long rightIndex, double *out) nogil:
+	double[:] grid, double pt, long nGrid, long *indices, double *weights) nogil:
 	"""
 	This function finds the weights placed on the grid value below pt
 	and the grid value above pt when interpolating pt onto grid.
@@ -156,19 +156,22 @@ cdef void getInterpolationWeights(
 	pt, and out is a pointer to a double array of length 2 where the
 	weights will be stored.
 	"""
-	cdef double weight1
+	cdef double weight0
 
-	weight1 = (grid[rightIndex] - pt) / (grid[rightIndex] - grid[rightIndex-1])
+	indices[1] = fastSearchSingleInput(grid, pt, nGrid)
+	indices[0] = indices[1] - 1
 
-	if weight1 < 0:
-		out[0] = 0
-		out[1] = 1
-	elif weight1 > 1:
-		out[0] = 1
-		out[1] = 0
+	weight0 = (grid[indices[1]] - pt) / (grid[indices[1]] - grid[indices[0]])
+
+	if weight0 < 0:
+		weights[0] = 0
+		weights[1] = 1
+	elif weight0 > 1:
+		weights[0] = 1
+		weights[1] = 0
 	else:
-		out[0] = weight1
-		out[1] = 1 - weight1
+		weights[0] = weight0
+		weights[1] = 1 - weight0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

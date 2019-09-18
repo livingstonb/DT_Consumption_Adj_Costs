@@ -30,7 +30,8 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
 cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals)
 
-cdef void getInterpolationWeights(double[:] grid, double pt, long rightIndex, double *out) nogil
+cdef void getInterpolationWeights(
+	double[:] grid, double pt, long nGrid, long *indices, double *weights) nogil
 
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
 	double tol, double* out, double[:] arg1, double[:] arg2, 
