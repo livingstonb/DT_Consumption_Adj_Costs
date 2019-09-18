@@ -18,7 +18,7 @@ cdef struct FnParameters:
 ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, 
 	FnParameters fparams) nogil
 
-cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
+cpdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
 
 cdef double utility(double riskaver, double con) nogil
 

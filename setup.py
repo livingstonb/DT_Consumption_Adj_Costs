@@ -14,7 +14,7 @@ else:
 
 
 extensions = [
-				Extension("model.model",["model/model.pyx"],
+				Extension("model.cmodel",["model/cmodel.pyx"],
 							include_dirs=[np.get_include(),"misc"],
 							extra_compile_args=compileArgs,
         					extra_link_args=compileArgs,),

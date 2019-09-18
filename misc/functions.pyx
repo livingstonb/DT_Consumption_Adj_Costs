@@ -6,7 +6,7 @@ from libc.math cimport log, fabs, pow
 
 cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
 
-cdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
+cpdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	"""
 	Utility function for a 4D array.
 	"""
@@ -73,8 +73,8 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
-	cdef long lower, upper, midpt
-	cdef double valMidpt
+	cdef long lower, upper, midpt = 0
+	cdef double valMidpt = 0.0
 
 	if val >= grid[nGrid-1]:
 		return nGrid - 1

@@ -18,11 +18,10 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	for adjustCost in adjustCosts:
 		paramsDicts[ii]['name'] = f'adjustCost{adjustCost}'
 		paramsDicts[ii]['index'] = ii
-		paramsDicts[ii]['cubicInterp'] = False
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['nx'] = 75
-		paramsDicts[ii]['nc'] = 400
+		paramsDicts[ii]['nx'] = 40
+		paramsDicts[ii]['nc'] = 50
 		paramsDicts[ii]['nSim'] = 5e4
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 		paramsDicts[ii]['timeDiscount'] = 0.9
