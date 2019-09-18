@@ -27,7 +27,7 @@ extensions = [
 
 				Extension("misc.spline",["misc/spline.pyx"]),
 
-				Extension("model.simulator",["model/simulator.pyx"],
+				Extension("model.csimulator",["model/csimulator.pyx"],
 							include_dirs=[np.get_include()],
 							extra_compile_args=compileArgs,
         					extra_link_args=compileArgs,),
