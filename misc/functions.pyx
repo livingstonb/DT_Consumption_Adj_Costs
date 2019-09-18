@@ -46,7 +46,7 @@ cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
 	for i in range(m):
 		currentVal = vals[i]
 
-		indices[i] = fastSearchSingleInput(grid, currentVal, n)
+		indices[i] = fastSearchSingleInput(&grid[0], currentVal, n)
 
 	return indices
 
@@ -72,7 +72,7 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil:
+cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
 	cdef long lower, upper, midpt = 0
 	cdef double valMidpt = 0.0
 
@@ -147,14 +147,10 @@ cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void getInterpolationWeights(
-	double[:] grid, double pt, long nGrid, long *indices, double *weights) nogil:
+	double *grid, double pt, long nGrid, long *indices, double *weights) nogil:
 	"""
 	This function finds the weights placed on the grid value below pt
 	and the grid value above pt when interpolating pt onto grid.
-
-	rightIndex is the index in grid of the grid value above or equal to
-	pt, and out is a pointer to a double array of length 2 where the
-	weights will be stored.
 	"""
 	cdef double weight0
 
@@ -176,8 +172,7 @@ cdef void getInterpolationWeights(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, double[:] arg1, double[:] arg2,
-	FnParameters fparams) nogil:
+	double tol, double* out, FnArgs fargs) nogil:
 	"""
 	This function iterates over the objective function f using
 	the golden section search method in the interval (a,b).
@@ -196,8 +191,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 	c = b - diff * INV_GOLDEN_RATIO
 	d = a + diff * INV_GOLDEN_RATIO 
 
-	fc = f(c,arg1,arg2,fparams)
-	fd = f(d,arg1,arg2,fparams)
+	fc = f(c,fargs)
+	fd = f(d,fargs)
 
 	while fabs(c - d) > tol:
 		diff = b - a
@@ -206,13 +201,13 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			d = c
 			fd = fc
 			c = b - diff * INV_GOLDEN_RATIO
-			fc = f(c,arg1,arg2,fparams)
+			fc = f(c,fargs)
 		else:
 			a = c
 			c = d
 			fc = fd
 			d = a + diff * INV_GOLDEN_RATIO
-			fd = f(d,arg1,arg2,fparams)
+			fd = f(d,fargs)
 
 	if fc > fd:
 		out[0] = fc

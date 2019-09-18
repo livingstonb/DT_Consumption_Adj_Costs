@@ -11,7 +11,7 @@ cimport numpy as np
 cimport cython
 
 from misc cimport functions
-from misc.functions cimport objectiveFn, FnParameters
+from misc.functions cimport FnArgs, objectiveFn
 from misc cimport spline
 
 import pandas as pd
@@ -177,7 +177,7 @@ cdef class CModel:
 			double[:] sections
 			double[:] xgrid, cgrid
 			long nyP
-			FnParameters fparams
+			FnArgs fargs
 
 		if findPolicy:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
@@ -185,14 +185,15 @@ cdef class CModel:
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
 
-		fparams.nx = self.p.nx
-		fparams.cMin = self.p.cMin
-		fparams.cMax = self.p.cMax
-		fparams.nz = self.p.nz
-		fparams.nc = self.p.nc
-		fparams.riskAver = self.p.riskAver
-		fparams.timeDiscount = self.p.timeDiscount
-		fparams.deathProb = self.p.deathProb
+		fargs.cgrid = &cgrid[0]
+		fargs.nx = self.p.nx
+		fargs.cMin = self.p.cMin
+		fargs.cMax = self.p.cMax
+		fargs.nz = self.p.nz
+		fargs.nc = self.p.nc
+		fargs.riskAver = self.p.riskAver
+		fargs.timeDiscount = self.p.timeDiscount
+		fargs.deathProb = self.p.deathProb
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
 
@@ -204,17 +205,17 @@ cdef class CModel:
 		if OPENMP:
 			for iyP in prange(nyP, nogil=True):
 				self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
-					findPolicy, iyP, fparams)
+					findPolicy, iyP, fargs)
 		else:
 			for iyP in range(nyP):
 					self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
-						findPolicy, iyP, fparams)
+						findPolicy, iyP, fargs)
 			
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void valueForOneIncomeBlock(self, double[:] xgrid, double[:] cgrid,
-		double[:] sections, bint findPolicy, long iyP, FnParameters fparams) nogil:
+		double[:] sections, bint findPolicy, long iyP, FnArgs fargs_in) nogil:
 		"""
 		Updates self.valueSwitch for one income block.
 		"""
@@ -226,39 +227,42 @@ cdef class CModel:
 			double gssResults[2]
 			double cVals[NVALUES]
 			double funVals[NVALUES]
+			FnArgs fargs
 			objectiveFn iteratorFn
 
-		bounds[0][0] = fparams.cMin
+		bounds[0][0] = fargs_in.cMin
+		fargs = fargs_in
 
-		for ix in range(fparams.nx):
+		for ix in range(fargs.nx):
 			xval = xgrid[ix]
-			maxAdmissibleC = fmin(xval,fparams.cMax)
+			maxAdmissibleC = fmin(xval,fargs.cMax)
 
 			bounds[0][1] = maxAdmissibleC * sections[0]
 			for ii in range(1,NSECTIONS):
 				bounds[ii][0] = maxAdmissibleC * sections[ii-1]
 				bounds[ii][1] = maxAdmissibleC * sections[ii]
 
-			for iz in range(fparams.nz):
+			for iz in range(fargs.nz):
 				iteratorFn = <objectiveFn> self.findValueFromSwitching
 
 				emaxVec = self.EMAX[ix,:,iz,iyP]
+				fargs.emaxVec = &emaxVec[0]
 
 				for ii in range(NSECTIONS):
 					functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
-						bounds[ii][1],1e-8, &gssResults[0], cgrid, emaxVec, fparams)
+						bounds[ii][1],1e-8, &gssResults[0], fargs)
 					funVals[ii] = gssResults[0]
 					cVals[ii] = gssResults[1]
 				ii = NSECTIONS
 
 				# try consuming cmin
-				cVals[ii] = fparams.cMin
-				funVals[ii] = self.findValueFromSwitching(fparams.cMin, cgrid, emaxVec, fparams)
+				cVals[ii] = fargs.cMin
+				funVals[ii] = self.findValueFromSwitching(fargs.cMin, fargs)
 				ii += 1
 
 				# try consuming xval (or cmax)
 				cVals[ii] = maxAdmissibleC
-				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, cgrid, emaxVec, fparams)
+				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, fargs)
 
 				if findPolicy:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
@@ -267,8 +271,7 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef double findValueFromSwitching(self, double cSwitch, double[:] cgrid, double[:] emaxVec,
-		FnParameters fparams) nogil:
+	cdef double findValueFromSwitching(self, double cSwitch, FnArgs fargs) nogil:
 		"""
 		Outputs the value u(cSwitch) + beta * EMAX(cSwitch) for a given cSwitch.
 		"""
@@ -276,11 +279,11 @@ cdef class CModel:
 		cdef double weights[2]
 		cdef long indices[2]
 		
-		functions.getInterpolationWeights(cgrid, cSwitch, fparams.nc, &indices[0], &weights[0])
+		functions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
 
-		emax = weights[0] * emaxVec[indices[0]] + weights[1] * emaxVec[indices[1]]
+		emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
 
-		u = functions.utility(fparams.riskAver,cSwitch)
-		value = u + fparams.timeDiscount * (1 - fparams.deathProb) * emax
+		u = functions.utility(fargs.riskAver,cSwitch)
+		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax
 
 		return value

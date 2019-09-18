@@ -3,7 +3,9 @@ cimport numpy as np
 
 # structure to hold parameters for objective function
 # used by golden section search
-cdef struct FnParameters:
+cdef struct FnArgs:
+	double *cgrid
+	double *emaxVec
 	long nx
 	long nc
 	long nz
@@ -15,8 +17,7 @@ cdef struct FnParameters:
 	bint cubicInterp
 
 # function pointer for golden section search
-ctypedef double (*objectiveFn)(double x, double[:] y, double[:] z, 
-	FnParameters fparams) nogil
+ctypedef double (*objectiveFn)(double x, FnArgs fargs) nogil
 
 cpdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con)
 
@@ -24,18 +25,17 @@ cdef double utility(double riskaver, double con) nogil
 
 cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals)
 
-cdef long fastSearchSingleInput(double[:] grid, double val, long nGrid) nogil
+cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
 
 cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 
 cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals)
 
 cdef void getInterpolationWeights(
-	double[:] grid, double pt, long nGrid, long *indices, double *weights) nogil
+	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
 
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, double[:] arg1, double[:] arg2, 
-	FnParameters fparams) nogil
+	double tol, double* out, FnArgs args) nogil
 
 cdef double cmax(double *vals, int nVals) nogil
 
