@@ -5,6 +5,7 @@ cimport cython
 from libc.math cimport log, fabs, pow
 
 cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
+cdef double INV_GOLDEN_RATIO_SQ = 0.38196601125
 
 cpdef np.ndarray utilityMat(double riskaver, double[:,:,:,:] con):
 	"""
@@ -169,6 +170,29 @@ cdef void getInterpolationWeights(
 		weights[0] = weight0
 		weights[1] = 1 - weight0
 
+# @cython.boundscheck(False)
+# @cython.wraparound(False)
+# cdef double mbrak(double ax, double bx, objectiveFn f, FnArgs fargs) nogil:
+# 	cdef double ulim, u, r, q, fu, dum, fa, fb, fc
+
+# 	fa = f(ax,fargs)
+# 	fb = f(bx,fargs)
+
+# 	if fa > fb:
+# 		dum = ax
+# 		ax = bx
+# 		bx = dum
+
+# 		dum = fb
+# 		fb = fa
+# 		fa = dum
+
+# 	cx = bx + GOLD * (bx - ax)
+# 	fc = f(cx,fargs)
+
+# 	while (fc > fb):
+# 		r = (bx-ax)
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
@@ -188,32 +212,34 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 
 	diff = b - a
 
-	c = b - diff * INV_GOLDEN_RATIO
+	c = a + diff * INV_GOLDEN_RATIO_SQ
 	d = a + diff * INV_GOLDEN_RATIO 
 
-	fc = f(c,fargs)
-	fd = f(d,fargs)
+	fc = -f(c,fargs)
+	fd = -f(d,fargs)
 
 	while fabs(c - d) > tol:
-		diff = b - a
-		if fc > fd:
+		if fc < fd:
 			b = d
 			d = c
 			fd = fc
-			c = b - diff * INV_GOLDEN_RATIO
-			fc = f(c,fargs)
+
+			diff = diff * INV_GOLDEN_RATIO
+			c = a + diff * INV_GOLDEN_RATIO_SQ
+			fc = -f(c,fargs)
 		else:
 			a = c
 			c = d
 			fc = fd
+			diff = diff * INV_GOLDEN_RATIO
 			d = a + diff * INV_GOLDEN_RATIO
-			fd = f(d,fargs)
+			fd = -f(d,fargs)
 
-	if fc > fd:
-		out[0] = fc
+	if fc < fd:
+		out[0] = -fc
 		out[1] = c
 	else:
-		out[0] = fd
+		out[0] = -fd
 		out[1] = d
 
 @cython.boundscheck(False)

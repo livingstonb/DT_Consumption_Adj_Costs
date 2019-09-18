@@ -1,9 +1,3 @@
-IF UNAME_SYSNAME == "Linux":
-	cdef enum:
-		OPENMP = True
-ELSE:
-	cdef enum:
-		OPENMP = False
 
 import numpy as np
 cimport numpy as np
@@ -24,7 +18,7 @@ from libc.stdlib cimport malloc, free
 
 cdef enum:
 	# number of sections to try in golden section search
-	NSECTIONS = 50
+	NSECTIONS = 20
 
 	# number of sections + boundaries
 	NVALUES = NSECTIONS + 2
@@ -202,14 +196,9 @@ cdef class CModel:
 
 		nyP = self.p.nyP
 
-		if OPENMP:
-			for iyP in prange(nyP, nogil=True):
-				self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
-					findPolicy, iyP, fargs)
-		else:
-			for iyP in range(nyP):
-					self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
-						findPolicy, iyP, fargs)
+		for iyP in prange(nyP, nogil=True):
+			self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
+				findPolicy, iyP, fargs)
 			
 
 	@cython.boundscheck(False)
@@ -220,18 +209,21 @@ cdef class CModel:
 		Updates self.valueSwitch for one income block.
 		"""
 		cdef:
-			long ix, ii, iz
+			long ix, ii, iz, ic
 			double xval, maxAdmissibleC
-			double[:] emaxVec
+			double *emaxVec
 			double bounds[NSECTIONS][2]
 			double gssResults[2]
 			double cVals[NVALUES]
 			double funVals[NVALUES]
 			FnArgs fargs
 			objectiveFn iteratorFn
-
+			
 		bounds[0][0] = fargs_in.cMin
 		fargs = fargs_in
+
+		emaxVec = <double *> malloc(fargs.nc * sizeof(double))
+		fargs.emaxVec = emaxVec
 
 		for ix in range(fargs.nx):
 			xval = xgrid[ix]
@@ -245,8 +237,8 @@ cdef class CModel:
 			for iz in range(fargs.nz):
 				iteratorFn = <objectiveFn> self.findValueFromSwitching
 
-				emaxVec = self.EMAX[ix,:,iz,iyP]
-				fargs.emaxVec = &emaxVec[0]
+				for ic in range(fargs.nc):
+					emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
 
 				for ii in range(NSECTIONS):
 					functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
@@ -268,6 +260,8 @@ cdef class CModel:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
 				else:
 					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES)
+
+		free(emaxVec)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)

@@ -1,10 +1,3 @@
-IF UNAME_SYSNAME == "Linux":
-	cdef enum:
-		OPENMP = True
-ELSE:
-	cdef enum:
-		OPENMP = False
-
 
 import numpy as np
 cimport numpy as np
@@ -67,12 +60,8 @@ cdef class CSimulator:
 		nx = self.p.nx
 
 		for col in range(self.nCols):
-			if OPENMP:
-				for i in prange(self.nSim,nogil=True):
-					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
-			else:
-				for i in range(self.nSim):
-					self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
+			for i in prange(self.nSim,nogil=True):
+				self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
 
 		self.csim = np.minimum(self.csim,self.xsim)
 
@@ -124,16 +113,10 @@ cdef class CSimulator:
 		cdef long i, j
 		cdef double asim_i, giniNumerator = 0.0
 
-		if OPENMP:
-			for i in prange(self.nSim, nogil=True):
-				asim_i = self.asim[i,0]
-				for j in range(self.nSim):
-					giniNumerator += fabs(asim_i - self.asim[j,0])
-		else:
-			for i in range(self.nSim):
-				asim_i = self.asim[i,0]
-				for j in range(self.nSim):
-					giniNumerator += fabs(asim_i - self.asim[j,0])
+		for i in prange(self.nSim, nogil=True):
+			asim_i = self.asim[i,0]
+			for j in range(self.nSim):
+				giniNumerator += fabs(asim_i - self.asim[j,0])
 
 		self.results['Gini coefficient (wealth)'] = \
 			giniNumerator / (2 * self.nSim * np.sum(self.asim))

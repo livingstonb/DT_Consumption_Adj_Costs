@@ -1,9 +1,15 @@
 
-maindir=$(pwd)
-python setup.py build_ext --inplace --build-temp temp
+system=$(uname -s)
+
+if [ $system == "Linux" ] || [ "$1" == "no-parallel" ]
+then
+  CC=gcc python setup.py build_ext --inplace --build-temp temp
+else
+  CC=gcc-9 python setup.py build_ext --inplace --build-temp temp
+fi
 
 rm -rf temp
 
 if [ "$1" == "run" ]; then
-	ipython -i master.py
+  ipython -i master.py
 fi

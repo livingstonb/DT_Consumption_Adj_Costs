@@ -1,4 +1,5 @@
 from misc cimport functions
+from misc.functions cimport FnArgs, objectiveFn
 from misc cimport spline
 import numpy as np
 cimport numpy as np
@@ -8,15 +9,19 @@ from libc.stdlib cimport malloc, free
 
 from matplotlib import pyplot as plt
 
+cdef double myfun(double x, FnArgs fargs):
+	return - x ** 2
+
 def testGSS():
-	pass
-	# gr = (np.sqrt(5) + 1) / 2
-	# grsq = gr ** 2
+	cdef double out[2]
+	cdef FnArgs fargs
 
-	# fn = lambda x: x ** 3 - x
+	objective = <objectiveFn> myfun
 
-	# print(functions.goldenSectionSearch(fn, -1, 0.5, 
-	# 	gr, grsq, 1e-5, tuple()))
+	functions.goldenSectionSearch(objective, -0.5, 0.5, 
+		1e-8, &out[0], fargs)
+
+	print(out)
 
 	# cgrid = np.array([0.001,0.05,1,2])
 	# for cval in [-0.1,0.001,0.05,1.2,3]:
@@ -32,14 +37,16 @@ def testGSS():
 
 def testInterpolation():
 	cdef double weights[2]
+	cdef long indices[2]
+	cdef double[:] grid
+
 	grid = np.array([1,2,3.0])
 	randNums = np.random.random(100) * 5 - 1
 
 	for num in randNums:
-		index = functions.searchSortedSingleInput(grid,num,grid.size)
-		functions.getInterpolationWeights(grid,num,index,&weights[0])
+		functions.getInterpolationWeights(&grid[0],num,3,&indices[0],&weights[0])
 		print(f'Random number = {num}')
-		print(f'    index = {index}')
+		print(f'    indices = {indices}')
 		print(f'    weights = {weights}')
 
 def testCubicInterp():
@@ -80,7 +87,7 @@ def testFastSearch(double[:] draws):
 	grid = np.linspace(0,5,num=nGrid)
 
 	for i in range(draws.size):
-		indices[i] = functions.fastSearchSingleInput(grid, draws[i], nGrid)
+		indices[i] = functions.fastSearchSingleInput(&grid[0], draws[i], nGrid)
 
 	return indices
 

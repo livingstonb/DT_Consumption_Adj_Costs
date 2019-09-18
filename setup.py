@@ -1,13 +1,14 @@
 from distutils.core import setup, Extension
 from Cython.Build import cythonize
 import numpy as np
+import os
 import platform
 
 from Cython.Compiler import Options
 
 Options.buffer_max_dims = 10
 
-if platform.system() == "Linux":
+if (os.environ['CC']=="gcc-9") or (platform.system()=="Linux"):
 	compileArgs = ['-fopenmp']
 else:
 	compileArgs = []
@@ -25,15 +26,15 @@ extensions = [
 				Extension("misc.functions",["misc/functions.pyx"],
 							include_dirs=[np.get_include()]),
 
-				Extension("misc.spline",["misc/spline.pyx"]),
+				# Extension("misc.spline",["misc/spline.pyx"]),
+
+				Extension("misc.tester",["misc/tester.pyx"],
+							include_dirs=[np.get_include()]),
 
 				Extension("model.csimulator",["model/csimulator.pyx"],
 							include_dirs=[np.get_include()],
 							extra_compile_args=compileArgs,
         					extra_link_args=compileArgs,),
-
-				Extension("misc.tester",["misc/tester.pyx"],
-							include_dirs=[np.get_include()]),
 				]
 
 setup(	name="DiscreTime",
