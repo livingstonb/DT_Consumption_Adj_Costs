@@ -272,7 +272,6 @@ cdef class CModel:
 		"""
 		Outputs the value u(cSwitch) + beta * EMAX(cSwitch) for a given cSwitch.
 		"""
-		cdef long ind1, ind2
 		cdef double u, emax, value
 		cdef double weights[2]
 		cdef long indices[2]

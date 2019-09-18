@@ -20,7 +20,7 @@ locIncomeProcess = os.path.join(
 #      SET PARAMETERIZATION NUMBER                              #
 #---------------------------------------------------------------#
 if len(sys.argv) > 1:
-	paramIndex = sys.argv[1]
+	paramIndex = int(sys.argv[1])
 else:
 	paramIndex = 0
 
