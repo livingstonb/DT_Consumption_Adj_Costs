@@ -8,7 +8,7 @@ from Cython.Compiler import Options
 
 Options.buffer_max_dims = 10
 
-if (os.environ.get('CC',None) =="gcc-9") or (platform.system()=="Linux"):
+if (os.environ.get('CC',None)=="gcc-9") or (platform.system()=="Linux"):
 	compileArgs = ['-fopenmp']
 else:
 	compileArgs = []
