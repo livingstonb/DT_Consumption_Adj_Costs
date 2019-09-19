@@ -209,6 +209,18 @@ for row in range(2):
 		i += 1
 
 fig, ax = plt.subplots(nrows=2,ncols=3)
+fig.suptitle('Consumption function vs. state c, zoomed')
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,5])
+		ax[row,col].set_title(f'x = {xvals[i]}')
+		ax[row,col].set_xlabel('c, state')
+		ax[row,col].set_ylabel('actual consumption')
+		ax[row,col].set_xbound(0, 0.5)
+		i += 1
+
+fig, ax = plt.subplots(nrows=2,ncols=3)
 fig.suptitle('Value function vs. state c')
 i = 0
 for row in range(2):
@@ -234,15 +246,16 @@ for row in range(2):
 		ax[row,col].set_ylabel('actual consumption')
 		i += 1
 
-fig, ax = plt.subplots(nrows=2,ncols=3)
-fig.suptitle('Value function vs. assets')
-i = 0
-for row in range(2):
-	for col in range(3):
-		ax[row,col].plot(grids.x.flat,model.valueFunction[:,icvals[i],0,5])
-		ax[row,col].set_title(f'c = {cvals[i]}')
-		ax[row,col].set_xlabel('x, cash-on-hand')
-		ax[row,col].set_ylabel('value function')
-		i += 1
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+ax.plot(grids.x.flat,model.inactionRegionLower[:,0,5])
+ax.plot(grids.x.flat,model.cSwitchingPolicy[:,0,0,5])
+ax.plot(grids.x.flat,model.inactionRegionUpper[:,0,5])
+
+ax.set_title('Inaction region for consumption')
+ax.set_xlabel('cash-on-hand, x')
+ax.set_ylabel('consumption')
+ax.legend(['Lower bound of inaction region', 'Desired c without adj cost', 
+	'Upper bound of inaction region'])
 
 plt.show()

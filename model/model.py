@@ -59,6 +59,8 @@ class Model(CModel):
 
 		print('Value function converged')
 
+		self.doComputations()
+
 	def updateValueFunction(self):
 		"""
 		This method updates self.valueFunction by finding max(valueSwitch-adjustCost,valueNoSwitch),
@@ -83,6 +85,9 @@ class Model(CModel):
 		self.valueNoSwitch = functions.utilityMat(self.p.riskAver,self.grids.c.matrix) \
 			+ self.p.timeDiscount * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
+
+	def doComputations(self):
+		super().doComputations()
 
 	def resetDiscountRate(self, newTimeDiscount):
 		self.p.timeDiscount = newTimeDiscount

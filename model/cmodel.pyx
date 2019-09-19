@@ -36,6 +36,7 @@ cdef class CModel:
 		public double[:,:,:,:] EMAX
 		readonly object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
+		public double[:,:,:] inactionRegionLower, inactionRegionUpper
 
 	def __init__(self, params, income, grids):
 		self.p = params
@@ -281,3 +282,25 @@ cdef class CModel:
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax
 
 		return value
+
+	@cython.boundscheck(False)
+	def doComputations(self):
+		cdef np.ndarray[np.uint8_t, ndim=4, cast=True] cSwitch
+		cdef np.ndarray[np.int64_t, ndim=1] inactionRegion
+		cdef long ix, iz, iyP
+
+		cSwitch = np.asarray(self.valueFunction) == (np.asarray(self.valueSwitch) - self.p.adjustCost)
+
+		self.inactionRegionLower = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
+		self.inactionRegionUpper = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
+
+		for ix in range(self.p.nx):
+			for iz in range(self.p.nz):
+				for iyP in range(self.p.nyP):
+					inactionRegion = np.flatnonzero(~cSwitch[ix,:,iz,iyP])
+					if inactionRegion.size > 0:
+						self.inactionRegionLower[ix,iz,iyP] = self.grids.c.flat[inactionRegion[0]]
+						self.inactionRegionUpper[ix,iz,iyP] = self.grids.c.flat[inactionRegion[-1]]
+					else:
+						self.inactionRegionLower[ix,iz,iyP] = np.nan
+						self.inactionRegionUpper[ix,iz,iyP] = np.nan
