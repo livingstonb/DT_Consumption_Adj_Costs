@@ -131,17 +131,17 @@ else:
 	#-----------------------------------------------------------#
 	model.solve()
 
-	eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
-	eqSimulator.simulate()
+	# eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
+	# eqSimulator.simulate()
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
 shockIndices = [1,4] # only do 0.01 shock for now
 
-finalSimStates = eqSimulator.returnFinalStates()
-mpcSimulator = simulator.MPCSimulator(
-	params,income,grids,model,shockIndices,finalSimStates)
+# finalSimStates = eqSimulator.returnFinalStates()
+# mpcSimulator = simulator.MPCSimulator(
+# 	params,income,grids,model,shockIndices,finalSimStates)
 # mpcSimulator.simulate()
 
 # print('\nResults from simulation:\n')
@@ -175,45 +175,59 @@ mpcSimulator = simulator.MPCSimulator(
 #      PLOT POLICY FUNCTION                                 #
 #-----------------------------------------------------------#
 
-try:
-	cSwitch = np.asarray(model.valueFunction) == (np.asarray(model.valueSwitch) - params.adjustCost)
-	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
+cSwitch = np.asarray(model.valueFunction) == (np.asarray(model.valueSwitch) - params.adjustCost)
+cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
-	ixvals = [10,20,30,40,50,60]
-	xvals = np.array([grids.x.flat[i] for i in ixvals])
-	print(xvals)
+ixvals = [0,10,20,40,50,70]
+xvals = np.array([grids.x.flat[i] for i in ixvals])
+print(xvals)
 
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Consumption function vs. state c')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,5])
-			ax[row,col].set_title(f'x = {xvals[i]}')
-			i += 1
+fig, ax = plt.subplots(nrows=2,ncols=3)
+fig.suptitle('Consumption function vs. state c')
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,5])
+		ax[row,col].set_title(f'x = {xvals[i]}')
+		ax[row,col].set_xlabel('c, state')
+		ax[row,col].set_ylabel('actual consumption')
+		i += 1
 
-	icvals = [10,20,30,40,50,100]
-	cvals = np.array([grids.c.flat[i] for i in icvals])
-	print(cvals)
+fig, ax = plt.subplots(nrows=2,ncols=3)
+fig.suptitle('Value function vs. state c')
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.c.flat,model.valueFunction[ixvals[i],:,0,5])
+		ax[row,col].set_title(f'x = {ixvals[i]}')
+		ax[row,col].set_xlabel('c, state')
+		ax[row,col].set_ylabel('value function')
+		i += 1
 
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Consumption function vs. assets')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,5])
-			ax[row,col].set_title(f'c = {cvals[i]}')
-			i += 1
+icvals = [10,25,50,100,500,750]
+cvals = np.array([grids.c.flat[i] for i in icvals])
+print(cvals)
 
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Value function vs. assets')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].plot(grids.x.flat,model.valueFunction[:,icvals[i],0,5])
-			ax[row,col].set_title(f'c = {cvals[i]}')
-			i += 1
+fig, ax = plt.subplots(nrows=2,ncols=3)
+fig.suptitle('Consumption function vs. assets')
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,5])
+		ax[row,col].set_title(f'c = {cvals[i]}')
+		ax[row,col].set_xlabel('x, cash-on-hand')
+		ax[row,col].set_ylabel('actual consumption')
+		i += 1
 
-	plt.show()
-except:
-	pass
+fig, ax = plt.subplots(nrows=2,ncols=3)
+fig.suptitle('Value function vs. assets')
+i = 0
+for row in range(2):
+	for col in range(3):
+		ax[row,col].plot(grids.x.flat,model.valueFunction[:,icvals[i],0,5])
+		ax[row,col].set_title(f'c = {cvals[i]}')
+		ax[row,col].set_xlabel('x, cash-on-hand')
+		ax[row,col].set_ylabel('value function')
+		i += 1
+
+plt.show()

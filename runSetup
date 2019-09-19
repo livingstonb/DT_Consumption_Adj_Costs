@@ -1,5 +1,6 @@
 
 system=$(uname -s)
+echo "System is $system"
 
 if [ $system == "Linux" ] || [ "$1" == "no-parallel" ]
 then
