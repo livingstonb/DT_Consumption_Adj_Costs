@@ -74,6 +74,9 @@ cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
+	"""
+	A faster version of searchSortedSingleInput, uses a bisection algorithm.
+	"""
 	cdef long lower, upper, midpt = 0
 	cdef double valMidpt = 0.0
 
@@ -151,7 +154,8 @@ cdef void getInterpolationWeights(
 	double *grid, double pt, long nGrid, long *indices, double *weights) nogil:
 	"""
 	This function finds the weights placed on the grid value below pt
-	and the grid value above pt when interpolating pt onto grid.
+	and the grid value above pt when interpolating pt onto grid. Output
+	is 'indices' and 'weights'.
 	"""
 	cdef double weight0
 

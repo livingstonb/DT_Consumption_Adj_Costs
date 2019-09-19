@@ -22,7 +22,7 @@ cdef class Params:
 		public long maxIters, nSim, tSim
 		public double tol
 		public double tolWealthTarget, wealthTarget
-		public bint iterateBeta, MPCsOutOfNews, Bequests
+		public bint MPCsOutOfNews, Bequests
 		public bint noTransIncome, noPersIncome
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
@@ -67,7 +67,6 @@ cdef class Params:
 		# beta iteration
 		self.tolWealthTarget = 1e-7
 		self.wealthTarget = 3.5
-		self.iterateBeta = False
 
 		# mpc options
 		self.NsimMPC = long(2e5) # number of draws to sim MPCs

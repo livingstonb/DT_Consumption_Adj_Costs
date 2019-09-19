@@ -10,6 +10,12 @@ from model.model import Model
 from model import simulator
 
 #---------------------------------------------------------------#
+#      OPTIONS                                                  #
+#---------------------------------------------------------------#
+IterateBeta = False
+Simulate = False # relevant if IterateBeta is False
+
+#---------------------------------------------------------------#
 #      LOCATION OF INCOME PROCESS                               #
 #---------------------------------------------------------------#
 basedir = os.getcwd()
@@ -46,7 +52,9 @@ grids = modelObjects.GridCreator(params,income)
 #---------------------------------------------------------------#
 model = Model(params,income,grids)
 
-if params.iterateBeta:
+if IterateBeta:
+	Simulate = True
+
 	#-----------------------------------------------------------#
 	#      FIND VALID LOWER BOUND FOR DISCOUNT RATE             #
 	#-----------------------------------------------------------#
@@ -131,24 +139,20 @@ else:
 	#-----------------------------------------------------------#
 	model.solve()
 
-	# eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
-	# eqSimulator.simulate()
+	if Simulate:
+		eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
+		eqSimulator.simulate()
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
-shockIndices = [1,4] # only do 0.01 shock for now
+if Simulate:
+	shockIndices = [1,4] # only do 0.01 shock for now
 
-# finalSimStates = eqSimulator.returnFinalStates()
-# mpcSimulator = simulator.MPCSimulator(
-# 	params,income,grids,model,shockIndices,finalSimStates)
-# mpcSimulator.simulate()
-
-# print('\nResults from simulation:\n')
-# print(eqSimulator.results.to_string())
-
-# print('\nMPCS:\n')
-# print(mpcSimulator.mpcs.to_string())
+	finalSimStates = eqSimulator.returnFinalStates()
+	mpcSimulator = simulator.MPCSimulator(
+		params,income,grids,model,shockIndices,finalSimStates)
+	mpcSimulator.simulate()
 
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
@@ -170,6 +174,17 @@ shockIndices = [1,4] # only do 0.01 shock for now
 # 			params,income,grids,
 # 			EMAX=futureShockModels[period-1].EMAX)
 # 		futureShockModels[period].solve()
+
+#-----------------------------------------------------------#
+#      PRINT RESULTS                                        #
+#-----------------------------------------------------------#
+
+if Simulate:
+	print('\nResults from simulation:\n')
+	print(eqSimulator.results.to_string())
+
+	print('\nMPCS:\n')
+	print(mpcSimulator.mpcs.to_string())
 
 #-----------------------------------------------------------#
 #      PLOT POLICY FUNCTION                                 #
