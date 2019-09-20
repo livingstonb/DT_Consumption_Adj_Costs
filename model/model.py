@@ -71,8 +71,8 @@ class Model(CModel):
 		where valueSwitch is used wherever c > x in the state space.
 		"""
 		self.valueFunction = np.where(self.grids.mustSwitch,
-			np.asarray(self.valueSwitch)-self.p.adjustCost,
-			np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch)-self.p.adjustCost)
+			np.asarray(self.valueSwitch),
+			np.maximum(self.valueNoSwitch,np.asarray(self.valueSwitch))
 			)
 
 	def updateEMAX(self):

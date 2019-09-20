@@ -28,8 +28,7 @@ cdef class CSimulator:
 		self.grids = grids
 
 		self.cSwitchingPolicy = model.cSwitchingPolicy
-		self.valueDiff = np.asarray(model.valueSwitch) \
-			- params.adjustCost - np.asarray(model.valueNoSwitch)
+		self.valueDiff = np.asarray(model.valueSwitch) - np.asarray(model.valueNoSwitch)
 
 		self.nCols = 1
 

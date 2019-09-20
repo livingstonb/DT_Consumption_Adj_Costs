@@ -22,8 +22,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['nx'] = 75
-		paramsDicts[ii]['nc'] = 400
+		paramsDicts[ii]['nx'] = 200
+		paramsDicts[ii]['nc'] = 300
 		paramsDicts[ii]['nSim'] = 2e5
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 		paramsDicts[ii]['timeDiscount'] = 0.9

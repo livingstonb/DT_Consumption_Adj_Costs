@@ -18,7 +18,7 @@ cdef struct FnArgs:
 	double riskAver
 	double timeDiscount
 	double deathProb
-	bint cubicInterp
+	double adjustCost
 
 # function pointer for golden section search
 ctypedef double (*objectiveFn)(double x, FnArgs fargs) nogil

@@ -15,8 +15,8 @@ from model import simulator
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
 IterateBeta = False
-Simulate = True # relevant if IterateBeta is False
-MakePlots = False
+Simulate = False # relevant if IterateBeta is False
+MakePlots = True
 
 #---------------------------------------------------------------#
 #      LOCATION OF INCOME PROCESS                               #
@@ -213,10 +213,10 @@ if Simulate:
 #-----------------------------------------------------------#
 
 if MakePlots:
-	cSwitch = np.asarray(model.valueFunction) == (np.asarray(model.valueSwitch) - params.adjustCost)
+	cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch)
 	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
-	ixvals = [0,10,20,30,40,45]
+	ixvals = [0,10,25,50,75,100]
 	xvals = np.array([grids.x.flat[i] for i in ixvals])
 	print(xvals)
 
@@ -259,7 +259,7 @@ if MakePlots:
 			ax[row,col].set_ylabel('EMAX')
 			i += 1
 
-	icvals = [10,25,50,75,100,150]
+	icvals = [10,50,75,100,200,250]
 	cvals = np.array([grids.c.flat[i] for i in icvals])
 	print(cvals)
 

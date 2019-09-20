@@ -214,6 +214,7 @@ cdef class CModel:
 		fargs.riskAver = self.p.riskAver
 		fargs.timeDiscount = self.p.timeDiscount
 		fargs.deathProb = self.p.deathProb
+		fargs.adjustCost = self.p.adjustCost
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
 
@@ -311,7 +312,7 @@ cdef class CModel:
 				if findPolicy:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
 				else:
-					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES)
+					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES) - fargs.adjustCost
 
 		free(emaxVec)
 		free(yderivs)
@@ -346,7 +347,7 @@ cdef class CModel:
 		cdef np.ndarray[np.int64_t, ndim=1] inactionRegion
 		cdef long ix, iz, iyP
 
-		cSwitch = np.asarray(self.valueFunction) == (np.asarray(self.valueSwitch) - self.p.adjustCost)
+		cSwitch = np.asarray(self.valueFunction) == np.asarray(self.valueSwitch)
 
 		self.inactionRegionLower = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
 		self.inactionRegionUpper = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
