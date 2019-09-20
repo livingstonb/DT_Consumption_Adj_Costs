@@ -1,8 +1,10 @@
+# cython: profile=True
 
 import numpy as np
 cimport numpy as np
 
 cimport cython
+from cython.parallel cimport prange, parallel
 
 from misc cimport functions
 from misc.functions cimport FnArgs, objectiveFn
@@ -190,26 +192,24 @@ cdef class CModel:
 		EMAX(c) at each iteration.
 		"""
 		cdef:
-			long iyP
-			int error
-			double invGoldenRatio, invGoldenRatioSq
-			double[:] sections
-			double[:] xgrid, cgrid
-			long nyP
+			long iyP, ix, ii, iz, ic
+			double xval, maxAdmissibleC,
+			double[:] emaxVec, yderivs
+			double[:] sections, xgrid, cgrid
+			long errorGSS
+			double bounds[NSECTIONS][2]
+			double gssResults[2]
+			double cVals[NVALUES]
+			double funVals[NVALUES]
 			FnArgs fargs
-
-		if findPolicy:
-			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
+			objectiveFn iteratorFn
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
 
+		fargs.error = 0
 		fargs.cgrid = &cgrid[0]
 		fargs.cubicValueInterp = self.p.cubicValueInterp
-		fargs.nx = self.p.nx
-		fargs.cMin = self.p.cMin
-		fargs.cMax = self.p.cMax
-		fargs.nz = self.p.nz
 		fargs.nc = self.p.nc
 		fargs.riskAver = self.p.riskAver
 		fargs.timeDiscount = self.p.timeDiscount
@@ -218,106 +218,68 @@ cdef class CModel:
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
 
-		if not findPolicy:
+		emaxVec = np.zeros(self.p.nc)
+		yderivs = np.zeros(self.p.nc)
+
+		fargs.emaxVec = &emaxVec[0]
+		fargs.yderivs = &yderivs[0]
+
+		iteratorFn = <objectiveFn> self.findValueFromSwitching
+
+		if findPolicy:
+			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
+		else:
 			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
 
-		nyP = self.p.nyP
+		for iyP in range(self.p.nyP):
+			bounds[0][0] = self.p.cMin
 
-		for iyP in range(nyP):
-			error = self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
-				findPolicy, iyP, fargs)
-			if error == 1:
-				raise Exception('Exception in findValueFromSwitching')
-			elif error == 2:
-				raise Exception('Exception in valueForOneIncomeBlock')
-			elif error == -1:
-				raise Exception('Exception in golden section search')
-		
+			for ix in range(self.p.nx):
+				xval = xgrid[ix]
+				maxAdmissibleC = fmin(xval,self.p.cMax)
 
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
-	cdef int valueForOneIncomeBlock(self, double[:] xgrid, double[:] cgrid,
-		double[:] sections, bint findPolicy, long iyP, FnArgs fargs_in) nogil except 2:
-		"""
-		Updates self.valueSwitch for one income block.
-		"""
-		cdef:
-			long ix, ii, iz, ic
-			double xval, maxAdmissibleC
-			double *emaxVec
-			double *yderivs
-			long errorGSS, error = 0
-			double bounds[NSECTIONS][2]
-			double gssResults[2]
-			double cVals[NVALUES]
-			double funVals[NVALUES]
-			FnArgs fargs
-			objectiveFn iteratorFn
-			
-		bounds[0][0] = fargs_in.cMin
-		fargs = fargs_in
-		fargs.error = &error
+				bounds[0][1] = maxAdmissibleC * sections[0]
+				for ii in range(1,NSECTIONS):
+					bounds[ii][0] = maxAdmissibleC * sections[ii-1]
+					bounds[ii][1] = maxAdmissibleC * sections[ii]
 
-		emaxVec = <double *> malloc(fargs.nc * sizeof(double))
-		fargs.emaxVec = emaxVec
+				for iz in range(self.p.nz):
 
-		yderivs = <double *> malloc(fargs.nc * sizeof(double))
-		fargs.yderivs = yderivs
+					fargs.ncValid = 0
+					for ic in range(self.p.nc):
+						emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
+						
+						if xval >= cgrid[ic]:
+							fargs.ncValid += 1
 
-		for ix in range(fargs.nx):
-			xval = xgrid[ix]
-			maxAdmissibleC = fmin(xval,fargs.cMax)
+					if fargs.cubicValueInterp:
+						spline.spline(&cgrid[0], &emaxVec[0], self.p.nc, 1.0e30, 1.0e30, &yderivs[0])
 
-			bounds[0][1] = maxAdmissibleC * sections[0]
-			for ii in range(1,NSECTIONS):
-				bounds[ii][0] = maxAdmissibleC * sections[ii-1]
-				bounds[ii][1] = maxAdmissibleC * sections[ii]
+					for ii in range(NSECTIONS):
+						errorGSS = functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
+							bounds[ii][1],1e-8, &gssResults[0], fargs)
+						if errorGSS == -1:
+							raise Exception('Exception in golden section search')
+						elif errorGSS == 1:
+							raise Exception('Exception in fn called by golden section search')
 
-			for iz in range(fargs.nz):
-				iteratorFn = <objectiveFn> self.findValueFromSwitching
+						funVals[ii] = gssResults[0]
+						cVals[ii] = gssResults[1]
+					ii = NSECTIONS
 
-				fargs.ncValid = 0
-				for ic in range(fargs.nc):
-					emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
-					
-					if xval >= cgrid[ic]:
-						fargs.ncValid += 1
+					# try consuming cmin
+					cVals[ii] = self.p.cMin
+					funVals[ii] = self.findValueFromSwitching(self.p.cMin, fargs)
+					ii += 1
 
-				if fargs.cubicValueInterp:
-					spline.spline(&cgrid[0], emaxVec, fargs.nc, 1.0e30, 1.0e30, yderivs)
+					# try consuming xval (or cmax)
+					cVals[ii] = maxAdmissibleC
+					funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, fargs)
 
-				for ii in range(NSECTIONS):
-					errorGSS = functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
-						bounds[ii][1],1e-8, &gssResults[0], fargs)
-					if errorGSS != 0:
-						return errorGSS
-
-					funVals[ii] = gssResults[0]
-					cVals[ii] = gssResults[1]
-				ii = NSECTIONS
-
-				# try consuming cmin
-				cVals[ii] = fargs.cMin
-				funVals[ii] = self.findValueFromSwitching(fargs.cMin, fargs)
-				if error == 1:
-					return error
-				ii += 1
-
-				# try consuming xval (or cmax)
-				cVals[ii] = maxAdmissibleC
-				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, fargs)
-				if error == 1:
-					return error
-
-				if findPolicy:
-					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
-				else:
-					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES) - fargs.adjustCost
-
-		free(emaxVec)
-		free(yderivs)
-
-		return 0
+					if findPolicy:
+						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
+					else:
+						self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES) - self.p.adjustCost
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -330,10 +292,9 @@ cdef class CModel:
 		cdef long indices[2]
 	
 		if (fargs.ncValid > 4) and fargs.cubicValueInterp:
-			fargs.error[0] = spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
+			fargs.error = spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
 		else:
 			functions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
-
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
 
 		u = functions.utility(fargs.riskAver,cSwitch)

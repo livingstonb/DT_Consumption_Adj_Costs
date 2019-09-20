@@ -221,11 +221,11 @@ cdef long goldenSectionSearch(objectiveFn f, double a, double b,
 	d = a + diff * INV_GOLDEN_RATIO 
 
 	fc = -f(c,fargs)
-	if fargs.error[0] == 1:
+	if fargs.error == 1:
 		return 1
 
 	fd = -f(d,fargs)
-	if fargs.error[0] == 1:
+	if fargs.error == 1:
 		return 1
 
 	while fabs(c - d) > tol:
@@ -237,7 +237,7 @@ cdef long goldenSectionSearch(objectiveFn f, double a, double b,
 			diff = diff * INV_GOLDEN_RATIO
 			c = a + diff * INV_GOLDEN_RATIO_SQ
 			fc = -f(c,fargs)
-			if fargs.error[0] == 1:
+			if fargs.error == 1:
 				return 1
 		else:
 			a = c
@@ -246,7 +246,7 @@ cdef long goldenSectionSearch(objectiveFn f, double a, double b,
 			diff = diff * INV_GOLDEN_RATIO
 			d = a + diff * INV_GOLDEN_RATIO
 			fd = -f(d,fargs)
-			if fargs.error[0] == 1:
+			if fargs.error == 1:
 				return 1
 
 	if fc < fd:

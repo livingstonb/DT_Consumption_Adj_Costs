@@ -7,14 +7,10 @@ cdef struct FnArgs:
 	double *cgrid
 	double *emaxVec
 	double *yderivs
-	long *error
 	bint cubicValueInterp
-	long nx
+	long error
 	long nc
 	long ncValid
-	long nz
-	double cMin
-	double cMax
 	double riskAver
 	double timeDiscount
 	double deathProb

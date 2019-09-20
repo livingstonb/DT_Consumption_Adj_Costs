@@ -3,6 +3,8 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 
+import pstats, cProfile
+
 from scipy import optimize
 
 from model import modelObjects
@@ -16,7 +18,7 @@ from model import simulator
 #---------------------------------------------------------------#
 IterateBeta = False
 Simulate = False # relevant if IterateBeta is False
-MakePlots = True
+MakePlots = False
 
 #---------------------------------------------------------------#
 #      LOCATION OF INCOME PROCESS                               #
@@ -159,7 +161,10 @@ else:
 	#-----------------------------------------------------------#
 	#      SOLVE MODEL ONCE                                     #
 	#-----------------------------------------------------------#
-	model.solve()
+	cProfile.runctx("model.solve()", globals(), locals(), "Profile.prof")
+	s = pstats.Stats("Profile.prof")
+	s.strip_dirs().sort_stats("time").print_stats()
+	raise Exception('done profiling')
 
 	if Simulate:
 		eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
