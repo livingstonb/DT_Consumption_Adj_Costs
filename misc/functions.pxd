@@ -6,8 +6,12 @@ cimport numpy as np
 cdef struct FnArgs:
 	double *cgrid
 	double *emaxVec
+	double *yderivs
+	long *error
+	bint cubicValueInterp
 	long nx
 	long nc
+	long ncValid
 	long nz
 	double cMin
 	double cMax
@@ -34,8 +38,8 @@ cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[
 cdef void getInterpolationWeights(
 	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
 
-cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, FnArgs args) nogil
+cdef long goldenSectionSearch(objectiveFn f, double a, double b, 
+	double tol, double* out, FnArgs args) nogil except -1
 
 cdef double cmax(double *vals, int nVals) nogil
 

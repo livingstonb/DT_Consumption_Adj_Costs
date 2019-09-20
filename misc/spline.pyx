@@ -53,8 +53,8 @@ cdef void spline(double *x, double *y, long n,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double splint(double *xa, double *ya, double *y2a, long n,
-	double x) nogil:
+cdef int splint(double *xa, double *ya, double *y2a, long n,
+	double x, double *y) nogil except -1:
 	"""
 	Given a grid xa with function values ya, both of length n,
 	this function outputs the interpolated function value at
@@ -63,7 +63,7 @@ cdef double splint(double *xa, double *ya, double *y2a, long n,
 	"""
 	cdef:
 		long klo, khi, k
-		double h, b, a, y
+		double h, b, a
 
 	klo = 1
 	khi = n
@@ -84,7 +84,7 @@ cdef double splint(double *xa, double *ya, double *y2a, long n,
 
 	a = (xa[khi]-x) / h
 	b = (x-xa[klo]) / h
-	y = a * ya[klo] + b * ya[khi] + \
+	y[0] = a * ya[klo] + b * ya[khi] + \
 		((a*a*a-a)*y2a[klo] + (b*b*b-b)*y2a[khi]) * (h*h) / 6.0
 
-	return y
+	return 0

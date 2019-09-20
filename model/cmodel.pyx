@@ -104,59 +104,82 @@ cdef class CModel:
 
 		self.interpMat = sparse.bmat(blockMats)
 
-	# @cython.boundscheck(False)
-	# @cython.wraparound(False)
-	# def updateEMAXslow(self):
-	# 	"""
-	# 	This method can be used to double check the construction of the
-	# 	interpolation matrix for updating EMAT.
-	# 	"""
-	# 	cdef:
-	# 		double emax, Pytrans, assets, cash, yP2
-	# 		double[:] xgrid, cgrid, valueVec
-	# 		double xWeights[2]
-	# 		double *xWeights_ptr = xWeights
-	# 		double *yderivs
-	# 		long[:] xIndices
-	# 		int ix, ic, iz, iyP1, iyP2, iyT
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	def updateEMAXslow(self):
+		"""
+		This method can be used to double check the construction of the
+		interpolation matrix for updating EMAT.
+		"""
+		cdef:
+			double emax, Pytrans, assets, cash, yP2
+			double vInterp, xval
+			double[:] xgrid, cgrid, valueVec
+			double[:,:] yPtrans
+			double[:] yPgrid, yTdist, yTgrid
+			double xWeights[2]
+			double *yderivs
+			double *value
+			long xIndices[2]
+			int ix, ic, iz, iyP1, iyP2, iyT, ix2
 
-	# 	xgrid = self.grids.x.flat
-	# 	cgrid = self.grids.c.flat
+		xgrid = self.grids.x.flat
+		cgrid = self.grids.c.flat
+		yPgrid = self.income.yPgrid.flatten()
+		yPtrans = self.income.yPtrans
+		yTgrid = self.income.yTgrid.flatten()
+		yTdist = self.income.yTdist.flatten()
 
-	# 	yderivs = <double *> malloc(self.p.nx * sizeof(double))
+		yderivs = <double *> malloc(self.p.nx * sizeof(double))
+		value = <double *> malloc(self.p.nx * sizeof(double))
 
-	# 	xIndices = np.zeros(2,dtype=int)
-
-	# 	self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+		self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
 		
-	# 	for ix in range(self.p.nx):
+		for ix in range(self.p.nx):
+			xval = xgrid[ix]
 
-	# 		for ic in range(self.p.nc):
-	# 			assets = self.p.R * (xgrid[ix] - cgrid[ic])
+			for ic in range(self.p.nc):
+				assets = self.p.R * (xval - cgrid[ic])
 
-	# 			for iz in range(self.p.nz):
+				for iz in range(self.p.nz):
 
-	# 				for iyP1 in range(self.p.nyP):
-	# 					emax = 0
+					for iyP1 in range(self.p.nyP):
+						emax = 0
 
-	# 					for iyP2 in range(self.p.nyP):
-	# 						Pytrans = self.income.yPtrans[iyP1,iyP2]
-	# 						yP2 = self.income.yPgrid[iyP2]
+						for iyP2 in range(self.p.nyP):
+							Pytrans = yPtrans[iyP1,iyP2]
+							yP2 = yPgrid[iyP2]
 
-	# 						for iyT in range(self.p.nyT):
-	# 							cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock
+							for ix2 in range(self.p.nx):
+								value[ix2] = self.valueFunction[ix2,ic,iz,iyP2]
 
-	# 							xIndices[1] = functions.fastSearchSingleInput(xgrid,cash,self.p.nx)
-	# 							xIndices[0] = xIndices[1] - 1
-	# 							functions.getInterpolationWeights(xgrid,cash,xIndices[1],xWeights_ptr)
-				
+							if self.p.cubicEMAXInterp:
+								spline.spline(&xgrid[0], value, self.p.nx, 
+									1.0e30, 1.0e30, yderivs)
 
-	# 							emax += Pytrans * self.income.yTdist[iyT] * (
-	# 								xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
-	# 								+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
-	# 								)
+							for iyT in range(self.p.nyT):
+								cash = assets + yP2 * yTgrid[iyT] + self.nextMPCShock
 
-	# 					self.EMAX[ix,ic,iz,iyP1] = emax
+								if self.p.cubicEMAXInterp:
+									spline.splint(&xgrid[0], value, yderivs, self.p.nx, cash, &vInterp)
+
+									if vInterp > value[self.p.nx]:
+										vInterp = value[self.p.nx]
+									elif vInterp < value[0]:
+										vInterp = value[0]
+									emax += Pytrans * yTdist[iyT] * vInterp
+								else:
+									functions.getInterpolationWeights(&xgrid[0],cash,self.p.nx,&xIndices[0],&xWeights[0])
+
+									emax += Pytrans * yTdist[iyT] * (
+										xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
+										+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
+										)
+
+						self.EMAX[ix,ic,iz,iyP1] = emax
+
+		free(yderivs)
+		free(value)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -168,6 +191,7 @@ cdef class CModel:
 		"""
 		cdef:
 			long iyP
+			int error
 			double invGoldenRatio, invGoldenRatioSq
 			double[:] sections
 			double[:] xgrid, cgrid
@@ -181,6 +205,7 @@ cdef class CModel:
 		cgrid = self.grids.c.flat
 
 		fargs.cgrid = &cgrid[0]
+		fargs.cubicValueInterp = self.p.cubicValueInterp
 		fargs.nx = self.p.nx
 		fargs.cMin = self.p.cMin
 		fargs.cMax = self.p.cMax
@@ -198,14 +223,20 @@ cdef class CModel:
 		nyP = self.p.nyP
 
 		for iyP in range(nyP):
-			self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
+			error = self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
 				findPolicy, iyP, fargs)
-			
+			if error == 1:
+				raise Exception('Exception in findValueFromSwitching')
+			elif error == 2:
+				raise Exception('Exception in valueForOneIncomeBlock')
+			elif error == -1:
+				raise Exception('Exception in golden section search')
+		
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void valueForOneIncomeBlock(self, double[:] xgrid, double[:] cgrid,
-		double[:] sections, bint findPolicy, long iyP, FnArgs fargs_in) nogil:
+	cdef int valueForOneIncomeBlock(self, double[:] xgrid, double[:] cgrid,
+		double[:] sections, bint findPolicy, long iyP, FnArgs fargs_in) nogil except 2:
 		"""
 		Updates self.valueSwitch for one income block.
 		"""
@@ -213,6 +244,8 @@ cdef class CModel:
 			long ix, ii, iz, ic
 			double xval, maxAdmissibleC
 			double *emaxVec
+			double *yderivs
+			long errorGSS, error = 0
 			double bounds[NSECTIONS][2]
 			double gssResults[2]
 			double cVals[NVALUES]
@@ -222,9 +255,13 @@ cdef class CModel:
 			
 		bounds[0][0] = fargs_in.cMin
 		fargs = fargs_in
+		fargs.error = &error
 
 		emaxVec = <double *> malloc(fargs.nc * sizeof(double))
 		fargs.emaxVec = emaxVec
+
+		yderivs = <double *> malloc(fargs.nc * sizeof(double))
+		fargs.yderivs = yderivs
 
 		for ix in range(fargs.nx):
 			xval = xgrid[ix]
@@ -238,12 +275,22 @@ cdef class CModel:
 			for iz in range(fargs.nz):
 				iteratorFn = <objectiveFn> self.findValueFromSwitching
 
+				fargs.ncValid = 0
 				for ic in range(fargs.nc):
 					emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
+					
+					if xval >= cgrid[ic]:
+						fargs.ncValid += 1
+
+				if fargs.cubicValueInterp:
+					spline.spline(&cgrid[0], emaxVec, fargs.nc, 1.0e30, 1.0e30, yderivs)
 
 				for ii in range(NSECTIONS):
-					functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
+					errorGSS = functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
 						bounds[ii][1],1e-8, &gssResults[0], fargs)
+					if errorGSS != 0:
+						return errorGSS
+
 					funVals[ii] = gssResults[0]
 					cVals[ii] = gssResults[1]
 				ii = NSECTIONS
@@ -251,11 +298,15 @@ cdef class CModel:
 				# try consuming cmin
 				cVals[ii] = fargs.cMin
 				funVals[ii] = self.findValueFromSwitching(fargs.cMin, fargs)
+				if error == 1:
+					return error
 				ii += 1
 
 				# try consuming xval (or cmax)
 				cVals[ii] = maxAdmissibleC
 				funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, fargs)
+				if error == 1:
+					return error
 
 				if findPolicy:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
@@ -263,6 +314,9 @@ cdef class CModel:
 					self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES)
 
 		free(emaxVec)
+		free(yderivs)
+
+		return 0
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -273,10 +327,13 @@ cdef class CModel:
 		cdef double u, emax, value
 		cdef double weights[2]
 		cdef long indices[2]
-		
-		functions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
+	
+		if (fargs.ncValid > 4) and fargs.cubicValueInterp:
+			fargs.error[0] = spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
+		else:
+			functions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
 
-		emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
+			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
 
 		u = functions.utility(fargs.riskAver,cSwitch)
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax

@@ -200,8 +200,8 @@ cdef void getInterpolationWeights(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, FnArgs fargs) nogil:
+cdef long goldenSectionSearch(objectiveFn f, double a, double b, 
+	double tol, double* out, FnArgs fargs) nogil except -1:
 	"""
 	This function iterates over the objective function f using
 	the golden section search method in the interval (a,b).
@@ -221,7 +221,12 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 	d = a + diff * INV_GOLDEN_RATIO 
 
 	fc = -f(c,fargs)
+	if fargs.error[0] == 1:
+		return 1
+
 	fd = -f(d,fargs)
+	if fargs.error[0] == 1:
+		return 1
 
 	while fabs(c - d) > tol:
 		if fc < fd:
@@ -232,6 +237,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			diff = diff * INV_GOLDEN_RATIO
 			c = a + diff * INV_GOLDEN_RATIO_SQ
 			fc = -f(c,fargs)
+			if fargs.error[0] == 1:
+				return 1
 		else:
 			a = c
 			c = d
@@ -239,6 +246,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 			diff = diff * INV_GOLDEN_RATIO
 			d = a + diff * INV_GOLDEN_RATIO
 			fd = -f(d,fargs)
+			if fargs.error[0] == 1:
+				return 1
 
 	if fc < fd:
 		out[0] = -fc
@@ -246,6 +255,8 @@ cdef void goldenSectionSearch(objectiveFn f, double a, double b,
 	else:
 		out[0] = -fd
 		out[1] = d
+
+	return 0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

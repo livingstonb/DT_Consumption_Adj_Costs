@@ -24,6 +24,7 @@ cdef class Params:
 		public double tolWealthTarget, wealthTarget
 		public bint MPCsOutOfNews, Bequests
 		public bint noTransIncome, noPersIncome
+		public bint cubicEMAXInterp, cubicValueInterp
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
 		public int xMax, nx
@@ -63,6 +64,8 @@ cdef class Params:
 		self.tol = 1e-7
 		self.nSim = long(1e5) # number of draws to sim distribution
 		self.tSim = 100 # number of periods to simulate
+		self.cubicEMAXInterp = False
+		self.cubicValueInterp = False
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7

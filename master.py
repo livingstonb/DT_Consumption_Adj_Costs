@@ -14,8 +14,8 @@ from model import simulator
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
-Simulate = False # relevant if IterateBeta is False
+IterateBeta = False
+Simulate = True # relevant if IterateBeta is False
 MakePlots = False
 
 #---------------------------------------------------------------#
@@ -36,7 +36,7 @@ else:
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
-params = load_specifications(locIncomeProcess,name='fast')
+params = load_specifications(locIncomeProcess,index=paramIndex)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -216,16 +216,21 @@ if MakePlots:
 	cSwitch = np.asarray(model.valueFunction) == (np.asarray(model.valueSwitch) - params.adjustCost)
 	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
-	ixvals = [0,10,20,40,50,70]
+	ixvals = [0,10,20,30,40,45]
 	xvals = np.array([grids.x.flat[i] for i in ixvals])
 	print(xvals)
+
+	if params.nyP == 1:
+		iyP = 0
+	else:
+		iyP = 5
 
 	fig, ax = plt.subplots(nrows=2,ncols=3)
 	fig.suptitle('Consumption function vs. state c')
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,5])
+			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('actual consumption')
@@ -236,7 +241,7 @@ if MakePlots:
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,5])
+			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('actual consumption')
@@ -244,17 +249,17 @@ if MakePlots:
 			i += 1
 
 	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Value function vs. state c')
+	fig.suptitle('EMAX vs. state c')
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.c.flat,model.valueFunction[ixvals[i],:,0,5])
+			ax[row,col].plot(grids.c.flat,model.EMAX[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {ixvals[i]}')
 			ax[row,col].set_xlabel('c, state')
-			ax[row,col].set_ylabel('value function')
+			ax[row,col].set_ylabel('EMAX')
 			i += 1
 
-	icvals = [10,25,50,100,500,750]
+	icvals = [10,25,50,75,100,150]
 	cvals = np.array([grids.c.flat[i] for i in icvals])
 	print(cvals)
 
@@ -263,7 +268,7 @@ if MakePlots:
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,5])
+			ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,iyP])
 			ax[row,col].set_title(f'c = {cvals[i]}')
 			ax[row,col].set_xlabel('x, cash-on-hand')
 			ax[row,col].set_ylabel('actual consumption')
@@ -271,9 +276,9 @@ if MakePlots:
 
 	fig = plt.figure()
 	ax = fig.add_subplot(1, 1, 1)
-	ax.plot(grids.x.flat,model.inactionRegionLower[:,0,5])
-	ax.plot(grids.x.flat,model.cSwitchingPolicy[:,0,0,5])
-	ax.plot(grids.x.flat,model.inactionRegionUpper[:,0,5])
+	ax.plot(grids.x.flat,model.inactionRegionLower[:,0,iyP])
+	ax.plot(grids.x.flat,model.cSwitchingPolicy[:,0,0,iyP])
+	ax.plot(grids.x.flat,model.inactionRegionUpper[:,0,iyP])
 
 	ax.set_title('Inaction region for consumption')
 	ax.set_xlabel('cash-on-hand, x')

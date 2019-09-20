@@ -12,15 +12,16 @@ class Model(CModel):
 	def initialize(self):
 		self.nextMPCShock = 0
 
-		print('Constructing interpolant array for EMAX')
-		self.constructInterpolantForEMAX()
+		if not self.p.cubicEMAXInterp:
+			print('Constructing interpolant array for EMAX')
+			self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
 		valueGuess = functions.utilityMat(self.p.riskAver,self.grids.c.matrix
 			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb))
 
 		# subtract the adjustment cost for states with c > x
-		self.valueFunction = valueGuess - self.p.adjustCost * self.grids.mustSwitch
+		self.valueFunction = valueGuess
 
 	def solve(self):
 		print('Beginning value function iteration...')
@@ -34,7 +35,10 @@ class Model(CModel):
 			Vprevious = self.valueFunction.copy()
 
 			# update EMAX = E[V|x,c,z,yP], where c is chosen c
-			self.updateEMAX()
+			if self.p.cubicEMAXInterp:
+				self.updateEMAXslow()
+			else:
+				self.updateEMAX()
 
 			# update value function of not switching
 			self.updateValueNoSwitch()
