@@ -17,15 +17,13 @@ class BoundsFinder:
 		self.neg_stepsize = neg_stepsize
 		self.pos_stepsize = pos_stepsize
 		self.betaBoundHistory = []
-		self.beta0 = beta0
-		self.currentBetaBound = None
+		self.currentBetaBound = beta0
 		self.lastDirection = None
 		self.lag = None
 
 		self.maxIter = 50
 
 	def increase(self):
-		print(f'Raising candidate for {self.bound} bound on time discount factor.')
 		if self.lastDirection in [None,'up']:
 			# increase by step
 			self.currentBetaBound += self.pos_stepsize

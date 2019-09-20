@@ -1,6 +1,3 @@
-# cython: linetrace=True
-# cython: binding=True
-# distutils: define_macros=CYTHON_TRACE_NOGIL=1
 
 import numpy as np
 cimport numpy as np
@@ -14,7 +11,6 @@ from misc cimport spline
 import pandas as pd
 from scipy import sparse
 
-from cython.parallel import prange
 from libc.math cimport fmin
 from libc.stdlib cimport malloc, free
 
@@ -32,7 +28,8 @@ cdef class CModel:
 	agent model with disutility of consumption adjustment.
 	"""
 	cdef:
-		readonly object p, grids, income
+		public object p
+		readonly object grids, income
 		public double nextMPCShock
 		readonly tuple dims, dims_yT
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
@@ -200,7 +197,7 @@ cdef class CModel:
 
 		nyP = self.p.nyP
 
-		for iyP in prange(nyP, nogil=True):
+		for iyP in range(nyP):
 			self.valueForOneIncomeBlock(xgrid, cgrid, sections, 
 				findPolicy, iyP, fargs)
 			
@@ -307,3 +304,6 @@ cdef class CModel:
 					else:
 						self.inactionRegionLower[ix,iz,iyP] = np.nan
 						self.inactionRegionUpper[ix,iz,iyP] = np.nan
+
+	def resetParams(self, newParams):
+		self.p = newParams

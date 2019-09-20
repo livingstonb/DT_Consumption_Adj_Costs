@@ -89,9 +89,6 @@ class Model(CModel):
 	def doComputations(self):
 		super().doComputations()
 
-	def resetDiscountRate(self, newTimeDiscount):
-		self.p.timeDiscount = newTimeDiscount
-
 class ModelWithNews(Model):
 	def __init__(self, params, income, grids, EMAX, valueGuess, nextMPCShock):
 		super().__init__(self, params, income, grids)

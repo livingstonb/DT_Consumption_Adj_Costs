@@ -8,3 +8,4 @@ temp
 *.sublime-workspace
 *.c
 *.so
+*.prof

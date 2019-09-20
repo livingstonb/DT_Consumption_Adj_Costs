@@ -146,6 +146,9 @@ cdef class Params:
 		self.nyP = income.nyP
 		self.nyT = income.nyT
 
+	def resetDiscountRate(self, newTimeDiscount):
+		self.timeDiscount = newTimeDiscount
+
 class Income:
 	"""
 	This class stores income variables.

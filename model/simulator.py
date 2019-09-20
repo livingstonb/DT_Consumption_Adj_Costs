@@ -167,6 +167,8 @@ class EquilibriumSimulator(Simulator):
 		self.results['Variance of annual income'] = self.incomeHistory.sum(axis=1).var()
 		self.results['Stdev log annual income'] = np.log(self.incomeHistory.sum(axis=1)).std()
 
+		print(f"Mean wealth = {self.results['Mean wealth']}")
+
 	def returnFinalStates(self):
 		finalStates = {
 			'yPind': self.yPind,
