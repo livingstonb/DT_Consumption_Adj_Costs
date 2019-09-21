@@ -3,8 +3,6 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 
-import pstats, cProfile
-
 from scipy import optimize
 
 from model import modelObjects
@@ -161,10 +159,7 @@ else:
 	#-----------------------------------------------------------#
 	#      SOLVE MODEL ONCE                                     #
 	#-----------------------------------------------------------#
-	cProfile.runctx("model.solve()", globals(), locals(), "Profile.prof")
-	s = pstats.Stats("Profile.prof")
-	s.strip_dirs().sort_stats("time").print_stats()
-	raise Exception('done profiling')
+	model.solve()
 
 	if Simulate:
 		eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
