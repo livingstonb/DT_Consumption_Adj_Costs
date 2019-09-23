@@ -30,7 +30,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['riskAver'] = riskAver
 				paramsDicts[ii]['nx'] = 200
 				paramsDicts[ii]['nc'] = 200
-				paramsDicts[ii]['nSim'] = 4e5
+				paramsDicts[ii]['nSim'] = 1e5
 				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 				paramsDicts[ii]['timeDiscount'] = timeDiscount
 

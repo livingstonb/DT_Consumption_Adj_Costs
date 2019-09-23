@@ -14,29 +14,40 @@ from model.model import Model
 from model import simulator
 
 #---------------------------------------------------------------#
+#      SET PARAMETERIZATION NUMBER                              #
+#---------------------------------------------------------------#
+indexSet = False
+for arg in sys.argv:
+	try:
+		paramIndex = int(arg)
+		indexSet = True
+		break
+	except:
+		pass
+
+if not indexSet:
+	paramIndex = 1
+
+print(f'Selected parameterization {paramIndex}')
+
+#---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
+server = True
 IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 
-#---------------------------------------------------------------#
-#      LOCATION OF INCOME PROCESS                               #
-#---------------------------------------------------------------#
 basedir = os.getcwd()
-locIncomeProcess = os.path.join(
-	basedir,'input','IncomeGrids','quarterly_b.mat')
 outdir = os.path.join(basedir,'output')
-
 if not os.path.exists(outdir):
 	os.mkdir(outdir)
 
 #---------------------------------------------------------------#
-#      SET PARAMETERIZATION NUMBER                              #
+#      LOCATION OF INCOME PROCESS                               #
 #---------------------------------------------------------------#
-if len(sys.argv) > 1:
-	paramIndex = int(sys.argv[1])
-else:
-	paramIndex = 1
+
+locIncomeProcess = os.path.join(
+	basedir,'input','IncomeGrids','quarterly_b.mat')
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
@@ -67,6 +78,7 @@ if IterateBeta:
 	#      FIND VALID LOWER BOUND FOR DISCOUNT RATE             #
 	#-----------------------------------------------------------#
 	print('\nLooking for valid lower bound on discount rate\n')
+
 	neg_stepsize = -0.02
 	pos_stepsize = 0.02
 	lowerBoundInitial = 0.85
