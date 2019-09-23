@@ -32,7 +32,7 @@ class Model(CModel):
 			if iteration > self.p.maxIters:
 				raise Exception(f'No convergence after {iteration+1} iterations...')
 
-			Vprevious = self.valueFunction.copy()
+			Vprevious = self.valueFunction
 
 			# update EMAX = E[V|x,c,z,yP], where c is chosen c
 			if self.p.cubicEMAXInterp:
