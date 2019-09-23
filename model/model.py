@@ -17,7 +17,7 @@ class Model(CModel):
 			self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
-		valueGuess = functions.utilityMat(self.p.riskAver,self.grids.c.matrix
+		valueGuess = functions.utilityMat(self.p.risk_aver_grid,self.grids.c.matrix
 			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb))
 
 		# subtract the adjustment cost for states with c > x
@@ -86,8 +86,8 @@ class Model(CModel):
 		"""
 		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
 		"""
-		self.valueNoSwitch = functions.utilityMat(self.p.riskAver,self.grids.c.matrix) \
-			+ self.p.timeDiscount * (1 - self.p.deathProb) \
+		self.valueNoSwitch = functions.utilityMat(self.p.risk_aver_grid,self.grids.c.matrix) \
+			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
 
 	def doComputations(self):

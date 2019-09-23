@@ -32,7 +32,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES A NUMBER, TO IGNORE, SET TO False
-name = False
+name = 'custom'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #

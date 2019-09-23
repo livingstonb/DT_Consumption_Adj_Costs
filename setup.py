@@ -21,7 +21,7 @@ extensions = [
 				Extension("model.modelObjects",["model/modelObjects.pyx"],
 							include_dirs=[np.get_include()]),
 
-				Extension("misc.functions",["misc/functions.pyx"],
+				Extension("misc.cfunctions",["misc/cfunctions.pyx"],
 							include_dirs=[np.get_include()]),
 
 				Extension("misc.spline",["misc/spline.pyx"]),

@@ -34,6 +34,8 @@ cdef class Params:
 		public double cMin, cMax, cGridCurv
 		public double r, R, deathProb
 		public double riskAver, adjustCost, timeDiscount
+		public object risk_aver_grid, discount_factor_grid
+		public double[:,:,:,:] discount_factor_grid_wide
 		public object series
 
 	def __init__(self, params_dict=None):
@@ -111,6 +113,8 @@ cdef class Params:
 		self.riskAver = 1
 		self.adjustCost = 1
 		self.timeDiscount = 0.8
+		self.risk_aver_grid = np.array([0.0],dtype=float) # riskAver is added to this
+		self.discount_factor_grid = np.array([0.0],dtype=float) # timeDiscount is added to this
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #
@@ -122,6 +126,14 @@ cdef class Params:
 					setattr(self,parameter,value)
 				else:
 					raise Exception(f'"{parameter}" is not a valid parameter')
+
+		self.risk_aver_grid += self.riskAver
+		self.discount_factor_grid += self.timeDiscount
+
+		if (self.risk_aver_grid.size>1) and (self.discount_factor_grid.size>1):
+			raise Exception('Cannot have both IES and discount factor heterogeneity')
+		else:
+			self.nz = max(self.risk_aver_grid.size, self.discount_factor_grid.size)
 
 		#-----------------------------------#
 		#     SERIES FOR OUTPUT TABLE       #
@@ -147,6 +159,13 @@ cdef class Params:
 		if self.freq == 4:
 			self.adjustToQuarterly()
 
+		#-----------------------------------#
+		#     CREATE USEFUL OBJECTS         #
+		#-----------------------------------#
+		self.discount_factor_grid_wide = \
+			self.discount_factor_grid.reshape(
+				(1,1,self.discount_factor_grid.size,1))
+
 	def adjustToQuarterly(self):
 		"""
 		Adjusts relevant parameters such as returns to
@@ -163,6 +182,7 @@ cdef class Params:
 		self.tSim *= 4
 		self.deathProb = 1 - (1 - self.deathProb) ** 0.25
 		self.timeDiscount = self.timeDiscount ** 0.25
+		self.discount_factor_grid = self.discount_factor_grid ** 0.25
 		self.adjustCost /= 4
 
 	def addIncomeParameters(self, income):

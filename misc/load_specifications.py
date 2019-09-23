@@ -51,14 +51,14 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['name'] = 'custom'
 	paramsDicts[ii]['cubicEMAXInterp'] = False
 	paramsDicts[ii]['cubicValueInterp'] = True
-	paramsDicts[ii]['adjustCost'] = 0.1
+	paramsDicts[ii]['adjustCost'] = 0.05
 	paramsDicts[ii]['noPersIncome'] = False
-	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['riskAver'] = 2
 	paramsDicts[ii]['nx'] = 200
 	paramsDicts[ii]['nc'] = 200
 	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.98
+	paramsDicts[ii]['timeDiscount'] = 0.99
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #

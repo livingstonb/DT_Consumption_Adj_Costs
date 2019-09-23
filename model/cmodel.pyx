@@ -5,8 +5,8 @@ cimport numpy as np
 cimport cython
 from cython.parallel cimport prange, parallel
 
-from misc cimport functions
-from misc.functions cimport FnArgs, objectiveFn
+from misc cimport cfunctions
+from misc.cfunctions cimport FnArgs, objectiveFn
 from misc cimport spline
 
 import pandas as pd
@@ -94,7 +94,7 @@ cdef class CModel:
 					for ic in range(self.p.nc):
 						xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) \
 							+ yP * yTvec + self.nextMPCShock
-						interpWithyT = functions.interpolateTransitionProbabilities2D(xgrid,xprime)
+						interpWithyT = cfunctions.interpolateTransitionProbabilities2D(xgrid,xprime)
 						newBlock = PyP1yP2 * np.squeeze(np.dot(yTdistvec,interpWithyT))
 
 						blocks[iblock] = sparse.csr_matrix(newBlock)
@@ -170,7 +170,7 @@ cdef class CModel:
 										vInterp = value[0]
 									emax += Pytrans * yTdist[iyT] * vInterp
 								else:
-									functions.getInterpolationWeights(&xgrid[0],cash,self.p.nx,&xIndices[0],&xWeights[0])
+									cfunctions.getInterpolationWeights(&xgrid[0],cash,self.p.nx,&xIndices[0],&xWeights[0])
 
 									emax += Pytrans * yTdist[iyT] * (
 										xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
@@ -194,12 +194,14 @@ cdef class CModel:
 			long iyP, ix, ii, iz, ic
 			double xval, maxAdmissibleC,
 			double[:] emaxVec, yderivs
+			double[:] risk_aver_grid, discount_factor_grid
 			double[:] sections, xgrid, cgrid
 			long errorGSS
 			double bounds[NSECTIONS][2]
 			double gssResults[2]
 			double cVals[NVALUES]
 			double funVals[NVALUES]
+			long hetType
 			FnArgs fargs
 			objectiveFn iteratorFn
 
@@ -210,10 +212,22 @@ cdef class CModel:
 		fargs.cgrid = &cgrid[0]
 		fargs.cubicValueInterp = self.p.cubicValueInterp
 		fargs.nc = self.p.nc
-		fargs.riskAver = self.p.riskAver
-		fargs.timeDiscount = self.p.timeDiscount
 		fargs.deathProb = self.p.deathProb
 		fargs.adjustCost = self.p.adjustCost
+
+		if self.p.risk_aver_grid.size > 1:
+			hetType = 1
+			fargs.timeDiscount = self.p.timeDiscount
+			risk_aver_grid = self.p.risk_aver_grid
+		elif self.p.discount_factor_grid.size > 1:
+			hetType = 2
+			fargs.riskAver = self.p.riskAver
+			discount_factor_grid = self.p.discount_factor_grid
+		else:
+			hetType = 0
+			fargs.timeDiscount = self.p.timeDiscount
+			fargs.riskAver = self.p.riskAver
+
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
 
@@ -243,6 +257,10 @@ cdef class CModel:
 					bounds[ii][1] = maxAdmissibleC * sections[ii]
 
 				for iz in range(self.p.nz):
+					if hetType == 1:
+						fargs.riskAver = risk_aver_grid[iz]
+					elif hetType == 2:
+						fargs.timeDiscount = discount_factor_grid[iz]
 
 					fargs.ncValid = 0
 					for ic in range(self.p.nc):
@@ -255,7 +273,7 @@ cdef class CModel:
 						spline.spline(&cgrid[0], &emaxVec[0], self.p.nc, 1.0e30, 1.0e30, &yderivs[0])
 
 					for ii in range(NSECTIONS):
-						errorGSS = functions.goldenSectionSearch(iteratorFn, bounds[ii][0],
+						errorGSS = cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
 							bounds[ii][1],1e-8, &gssResults[0], fargs)
 						if errorGSS == -1:
 							raise Exception('Exception in golden section search')
@@ -276,9 +294,9 @@ cdef class CModel:
 					funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, fargs)
 
 					if findPolicy:
-						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[functions.cargmax(funVals,NVALUES)]
+						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[cfunctions.cargmax(funVals,NVALUES)]
 					else:
-						self.valueSwitch[ix,0,iz,iyP] = functions.cmax(funVals,NVALUES) - self.p.adjustCost
+						self.valueSwitch[ix,0,iz,iyP] = cfunctions.cmax(funVals,NVALUES) - self.p.adjustCost
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -293,10 +311,10 @@ cdef class CModel:
 		if (fargs.ncValid > 4) and fargs.cubicValueInterp:
 			fargs.error = spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
 		else:
-			functions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
+			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
 
-		u = functions.utility(fargs.riskAver,cSwitch)
+		u = cfunctions.utility(fargs.riskAver,cSwitch)
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax
 
 		return value

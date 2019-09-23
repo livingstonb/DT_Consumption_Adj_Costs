@@ -2,7 +2,7 @@
 import numpy as np
 cimport numpy as np
 import pandas as pd
-from misc cimport functions
+from misc cimport cfunctions
 
 cimport cython
 from cython.parallel cimport prange, parallel
@@ -85,14 +85,14 @@ cdef class CSimulator:
 		consumption = self.csim[i,col]
 		cash = self.xsim[i,col]
 		
-		functions.getInterpolationWeights(&xgrid[0], cash, nx, &xIndices[0], &xWeights[0])
+		cfunctions.getInterpolationWeights(&xgrid[0], cash, nx, &xIndices[0], &xWeights[0])
 
 		if consumption > cash:
 			# forced to switch consumption
 			switch = True
 		else:
 			# check if switching is optimal
-			functions.getInterpolationWeights(&cgrid[0], consumption, nc, &conIndices[0], &conWeights[0])
+			cfunctions.getInterpolationWeights(&cgrid[0], consumption, nc, &conIndices[0], &conWeights[0])
 
 			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP] \
 				+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP] \
