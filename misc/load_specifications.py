@@ -9,26 +9,32 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [1,5,10,50,75]
+	adjustCosts = [0.01,0.05,0.1,0.5]
+	riskAvers = [0.5,1,2,4]
+	timeDiscounts = [0.8,0.9,0.95,0.99]
 
-	numExperiments = len(adjustCosts)
-	paramsDicts = [dict() for i in range(numExperiments)]
+	paramsDicts = []
 
 	ii = 0
 	for adjustCost in adjustCosts:
-		paramsDicts[ii]['name'] = f'adjustCost{adjustCost}'
-		paramsDicts[ii]['index'] = ii
-		paramsDicts[ii]['cubicEMAXInterp'] = False
-		paramsDicts[ii]['cubicValueInterp'] = True
-		paramsDicts[ii]['adjustCost'] = adjustCost
-		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['nx'] = 200
-		paramsDicts[ii]['nc'] = 300
-		paramsDicts[ii]['nSim'] = 2e5
-		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-		paramsDicts[ii]['timeDiscount'] = 0.9
+		for riskAver in riskAvers:
+			for timeDiscount in timeDiscounts:
+				paramsDicts.append({})
+				paramsDicts[ii]['name'] = f'adjustCost{adjustCost}, \
+					riskAver{riskAver}, discountRate{timeDiscount}'
+				paramsDicts[ii]['index'] = ii
+				paramsDicts[ii]['cubicEMAXInterp'] = False
+				paramsDicts[ii]['cubicValueInterp'] = True
+				paramsDicts[ii]['adjustCost'] = adjustCost
+				paramsDicts[ii]['noPersIncome'] = False
+				paramsDicts[ii]['riskAver'] = riskAver
+				paramsDicts[ii]['nx'] = 200
+				paramsDicts[ii]['nc'] = 200
+				paramsDicts[ii]['nSim'] = 4e5
+				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+				paramsDicts[ii]['timeDiscount'] = timeDiscount
 
-		ii += 1
+				ii += 1
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
@@ -36,7 +42,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['noPersIncome'] = True
 	paramsDicts[ii]['nx'] = 40
 	paramsDicts[ii]['nc'] = 50
-	paramsDicts[ii]['nSim'] = 1e5
+	paramsDicts[ii]['nSim'] = 1e4
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['timeDiscount'] = 0.8
 

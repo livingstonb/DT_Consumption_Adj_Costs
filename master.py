@@ -5,6 +5,8 @@ import numpy as np
 
 from scipy import optimize
 
+import pandas as pd
+
 from model import modelObjects
 from misc.load_specifications import load_specifications
 from misc.boundsFinder import BoundsFinder
@@ -15,8 +17,7 @@ from model import simulator
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
 IterateBeta = False
-Simulate = False # relevant if IterateBeta is False
-MakePlots = False
+Simulate = True # relevant if IterateBeta is False
 
 #---------------------------------------------------------------#
 #      LOCATION OF INCOME PROCESS                               #
@@ -24,6 +25,10 @@ MakePlots = False
 basedir = os.getcwd()
 locIncomeProcess = os.path.join(
 	basedir,'input','IncomeGrids','quarterly_b.mat')
+outdir = os.path.join(basedir,'output')
+
+if not os.path.exists(outdir):
+	os.mkdir(outdir)
 
 #---------------------------------------------------------------#
 #      SET PARAMETERIZATION NUMBER                              #
@@ -169,7 +174,7 @@ else:
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
 if Simulate:
-	shockIndices = [1,4] # only do 0.01 shock for now
+	shockIndices = [0,1,2,3,4,5]
 
 	finalSimStates = eqSimulator.returnFinalStates()
 	mpcSimulator = simulator.MPCSimulator(
@@ -208,15 +213,22 @@ if Simulate:
 	print('\nMPCS:\n')
 	print(mpcSimulator.mpcs.to_string())
 
+	name_series = pd.Series({'Experiment':params.name})
+	results = pd.concat([name_series, eqSimulator.results,
+		mpcSimulator.mpcs])
+
+	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
+	results.to_pickle(savepath)
+
 #-----------------------------------------------------------#
 #      PLOT POLICY FUNCTION                                 #
 #-----------------------------------------------------------#
 
-if MakePlots:
+def make_plots():
 	cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch)
 	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
-	ixvals = [0,10,25,50,75,100]
+	ixvals = [0,25,50,75,100,150]
 	xvals = np.array([grids.x.flat[i] for i in ixvals])
 	print(xvals)
 
@@ -230,7 +242,7 @@ if MakePlots:
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('actual consumption')
@@ -241,7 +253,7 @@ if MakePlots:
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('actual consumption')
@@ -253,13 +265,13 @@ if MakePlots:
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.c.flat,model.EMAX[ixvals[i],:,0,iyP])
-			ax[row,col].set_title(f'x = {ixvals[i]}')
+			ax[row,col].scatter(grids.c.flat,model.EMAX[ixvals[i],:,0,iyP])
+			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('EMAX')
 			i += 1
 
-	icvals = [10,50,75,100,200,250]
+	icvals = [0,25,50,75,100,150]
 	cvals = np.array([grids.c.flat[i] for i in icvals])
 	print(cvals)
 
@@ -268,17 +280,28 @@ if MakePlots:
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].plot(grids.x.flat,cPolicy[:,icvals[i],0,iyP])
+			ax[row,col].scatter(grids.x.flat,cPolicy[:,icvals[i],0,iyP])
 			ax[row,col].set_title(f'c = {cvals[i]}')
 			ax[row,col].set_xlabel('x, cash-on-hand')
 			ax[row,col].set_ylabel('actual consumption')
 			i += 1
 
+	fig, ax = plt.subplots(nrows=2,ncols=3)
+	fig.suptitle('EMAX vs. cash-on-hand')
+	i = 0
+	for row in range(2):
+		for col in range(3):
+			ax[row,col].scatter(grids.c.flat,model.EMAX[ixvals[i],:,0,iyP])
+			ax[row,col].set_title(f'c = {cvals[i]}')
+			ax[row,col].set_xlabel('cash-on-hand, x')
+			ax[row,col].set_ylabel('EMAX')
+			i += 1
+
 	fig = plt.figure()
 	ax = fig.add_subplot(1, 1, 1)
-	ax.plot(grids.x.flat,model.inactionRegionLower[:,0,iyP])
-	ax.plot(grids.x.flat,model.cSwitchingPolicy[:,0,0,iyP])
-	ax.plot(grids.x.flat,model.inactionRegionUpper[:,0,iyP])
+	ax.scatter(grids.x.flat,model.inactionRegionLower[:,0,iyP])
+	ax.scatter(grids.x.flat,model.cSwitchingPolicy[:,0,0,iyP])
+	ax.scatter(grids.x.flat,model.inactionRegionUpper[:,0,iyP])
 
 	ax.set_title('Inaction region for consumption')
 	ax.set_xlabel('cash-on-hand, x')

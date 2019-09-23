@@ -240,23 +240,23 @@ class MPCSimulator(Simulator):
 
 		# statistics to compute very period
 		self.mpcs = pd.Series(name=self.p.name)
+		rows = []
 		for ishock in range(6):
 			for quarter in range(1,5):
-				row = f'E[Q{quarter} MPC] out of {self.p.MPCshocks[ishock]}'
-				self.mpcs[row] = np.nan
-				row = f'E[Q{quarter} MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
-				self.mpcs[row] = np.nan
+				rows.append(f'E[Q{quarter} MPC] out of {self.p.MPCshocks[ishock]}')
+				rows.append(f'E[Q{quarter} MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}')
+				rows.append(f'Median(Q{quarter} MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}')
 
-			row = f'E[Annual MPC] out of {self.p.MPCshocks[ishock]}'
-			self.mpcs[row] = np.nan
-			row = f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
-			self.mpcs[row] = np.nan
+			rows.append(f'E[Annual MPC] out of {self.p.MPCshocks[ishock]}')
+			rows.append(f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}')
+			rows.append(f'Median(Annual MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}')
 
 
 		for ishock in range(6):
-			row = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
-			self.mpcs[row] = np.nan
-			row = f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
+			rows.append(f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
+			rows.append(f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
+
+		for row in rows:
 			self.mpcs[row] = np.nan
 
 		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
@@ -268,8 +268,10 @@ class MPCSimulator(Simulator):
 		for ishock in self.shockIndices:
 			rowQuarterly = f'E[Q{self.t} MPC] out of {self.p.MPCshocks[ishock]}'
 			rowQuarterlyCond = f'E[Q{self.t} MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
+			rowQuarterlyCondMedian = f'Median(Q{self.t} MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}'
 			rowAnnual = f'E[Annual MPC] out of {self.p.MPCshocks[ishock]}'
 			rowAnnualCond = f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
+			rowAnnualCondMedian = f'Median(Annual MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}'
 
 			csimQuarter = np.asarray(self.csim[:,ii])
 			if self.t == 1:
@@ -285,6 +287,7 @@ class MPCSimulator(Simulator):
 					) / self.p.MPCshocks[ishock]
 			self.mpcs[rowQuarterly] = allMPCS.mean()
 			self.mpcs[rowQuarterlyCond] = allMPCS[allMPCS>0].mean()
+			self.mpcs[rowQuarterlyCondMedian] = np.median(allMPCS[allMPCS>0]);
 
 			# add quarterly mpcs to annual mpcs
 			if self.t == 1:

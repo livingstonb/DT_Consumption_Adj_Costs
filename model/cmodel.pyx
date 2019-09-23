@@ -70,7 +70,7 @@ cdef class CModel:
 			double yP, PyP1yP2
 			np.ndarray[np.float64_t, ndim=1] xgrid
 			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
-			np.ndarray[np.float64_t, ndim=2] newBlock
+			double[:,:] newBlock
 			double[:,:,:] interpWithyT
 			list blocks
 

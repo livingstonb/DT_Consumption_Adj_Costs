@@ -49,30 +49,30 @@ def testInterpolation():
 		print(f'    indices = {indices}')
 		print(f'    weights = {weights}')
 
-def testCubicInterp():
-	cdef double[:] yderivs
-	cdef long nVals
-	cdef double[:] grid
-	cdef double[:] values
+# def testCubicInterp():
+# 	cdef double[:] yderivs
+# 	cdef long nVals
+# 	cdef double[:] grid
+# 	cdef double[:] values
 
-	nVals = 10
-	nPts = 20
+# 	nVals = 10
+# 	nPts = 20
 
-	yderivs = np.empty(nVals)
+# 	yderivs = np.empty(nVals)
 
-	grid = np.linspace(0,5,num=nVals)
-	values = np.sort(np.random.random(nVals)) * 100
+# 	grid = np.linspace(0,5,num=nVals)
+# 	values = np.sort(np.random.random(nVals)) * 100
 
-	xvals = np.random.random(nPts) * 5
+# 	xvals = np.random.random(nPts) * 5
 
-	spline.spline(&grid[0], &values[0], nVals, 1.0e30, 1.0e30, &yderivs[0])
+# 	spline.spline(&grid[0], &values[0], nVals, 1.0e30, 1.0e30, &yderivs[0])
 
-	for i in range(nPts):
-		predicted = spline.splint(&grid[0], &values[0], &yderivs[0], nVals, xvals[i])
-		print(f'At point {xvals[i]}, predicted value = {predicted}')
+# 	for i in range(nPts):
+# 		predicted = spline.splint(&grid[0], &values[0], &yderivs[0], nVals, xvals[i])
+# 		print(f'At point {xvals[i]}, predicted value = {predicted}')
 
-	plt.plot(grid,values)
-	plt.show()
+# 	plt.plot(grid,values)
+# 	plt.show()
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
