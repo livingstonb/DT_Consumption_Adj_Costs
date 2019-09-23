@@ -307,7 +307,7 @@ cdef class CModel:
 		cdef np.ndarray[np.int64_t, ndim=1] inactionRegion
 		cdef long ix, iz, iyP
 
-		cSwitch = np.asarray(self.valueFunction) == np.asarray(self.valueSwitch)
+		cSwitch = np.asarray(self.valueSwitch) > np.asarray(self.valueNoSwitch)
 
 		self.inactionRegionLower = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
 		self.inactionRegionUpper = np.zeros((self.p.nx,self.p.nz,self.p.nyP))

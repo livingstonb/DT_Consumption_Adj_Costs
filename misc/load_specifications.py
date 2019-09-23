@@ -9,9 +9,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [0.01,0.05,0.1,0.5]
+	adjustCosts = [0.05,0.075,0.1,0.2]
 	riskAvers = [0.5,1,2,4]
-	timeDiscounts = [0.8,0.9,0.95,0.99]
+	timeDiscounts = [0.96,0.97,0.98,0.99]
 
 	paramsDicts = []
 
@@ -46,14 +46,30 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['timeDiscount'] = 0.8
 
+	ii += 1
+	paramsDicts.append({})
+	paramsDicts[ii]['name'] = 'custom'
+	paramsDicts[ii]['cubicEMAXInterp'] = False
+	paramsDicts[ii]['cubicValueInterp'] = True
+	paramsDicts[ii]['adjustCost'] = 0.1
+	paramsDicts[ii]['noPersIncome'] = False
+	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['nx'] = 200
+	paramsDicts[ii]['nc'] = 200
+	paramsDicts[ii]['nSim'] = 1e5
+	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	paramsDicts[ii]['timeDiscount'] = 0.98
+
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
 	#-----------------------------------------------------#
 	if index is not None:
 		chosenParameters = paramsDicts[index]
+		print(f'Selected parameterization {index}')
 	else:
 		for ii in range(len(paramsDicts)):
 			if paramsDicts[ii]['name'] == name:
 				chosenParameters = paramsDicts[ii]
+				print(f'Selected parameterization {ii}')
 
 	return Params(chosenParameters)

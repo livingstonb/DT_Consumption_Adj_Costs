@@ -131,6 +131,10 @@ class EquilibriumSimulator(Simulator):
 		self.results['Wealth <= own quarterly income/12'] = np.mean(
 			np.asarray(self.asim) <= (np.asarray(self.ysim) / 12))
 
+		# fraction of households who consume all of their cash-on-hand
+		rowName = f'P(consumption=x)'
+		self.results[rowName] = (np.asarray(self.xsim[:,0]) == np.asarray(self.csim[:,0])).mean()
+
 		# wealth percentiles
 		for pctile in self.p.wealthPercentiles:
 			value = np.percentile(self.asim,pctile)
@@ -239,7 +243,7 @@ class MPCSimulator(Simulator):
 		self.responded = np.zeros((self.nSim,len(self.shockIndices)),dtype=bool)
 
 		# statistics to compute very period
-		self.mpcs = pd.Series(name=self.p.name)
+		self.results = pd.Series(name=self.p.name)
 		rows = []
 		for ishock in range(6):
 			for quarter in range(1,5):
@@ -251,13 +255,14 @@ class MPCSimulator(Simulator):
 			rows.append(f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}')
 			rows.append(f'Median(Annual MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}')
 
-
 		for ishock in range(6):
 			rows.append(f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
 			rows.append(f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
 
 		for row in rows:
-			self.mpcs[row] = np.nan
+			self.results[row] = np.nan
+
+		self.mpcs = dict()
 
 		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
 
@@ -285,22 +290,26 @@ class MPCSimulator(Simulator):
 			# quarterly mpcs
 			allMPCS = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 					) / self.p.MPCshocks[ishock]
-			self.mpcs[rowQuarterly] = allMPCS.mean()
-			self.mpcs[rowQuarterlyCond] = allMPCS[allMPCS>0].mean()
-			self.mpcs[rowQuarterlyCondMedian] = np.median(allMPCS[allMPCS>0]);
+
+			if self.t == 1:
+				self.mpcs[ishock] = allMPCS
+
+			self.results[rowQuarterly] = allMPCS.mean()
+			self.results[rowQuarterlyCond] = allMPCS[allMPCS>0].mean()
+			self.results[rowQuarterlyCondMedian] = np.median(allMPCS[allMPCS>0]);
 
 			# add quarterly mpcs to annual mpcs
 			if self.t == 1:
-				self.mpcs[rowAnnual] = self.mpcs[rowQuarterly]
+				self.results[rowAnnual] = self.results[rowQuarterly]
 			else:
-				self.mpcs[rowAnnual] += self.mpcs[rowQuarterly]
+				self.results[rowAnnual] += self.results[rowQuarterly]
 
 			# fraction of respondents in this quarter
 			respondentsQ = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 				) / self.p.MPCshocks[ishock] > 0
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
-				self.mpcs[rowRespondentsQuarterly] = respondentsQ.mean()
+				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
 
 			# update if some households responded this period but not previous periods
 			self.responded[:,ii] = np.logical_or(self.responded[:,ii],respondentsQ)
@@ -308,6 +317,6 @@ class MPCSimulator(Simulator):
 			# fraction of respondents (annual)
 			if self.t == 4:
 				rowRespondentsAnnual = f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
-				self.mpcs[rowRespondentsAnnual] = self.responded[:,ii].mean()
+				self.results[rowRespondentsAnnual] = self.responded[:,ii].mean()
 		
 			ii += 1

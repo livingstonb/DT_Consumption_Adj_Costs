@@ -28,12 +28,15 @@ for arg in sys.argv:
 if not indexSet:
 	paramIndex = 1
 
-print(f'Selected parameterization {paramIndex}')
+#---------------------------------------------------------------#
+#      OR SET PARAMETERIZATION NAME                             #
+#---------------------------------------------------------------#
+# THIS OVERRIDES A NUMBER, TO IGNORE, SET TO False
+name = False
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-server = True
 IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 
@@ -52,7 +55,10 @@ locIncomeProcess = os.path.join(
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
-params = load_specifications(locIncomeProcess,index=paramIndex)
+if not name:
+	params = load_specifications(locIncomeProcess,index=paramIndex)
+else:
+	params = load_specifications(locIncomeProcess,name=name)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -215,7 +221,7 @@ if Simulate:
 # 		futureShockModels[period].solve()
 
 #-----------------------------------------------------------#
-#      PRINT RESULTS                                        #
+#      RESULTS                                              #
 #-----------------------------------------------------------#
 
 if Simulate:
@@ -223,25 +229,31 @@ if Simulate:
 	print(eqSimulator.results.to_string())
 
 	print('\nMPCS:\n')
-	print(mpcSimulator.mpcs.to_string())
+	print(mpcSimulator.results.to_string())
 
 	name_series = pd.Series({'Experiment':params.name})
-	results = pd.concat([name_series, eqSimulator.results,
-		mpcSimulator.mpcs])
+	results = pd.concat([	name_series,
+							params.series, 
+							eqSimulator.results,
+							mpcSimulator.results,
+							])
 
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
 	results.to_pickle(savepath)
 
 #-----------------------------------------------------------#
-#      PLOT POLICY FUNCTION                                 #
+#      PLOTS                                                #
 #-----------------------------------------------------------#
+ixvals = [0,25,50,75,100,150,175]
+xvals = np.array([grids.x.flat[i] for i in ixvals])
 
-def make_plots():
+icvals = [0,25,50,100,150,175,190]
+cvals = np.array([grids.c.flat[i] for i in icvals])
+
+def plot_policies():
 	cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch)
 	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
 
-	ixvals = [0,25,50,75,100,150]
-	xvals = np.array([grids.x.flat[i] for i in ixvals])
 	print(xvals)
 
 	if params.nyP == 1:
@@ -283,10 +295,6 @@ def make_plots():
 			ax[row,col].set_ylabel('EMAX')
 			i += 1
 
-	icvals = [0,25,50,75,100,150]
-	cvals = np.array([grids.c.flat[i] for i in icvals])
-	print(cvals)
-
 	fig, ax = plt.subplots(nrows=2,ncols=3)
 	fig.suptitle('Consumption function vs. assets')
 	i = 0
@@ -320,5 +328,46 @@ def make_plots():
 	ax.set_ylabel('consumption')
 	ax.legend(['Lower bound of inaction region', 'Desired c without adj cost', 
 		'Upper bound of inaction region'])
+
+	plt.show()
+
+def plot_mpcs():
+	if not Simulate:
+		return
+
+	ishock = 4
+	idx_yP = np.asarray(mpcSimulator.finalStates['yPind']) == 5
+	idx_yP = idx_yP.reshape((-1,1))
+	mpcs = np.asarray(mpcSimulator.mpcs[ishock]).reshape((-1,1))
+	cash = np.asarray(mpcSimulator.finalStates['xsim'])
+	c = np.asarray(mpcSimulator.finalStates['csim'])
+
+	fig, ax = plt.subplots(nrows=2, ncols=3)
+	fig.suptitle('Quarterly MPC vs. initial cash-on-hand')
+	i = 0
+	for row in range(2):
+		for col in range(3):
+			idx_c = np.logical_and(c >= cvals[i], c < cvals[i+1])
+			x = cash[np.logical_and(idx_yP,idx_c)]
+			y = mpcs[np.logical_and(idx_yP,idx_c)]
+			ax[row,col].scatter(x,y)
+			ax[row,col].set_title(f'{cvals[i]:.3g} <= state c < {cvals[i+1]:.3g}')
+			ax[row,col].set_xlabel('cash-on-hand, x')
+			ax[row,col].set_ylabel('MPC out of 0.01')
+			i += 1
+
+	fig, ax = plt.subplots(nrows=2, ncols=3)
+	fig.suptitle('Quarterly MPC vs. consumption state')
+	i = 0
+	for row in range(2):
+		for col in range(3):
+			idx_x = np.logical_and(cash >= xvals[i], cash < xvals[i+1])
+			x = c[np.logical_and(idx_yP,idx_x)]
+			y = mpcs[np.logical_and(idx_yP,idx_x)]
+			ax[row,col].scatter(x,y)
+			ax[row,col].set_title(f'{xvals[i]:.3g} <= x < {xvals[i+1]:.3g}')
+			ax[row,col].set_xlabel('state c')
+			ax[row,col].set_ylabel('MPC out of 0.01')
+			i += 1
 
 	plt.show()

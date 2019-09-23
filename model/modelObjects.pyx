@@ -1,6 +1,7 @@
 from scipy.io import loadmat
 import numpy as np
 import numpy.matlib as matlib
+import pandas as pd
 
 cdef class Params:
 	"""
@@ -33,6 +34,7 @@ cdef class Params:
 		public double cMin, cMax, cGridCurv
 		public double r, R, deathProb
 		public double riskAver, adjustCost, timeDiscount
+		public object series
 
 	def __init__(self, params_dict=None):
 
@@ -60,7 +62,7 @@ cdef class Params:
 		self.nz = 1
 
 		# computation
-		self.maxIters = long(1e5)
+		self.maxIters = long(3e5)
 		self.tol = 1e-7
 		self.nSim = long(1e5) # number of draws to sim distribution
 		self.tSim = 100 # number of periods to simulate
@@ -82,7 +84,7 @@ cdef class Params:
 		self.wealthPercentiles = [10,25,50,75,90,99,99.9]
 
 		# cash-on-hand / savings grid parameters
-		self.xMax = 50 # max of saving grid
+		self.xMax = 25 # max of saving grid
 		self.nx = 40
 		self.xGridCurv = 0.2
 		self.borrowLim = 0
@@ -122,6 +124,23 @@ cdef class Params:
 					raise Exception(f'"{parameter}" is not a valid parameter')
 
 		#-----------------------------------#
+		#     SERIES FOR OUTPUT TABLE       #
+		#-----------------------------------#
+		index = [	'Discount factor (annualized)',
+					'Adjustment cost (annualized)',
+					'RA Coeff',
+					'Returns r (annualized)',
+					'Frequency',
+					]
+		data = [	self.timeDiscount,
+					self.adjustCost,
+					self.riskAver,
+					self.r,
+					self.freq,
+					]
+		self.series = pd.Series(data=data,index=index)
+
+		#-----------------------------------#
 		#     ADJUST TO QUARTERLY FREQ      #
 		#-----------------------------------#
 
@@ -141,9 +160,10 @@ cdef class Params:
 
 		self.R = (1 + self.r) ** 0.25
 		self.r = self.R - 1
-		self.tSim = self.tSim * 4
+		self.tSim *= 4
 		self.deathProb = 1 - (1 - self.deathProb) ** 0.25
 		self.timeDiscount = self.timeDiscount ** 0.25
+		self.adjustCost /= 4
 
 	def addIncomeParameters(self, income):
 		self.nyP = income.nyP

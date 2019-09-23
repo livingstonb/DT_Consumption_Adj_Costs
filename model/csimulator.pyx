@@ -5,7 +5,8 @@ import pandas as pd
 from misc cimport functions
 
 cimport cython
-from cython.parallel import prange, parallel
+from cython.parallel cimport prange, parallel
+from misc cimport spline
 
 from libc.math cimport log, fabs
 from libc.stdlib cimport malloc, free
@@ -14,6 +15,7 @@ cdef class CSimulator:
 	cdef:
 		readonly object p, income, grids
 		readonly double[:,:,:,:] valueDiff, cSwitchingPolicy
+		readonly double[:,:,:,:] yderivs
 		public int nCols
 		readonly int periodsBeforeRedraw
 		public int nSim, t, T, randIndex
@@ -59,7 +61,7 @@ cdef class CSimulator:
 		nx = self.p.nx
 
 		for col in range(self.nCols):
-			for i in prange(self.nSim,nogil=True):
+			for i in prange(self.nSim, schedule='static', nogil=True):
 				self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
 
 		self.csim = np.minimum(self.csim,self.xsim)
@@ -112,7 +114,7 @@ cdef class CSimulator:
 		cdef long i, j
 		cdef double asim_i, giniNumerator = 0.0
 
-		for i in prange(self.nSim, nogil=True):
+		for i in prange(self.nSim, schedule='static', nogil=True):
 			asim_i = self.asim[i,0]
 			for j in range(self.nSim):
 				giniNumerator += fabs(asim_i - self.asim[j,0])
