@@ -80,7 +80,8 @@ cdef int splint(double *xa, double *ya, double *y2a, long n,
 
 	h = xa[khi] - xa[klo]
 	if h == 0:
-		raise Exception('Bad xa input to splint routine')
+		with gil:
+			raise Exception('Bad xa input to splint routine')
 
 	a = (xa[khi]-x) / h
 	b = (x-xa[klo]) / h
