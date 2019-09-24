@@ -93,7 +93,7 @@ cdef class CModel:
 
 					for ic in range(self.p.nc):
 						xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) \
-							+ yP * yTvec + self.nextMPCShock
+							+ yP * yTvec + self.nextMPCShock + self.p.govTransfer
 						interpWithyT = cfunctions.interpolateTransitionProbabilities2D(xgrid,xprime)
 						newBlock = PyP1yP2 * np.squeeze(np.dot(yTdistvec,interpWithyT))
 
@@ -159,7 +159,7 @@ cdef class CModel:
 									1.0e30, 1.0e30, yderivs)
 
 							for iyT in range(self.p.nyT):
-								cash = assets + yP2 * yTgrid[iyT] + self.nextMPCShock
+								cash = assets + yP2 * yTgrid[iyT] + self.nextMPCShock + self.p.govTransfer
 
 								if self.p.cubicEMAXInterp:
 									spline.splint(&xgrid[0], value, yderivs, self.p.nx, cash, &vInterp)

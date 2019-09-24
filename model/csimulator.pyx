@@ -14,25 +14,31 @@ from libc.stdlib cimport malloc, free
 cdef class CSimulator:
 	cdef:
 		readonly object p, income, grids
-		readonly double[:,:,:,:] valueDiff, cSwitchingPolicy
-		readonly double[:,:,:,:] yderivs
+		readonly double[:,:,:,:,:] valueDiff, cSwitchingPolicy
+		readonly double[:,:,:,:,:] yderivs
 		public int nCols
 		readonly int periodsBeforeRedraw
 		public int nSim, t, T, randIndex
-		public bint initialized
+		public bint initialized, news
 		public long[:,:] switched
 		public long[:] yPind, zind
 		public double[:,:] ysim, csim, xsim, asim
 
-	def __init__(self, params, income, grids, model, simPeriods):
+	def __init__(self, params, income, grids, models, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
 
-		self.cSwitchingPolicy = model.cSwitchingPolicy
-		self.valueDiff = np.asarray(model.valueSwitch) - np.asarray(model.valueNoSwitch)
+		cSwitchingPolicy = np.zeros((params.nx,1,params.nz,params.nyP,len(models)),dtype=float)
+		valueDiff = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(models)),dtype=float)
 
-		self.nCols = 1
+		for i in range(len(models)):
+			cSwitchingPolicy[:,:,:,:,i] = np.asarray(models[i].cSwitchingPolicy)
+			valueDiff[:,:,:,:,i] = np.asarray(models[i].valueSwitch) - np.asarray(models[i].valueNoSwitch)
+		self.cSwitchingPolicy = cSwitchingPolicy
+		self.valueDiff = valueDiff
+
+		self.nCols = len(models)
 
 		self.periodsBeforeRedraw = np.minimum(simPeriods,10)
 
@@ -43,6 +49,11 @@ cdef class CSimulator:
 
 		self.initialized = False
 
+		if len(models) > 1:
+			self.news = True
+		else:
+			self.news = False
+
 		np.random.seed(0)
 
 	@cython.boundscheck(False)
@@ -52,6 +63,7 @@ cdef class CSimulator:
 			long i, col, nc, nx
 			double[:] cgrid
 			double[:] xgrid
+			long modelNum
 
 		conIndices = np.zeros((self.nSim))
 			
@@ -61,15 +73,21 @@ cdef class CSimulator:
 		nx = self.p.nx
 
 		for col in range(self.nCols):
+			if self.news:
+				modelNum = col
+			else:
+				modelNum = 0
+
 			for i in prange(self.nSim, schedule='static', nogil=True):
-				self.findIndividualPolicy(i, col, cgrid, nc, xgrid, nx)
+				self.findIndividualPolicy(i, col, &cgrid[0], nc, &xgrid[0], nx,
+					modelNum)
 
 		self.csim = np.minimum(self.csim,self.xsim)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void findIndividualPolicy(self, long i, long col, double[:] cgrid, 
-		long nc, double[:] xgrid, long nx) nogil:
+	cdef void findIndividualPolicy(self, long i, long col, double *cgrid, 
+		long nc, double *xgrid, long nx, long modelNum) nogil:
 		cdef: 
 			long iyP, iz
 			double xWeights[2]
@@ -85,25 +103,25 @@ cdef class CSimulator:
 		consumption = self.csim[i,col]
 		cash = self.xsim[i,col]
 		
-		cfunctions.getInterpolationWeights(&xgrid[0], cash, nx, &xIndices[0], &xWeights[0])
+		cfunctions.getInterpolationWeights(xgrid, cash, nx, &xIndices[0], &xWeights[0])
 
 		if consumption > cash:
 			# forced to switch consumption
 			switch = True
 		else:
 			# check if switching is optimal
-			cfunctions.getInterpolationWeights(&cgrid[0], consumption, nc, &conIndices[0], &conWeights[0])
+			cfunctions.getInterpolationWeights(cgrid, consumption, nc, &conIndices[0], &conWeights[0])
 
-			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP] \
-				+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP] \
-				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP] \
-				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP]
+			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP,modelNum] \
+				+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP,modelNum] \
+				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP,modelNum] \
+				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP,modelNum]
 
 			switch = myValueDiff > 0
 
 		if switch:
-			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP] \
-					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP]
+			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
+					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
 			self.switched[i,col] = 1
 		else:
 			self.switched[i,col] = 0

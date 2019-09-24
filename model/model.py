@@ -29,11 +29,11 @@ class Model(CModel):
 	def solve(self):
 		print('Beginning value function iteration...')
 		distance = 1e5
-		iteration = 0
+		self.iteration = 0
 
 		while distance > self.p.tol:
 
-			if iteration > self.p.maxIters:
+			if self.iteration > self.p.maxIters:
 				raise Exception(f'No convergence after {iteration+1} iterations...')
 
 			Vprevious = self.valueFunction
@@ -57,18 +57,18 @@ class Model(CModel):
 				np.asarray(self.valueFunction) - np.asarray(Vprevious)
 				).flatten().max()
 
-			if np.mod(iteration,50) == 0:
-				print(f'    Iteration {iteration}, norm of |V1-V| = {distance}')
+			if np.mod(self.iteration,50) == 0:
+				print(f'    Iteration {self.iteration}, norm of |V1-V| = {distance}')
 
-			if (iteration>2000) and (distance>1e5):
+			if (self.iteration>2000) and (distance>1e5):
 				raise Exception('No convergence')
 
-			iteration += 1
+			self.iteration += 1
 
 		# compute c-policy function conditional on switching
 		self.maximizeValueFromSwitching(findPolicy=True)
 
-		print('Value function converged')
+		print(f'Value function converged after {self.iteration+1} iterations.')
 
 		self.doComputations()
 
@@ -101,16 +101,16 @@ class Model(CModel):
 		super().doComputations()
 
 class ModelWithNews(Model):
-	def __init__(self, params, income, grids, EMAX, valueGuess, nextMPCShock):
-		super().__init__(self, params, income, grids)
-
+	def __init__(self, params, income, grids, valueGuess, nextMPCShock):
 		self.nextMPCShock = nextMPCShock
-		self.EMAX = EMAX
 		self.valueFunction = valueGuess
 
+		super().__init__(params, income, grids)
+
 	def initialize(self):
-		pass
+		print('Constructing interpolant array for EMAX')
+		self.constructInterpolantForEMAX()
+		super().updateEMAX()
 
 	def updateEMAX(self):
-		# EMAX comes from next period's model
 		pass

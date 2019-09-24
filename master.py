@@ -11,7 +11,7 @@ from model import modelObjects
 from misc.load_specifications import load_specifications
 from misc.boundsFinder import BoundsFinder
 from misc import mpcsTable
-from model.model import Model
+from model.model import Model, ModelWithNews
 from model import simulator
 
 #---------------------------------------------------------------#
@@ -100,7 +100,7 @@ if IterateBeta:
 			# Attempt to solve model
 			params.resetDiscountRate(lowerBoundFinder.currentBetaBound)
 			model.solve()
-			eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
+			eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
 			eqSimulator.simulate()
 
 			if eqSimulator.results['Mean wealth'] < params.wealthTarget:
@@ -140,7 +140,7 @@ if IterateBeta:
 			print(f'--Trying upper bound = {upperBoundFinder.currentBetaBound:.6f}')
 			params.resetDiscountRate(upperBoundFinder.currentBetaBound)
 			model.solve()
-			eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
+			eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
 			eqSimulator.simulate()
 
 			if eqSimulator.results['Mean wealth'] > params.wealthTarget:
@@ -170,7 +170,7 @@ if IterateBeta:
 		params.resetDiscountRate(x)
 		model.solve()
 
-		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, model)
+		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
 		eqSimulator.simulate()
 
 		assets = eqSimulator.results['Mean wealth']
@@ -186,7 +186,7 @@ else:
 	model.solve()
 
 	if Simulate:
-		eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
+		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
 		eqSimulator.simulate()
 
 #-----------------------------------------------------------#
@@ -197,34 +197,44 @@ if Simulate:
 
 	finalSimStates = eqSimulator.finalStates
 	mpcSimulator = simulator.MPCSimulator(
-		params,income,grids,model,shockIndices,finalSimStates)
+		params, income, grids, [model], shockIndices, finalSimStates)
 	mpcSimulator.simulate()
 
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
-# currentShockIndices = [6] # 6 is no shock
-# mpcNewsSimulators = [None] * 6
+futureShockIndices = [3,4,5]
+currentShockIndices = [6] # 6 is no shock
+mpcNewsSimulators = [None] * 6
 
-#  # i-th element is the model for a shock in i+1 periods
-# futureShockModels = [None] * 4
-# for ishock in shockIndices:
-# 	# shock next period
-# 	futureShockModels[0] = Model(
-# 		params, income, grids,
-# 		nextMPCShock=params.MPCshocks[ishock])
-# 	futureShockModels[0].solve()
+# ADD A NESTED LIST SO THAT:
+# i-th element is the model for a shock in i+1 periods
 
-# 	# for period in range(1,4):
-# 	# 	# shock in two or more periods
-# 	# 	futureShockModels[period] = Model(
-# 	# 		params,income,grids,
-# 	# 		EMAX=futureShockModels[period-1].EMAX)
-# 	# 	futureShockModels[period].solve()
+futureShockModels = [None] * 6
+for ishock in futureShockIndices:
+	# shock next period
+	futureShockModels[ishock] = ModelWithNews(
+		params, income, grids, model.valueFunction, 
+		params.MPCshocks[ishock])
+	futureShockModels[ishock].solve()
 
-# 	mpcNewsSimulators[ishock] = simulator.mpcSimulator(
-# 		params, income, grids, futureShockModels[0],
-# 		currentShockIndices, finalSimStates)
+	# for period in range(1,4):
+	# 	# shock in two or more periods
+	# 	futureShockModels[period] = Model(
+	# 		params,income,grids,
+	# 		EMAX=futureShockModels[period-1].EMAX)
+	# 	futureShockModels[period].solve()
+
+#-----------------------------------------------------------#
+#      SIMULATE MPCs OUT OF NEWS                            #
+#-----------------------------------------------------------#
+currentShockIndices = [0] * (len(futureShockIndices)+1)
+models = futureShockModels[3:] + [model]
+mpcNewsSimulator = simulator.MPCSimulatorNews(
+	params, income, grids, models,
+	futureShockIndices, currentShockIndices,
+	finalSimStates)
+mpcNewsSimulator.simulate()
 
 #-----------------------------------------------------------#
 #      RESULTS                                              #
@@ -236,6 +246,9 @@ if Simulate:
 
 	print('\nMPCS:\n')
 	print(mpcSimulator.results.to_string())
+
+	print('\nMPCS out of news:\n')
+	print(mpcNewsSimulator.results.to_string())
 
 	name_series = pd.Series({'Experiment':params.name})
 	results = pd.concat([	name_series,
@@ -254,10 +267,10 @@ if Simulate:
 #-----------------------------------------------------------#
 #      PLOTS                                                #
 #-----------------------------------------------------------#
-ixvals = [0,25,50,75,100,150,175]
+ixvals = [0,params.nx//8,params.nx//6,params.nx//4,params.nx//3,params.nx//2,params.nx-1]
 xvals = np.array([grids.x.flat[i] for i in ixvals])
 
-icvals = [0,25,50,100,150,175,190]
+icvals = [0,params.nc//8,params.nc//6,params.nc//4,params.nc//3,params.nc//2,params.nc-1]
 cvals = np.array([grids.c.flat[i] for i in icvals])
 
 def plot_policies():
