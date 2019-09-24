@@ -96,7 +96,7 @@ cdef class Params:
 		# consumption grid
 		self.nc = 50
 		self.cMin = 1e-6
-		self.cMax = 3
+		self.cMax = 4
 		self.cGridCurv = 0.1
 
 		# options
@@ -194,7 +194,9 @@ cdef class Params:
 		self.nyT = income.nyT
 
 	def resetDiscountRate(self, newTimeDiscount):
+		self.discount_factor_grid += newTimeDiscount - self.timeDiscount
 		self.timeDiscount = newTimeDiscount
+
 
 class Income:
 	"""

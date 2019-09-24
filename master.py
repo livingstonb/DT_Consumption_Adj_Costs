@@ -32,7 +32,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES A NUMBER, TO IGNORE, SET TO False
-name = False
+name = 'fast'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -95,7 +95,7 @@ if IterateBeta:
 	ii = 0
 	while (ii < lowerBoundFinder.maxIter) and not lowerBoundFound:
 		try:
-			print(f'--Trying lower bound = {lowerBoundFinder.currentBetaBound}')
+			print(f'--Trying lower bound = {lowerBoundFinder.currentBetaBound:.6f}')
 			# Attempt to solve model
 			params.resetDiscountRate(lowerBoundFinder.currentBetaBound)
 			model.solve()
@@ -126,7 +126,7 @@ if IterateBeta:
 	#-----------------------------------------------------------#
 	print('\nLooking for valid upper bound on discount rate\n')
 	neg_stepsize = -0.02
-	pos_stepsize = 0.002
+	pos_stepsize = 0.01
 	upperBoundInitial = 0.99
 	upperBoundFinder = BoundsFinder(
 		neg_stepsize,pos_stepsize,upperBoundInitial)
@@ -136,7 +136,7 @@ if IterateBeta:
 	while (ii < upperBoundFinder.maxIter) and not upperBoundFound:
 		try:
 			# Attempt to solve model
-			print(f'--Trying upper bound = {upperBoundFinder.currentBetaBound}')
+			print(f'--Trying upper bound = {upperBoundFinder.currentBetaBound:.6f}')
 			params.resetDiscountRate(upperBoundFinder.currentBetaBound)
 			model.solve()
 			eqSimulator = simulator.EquilibriumSimulator(params,income,grids,model)
@@ -165,7 +165,7 @@ if IterateBeta:
 	#-----------------------------------------------------------#
 	print('\nBeginning iteration over the discount factor\n')
 	def iterateOverBeta(x):
-		print(f'-- Trying discount rate {x}')
+		print(f'-- Trying discount rate {x:.6f}')
 		params.resetDiscountRate(x)
 		model.solve()
 

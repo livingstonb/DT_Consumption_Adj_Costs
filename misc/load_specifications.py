@@ -1,4 +1,5 @@
 from model.modelObjects import Params
+import numpy as np
 
 def load_specifications(locIncomeProcess, index=None, name=None):
 	"""
@@ -30,10 +31,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['riskAver'] = riskAver
 				paramsDicts[ii]['wealthTargets'] = wealthTarget
 				paramsDicts[ii]['nx'] = 200
-				paramsDicts[ii]['nc'] = 200
+				paramsDicts[ii]['nc'] = 150
 				paramsDicts[ii]['nSim'] = 1e5
 				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-				paramsDicts[ii]['timeDiscount'] = timeDiscount
 
 				ii += 1
 
@@ -55,11 +55,11 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['risk_aver_grids'] = np.array(RAgrid)
 			paramsDicts[ii]['wealthTargets'] = wealthTarget
 			paramsDicts[ii]['nx'] = 200
-			paramsDicts[ii]['nc'] = 200
+			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-			paramsDicts[ii]['timeDiscount'] = timeDiscount
 
+			ii += 1
 			ilabel += 1
 
 	adjustCosts = [0.1,0.5,1,2,5]
@@ -80,36 +80,38 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
 			paramsDicts[ii]['wealthTargets'] = wealthTarget
 			paramsDicts[ii]['nx'] = 200
-			paramsDicts[ii]['nc'] = 200
+			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-			paramsDicts[ii]['timeDiscount'] = timeDiscount
 
+			ii += 1
 			ilabel += 1
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
-	paramsDicts[ii]['adjustCost'] = 5
+	paramsDicts[ii]['adjustCost'] = 0.1
 	paramsDicts[ii]['noPersIncome'] = True
-	paramsDicts[ii]['nx'] = 40
-	paramsDicts[ii]['nc'] = 50
-	paramsDicts[ii]['nSim'] = 1e4
+	paramsDicts[ii]['discount_factor_grid'] = np.array([-0.1,0,0.1])
+	paramsDicts[ii]['nx'] = 150
+	paramsDicts[ii]['nc'] = 150
+	paramsDicts[ii]['nSim'] = 3e4
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.8
-
+	paramsDicts[ii]['timeDiscount'] = 0.85
+	paramsDicts[ii]['wealthTarget'] = 5
 	ii += 1
+
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'custom'
 	paramsDicts[ii]['cubicEMAXInterp'] = False
 	paramsDicts[ii]['cubicValueInterp'] = True
-	paramsDicts[ii]['adjustCost'] = 0.05
+	paramsDicts[ii]['adjustCost'] = 0.1
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 2
 	paramsDicts[ii]['nx'] = 200
 	paramsDicts[ii]['nc'] = 200
 	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.99
+	paramsDicts[ii]['timeDiscount'] = 0.96
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #

@@ -93,7 +93,15 @@ class EquilibriumSimulator(Simulator):
 		yTsim = self.income.yTgrid[yTind]
 		self.ysim = (yPsim * yTsim).reshape((-1,1))
 
+		chunkSize = self.nSim // self.p.nz
+		chunks = [0]
+		for iz in range(1,self.p.nz):
+			chunks.append(chunks[iz-1]+chunkSize)
+		chunks.append(self.nSim)
+
 		self.zind = np.zeros(self.nSim,dtype=int)
+		for iz in range(self.p.nz):
+			self.zind[chunks[iz]:chunks[iz+1]] = iz * np.ones(chunks[iz+1]-chunks[iz],dtype=int)
 
 		self.switched = np.zeros((self.nSim,1),dtype=int)
 		self.incomeHistory = np.zeros((self.nSim,4))

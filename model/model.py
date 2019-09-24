@@ -17,8 +17,11 @@ class Model(CModel):
 			self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
-		valueGuess = functions.utilityMat(self.p.risk_aver_grid,self.grids.c.matrix
-			) / (1 - self.p.timeDiscount * (1 - self.p.deathProb))
+		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
+		if np.abs(denom) < 1e-3:
+			denom = 1e-3
+		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
+			self.grids.c.matrix) / denom
 
 		# subtract the adjustment cost for states with c > x
 		self.valueFunction = valueGuess
@@ -27,6 +30,7 @@ class Model(CModel):
 		print('Beginning value function iteration...')
 		distance = 1e5
 		iteration = 0
+
 		while distance > self.p.tol:
 
 			if iteration > self.p.maxIters:
@@ -55,6 +59,9 @@ class Model(CModel):
 
 			if np.mod(iteration,50) == 0:
 				print(f'    Iteration {iteration}, norm of |V1-V| = {distance}')
+
+			if (iteration>2000) and (distance>1e5):
+				raise Exception('No convergence')
 
 			iteration += 1
 
