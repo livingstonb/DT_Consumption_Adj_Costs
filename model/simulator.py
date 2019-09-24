@@ -108,14 +108,6 @@ class EquilibriumSimulator(Simulator):
 
 		self.initialized = True
 
-		if self.t == self.T - 1:
-			self.finalStates = {'csim': self.csim}
-		elif self.t == self.T:
-			self.finalStates.update({	'yPind': self.yPind,
-										'xsim': self.xsim,
-										'zind': self.zind,
-										})
-
 	def computeTransitionStatistics(self):
 		"""
 		This method computes statistics that can be
@@ -130,6 +122,14 @@ class EquilibriumSimulator(Simulator):
 
 		if self.t >= self.T - 3:
 			self.incomeHistory[:,self.t-self.T+3] = np.reshape(self.ysim,self.nSim)
+
+		if self.t == self.T - 1:
+			self.finalStates = {'csim': self.csim}
+		elif self.t == self.T:
+			self.finalStates.update({	'yPind': self.yPind,
+										'xsim': self.xsim,
+										'zind': self.zind,
+										})
 
 	def computeEquilibriumStatistics(self):
 		# mean wealth
@@ -264,6 +264,8 @@ class MPCSimulator(Simulator):
 			rows.append(f'Median(Annual MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}')
 
 		for ishock in range(6):
+			rows.append(f'P(Q1 MPC < 0) for shock of {self.p.MPCshocks[ishock]}')
+			rows.append(f'P(Q1 MPC = 0) for shock of {self.p.MPCshocks[ishock]}')
 			rows.append(f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
 			rows.append(f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
 
@@ -315,10 +317,17 @@ class MPCSimulator(Simulator):
 			# fraction of respondents in this quarter
 			respondentsQ = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 				) / self.p.MPCshocks[ishock] > 0
+			respondentsQ_neg = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
+				) / self.p.MPCshocks[ishock] < 0
+			nonRespondents = (csimQuarter == np.asarray(self.csim[:,self.nCols-1]))
 			if self.t == 1:
+				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for shock of {self.p.MPCshocks[ishock]}'
+				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
+				rowRespondentsQuarterly = f'P(Q1 MPC = 0) for shock of {self.p.MPCshocks[ishock]}'
+				self.results[rowRespondentsQuarterly] =  nonRespondents.mean()
 				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
 				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
-
+				
 			# update if some households responded this period but not previous periods
 			self.responded[:,ii] = np.logical_or(self.responded[:,ii],respondentsQ)
 

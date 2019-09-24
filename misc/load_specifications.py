@@ -91,9 +91,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['name'] = 'fast'
 	paramsDicts[ii]['adjustCost'] = 0.1
 	paramsDicts[ii]['noPersIncome'] = True
-	paramsDicts[ii]['discount_factor_grid'] = np.array([-0.1,0,0.1])
-	paramsDicts[ii]['nx'] = 150
-	paramsDicts[ii]['nc'] = 150
+	paramsDicts[ii]['discount_factor_grid'] = np.array([0])
+	paramsDicts[ii]['nx'] = 50
+	paramsDicts[ii]['nc'] = 50
 	paramsDicts[ii]['nSim'] = 3e4
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['timeDiscount'] = 0.85

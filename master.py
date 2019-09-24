@@ -10,6 +10,7 @@ import pandas as pd
 from model import modelObjects
 from misc.load_specifications import load_specifications
 from misc.boundsFinder import BoundsFinder
+from misc import mpcsTable
 from model.model import Model
 from model import simulator
 
@@ -37,7 +38,7 @@ name = 'fast'
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
+IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 
 basedir = os.getcwd()
@@ -202,23 +203,28 @@ if Simulate:
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
-# shockIndices = [4]
+# currentShockIndices = [6] # 6 is no shock
+# mpcNewsSimulators = [None] * 6
 
 #  # i-th element is the model for a shock in i+1 periods
 # futureShockModels = [None] * 4
 # for ishock in shockIndices:
 # 	# shock next period
 # 	futureShockModels[0] = Model(
-# 		params,income,grids,
+# 		params, income, grids,
 # 		nextMPCShock=params.MPCshocks[ishock])
 # 	futureShockModels[0].solve()
 
-# 	for period in range(1,4):
-# 		# shock in two or more periods
-# 		futureShockModels[period] = Model(
-# 			params,income,grids,
-# 			EMAX=futureShockModels[period-1].EMAX)
-# 		futureShockModels[period].solve()
+# 	# for period in range(1,4):
+# 	# 	# shock in two or more periods
+# 	# 	futureShockModels[period] = Model(
+# 	# 		params,income,grids,
+# 	# 		EMAX=futureShockModels[period-1].EMAX)
+# 	# 	futureShockModels[period].solve()
+
+# 	mpcNewsSimulators[ishock] = simulator.mpcSimulator(
+# 		params, income, grids, futureShockModels[0],
+# 		currentShockIndices, finalSimStates)
 
 #-----------------------------------------------------------#
 #      RESULTS                                              #
@@ -240,6 +246,10 @@ if Simulate:
 
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
 	results.to_pickle(savepath)
+
+	mpcs_table = mpcsTable.create(params, mpcSimulator)
+	savepath = os.path.join(outdir,f'mpcs_table_{paramIndex}.xlsx')
+	mpcs_table.to_excel(savepath, freeze_panes=(0,0))
 
 #-----------------------------------------------------------#
 #      PLOTS                                                #

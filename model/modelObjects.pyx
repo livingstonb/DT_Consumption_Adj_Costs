@@ -131,7 +131,10 @@ cdef class Params:
 				else:
 					raise Exception(f'"{parameter}" is not a valid parameter')
 
+		self.risk_aver_grid = self.risk_aver_grid.astype(float)
 		self.risk_aver_grid += self.riskAver
+
+		self.discount_factor_grid = self.discount_factor_grid.astype(float)
 		self.discount_factor_grid += self.timeDiscount
 
 		if (self.risk_aver_grid.size>1) and (self.discount_factor_grid.size>1):
