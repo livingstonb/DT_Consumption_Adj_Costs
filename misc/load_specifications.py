@@ -9,7 +9,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [0.05,0.075,0.1,0.2]
+	adjustCosts = [0.5,1,2,5]
 	riskAvers = [0.5,1,2,4]
 	timeDiscounts = [0.96,0.97,0.98,0.99]
 
