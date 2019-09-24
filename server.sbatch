@@ -9,7 +9,6 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem-per-cpu=6000
 
-rm /home/livingstonb/GitHub/DT_Consumption_Adj_Costs/output/*
 module load Anaconda3
 
 python -u master.py $SLURM_ARRAY_TASK_ID
