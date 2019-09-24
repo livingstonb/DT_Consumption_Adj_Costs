@@ -32,8 +32,8 @@ if not indexSet:
 #---------------------------------------------------------------#
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
-# THIS OVERRIDES A NUMBER, TO IGNORE, SET TO False
-name = 'fast'
+# THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
+name = ''
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -56,10 +56,10 @@ locIncomeProcess = os.path.join(
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
-if not name:
-	params = load_specifications(locIncomeProcess,index=paramIndex)
-else:
+if name:
 	params = load_specifications(locIncomeProcess,name=name)
+else:
+	params = load_specifications(locIncomeProcess,index=paramIndex)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -251,6 +251,7 @@ if Simulate:
 	print(mpcNewsSimulator.results.to_string())
 
 	name_series = pd.Series({'Experiment':params.name})
+	index_series = pd.Series({'Index':params.index})
 	results = pd.concat([	name_series,
 							params.series, 
 							eqSimulator.results,
@@ -260,7 +261,7 @@ if Simulate:
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
 	results.to_pickle(savepath)
 
-	mpcs_table = mpcsTable.create(params, mpcSimulator)
+	mpcs_table = mpcsTable.create(params, mpcSimulator, mpcNewsSimulator)
 	savepath = os.path.join(outdir,f'mpcs_table_{paramIndex}.xlsx')
 	mpcs_table.to_excel(savepath, freeze_panes=(0,0))
 

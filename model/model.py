@@ -13,7 +13,7 @@ class Model(CModel):
 		self.nextMPCShock = 0
 
 		if not self.p.cubicEMAXInterp:
-			print('Constructing interpolant array for EMAX')
+			print('\nConstructing interpolant array for EMAX')
 			self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
@@ -27,7 +27,7 @@ class Model(CModel):
 		self.valueFunction = valueGuess
 
 	def solve(self):
-		print('Beginning value function iteration...')
+		print('\nBeginning value function iteration...')
 		distance = 1e5
 		self.iteration = 0
 
@@ -108,7 +108,7 @@ class ModelWithNews(Model):
 		super().__init__(params, income, grids)
 
 	def initialize(self):
-		print('Constructing interpolant array for EMAX')
+		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
 

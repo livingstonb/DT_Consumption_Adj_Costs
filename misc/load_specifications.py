@@ -29,7 +29,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['adjustCost'] = adjustCost
 				paramsDicts[ii]['noPersIncome'] = False
 				paramsDicts[ii]['riskAver'] = riskAver
-				paramsDicts[ii]['wealthTargets'] = wealthTarget
+				paramsDicts[ii]['wealthTarget'] = wealthTarget
 				paramsDicts[ii]['nx'] = 200
 				paramsDicts[ii]['nc'] = 150
 				paramsDicts[ii]['nSim'] = 1e5
@@ -53,7 +53,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['noPersIncome'] = False
 			paramsDicts[ii]['riskAver'] = 1
 			paramsDicts[ii]['risk_aver_grids'] = np.array(RAgrid)
-			paramsDicts[ii]['wealthTargets'] = wealthTarget
+			paramsDicts[ii]['wealthTarget'] = wealthTarget
 			paramsDicts[ii]['nx'] = 200
 			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
@@ -78,7 +78,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['noPersIncome'] = False
 			paramsDicts[ii]['riskAver'] = 1
 			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
-			paramsDicts[ii]['wealthTargets'] = wealthTarget
+			paramsDicts[ii]['wealthTarget'] = wealthTarget
 			paramsDicts[ii]['nx'] = 200
 			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
@@ -106,19 +106,21 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['cubicValueInterp'] = True
 	paramsDicts[ii]['adjustCost'] = 0.1
 	paramsDicts[ii]['noPersIncome'] = False
-	paramsDicts[ii]['riskAver'] = 2
+	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['discount_factor_grid'] = np.array([-0.01,0,0.01])
 	paramsDicts[ii]['nx'] = 200
-	paramsDicts[ii]['nc'] = 200
+	paramsDicts[ii]['nc'] = 150
 	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['timeDiscount'] = 0.96
+	ii += 1
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
 	#-----------------------------------------------------#
 	if index is not None:
 		chosenParameters = paramsDicts[index]
-		print(f'Selected parameterization {index}')
+		print(f'Selected parameterization #{index} out of {ii}')
 	else:
 		for ii in range(len(paramsDicts)):
 			if paramsDicts[ii]['name'] == name:

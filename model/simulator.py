@@ -380,7 +380,6 @@ class MPCSimulatorNews(MPCSimulator):
 			rowQuarterly = f'E[Q{quarter} MPC] out of news of {futureShock} shock'
 			rowQuarterlyCond = f'E[Q{quarter} MPC | MPC > 0] out of news of {futureShock} shock'
 			rowQuarterlyCondMedian = f'Median(Q{quarter} MPC | MPC > 0) out of news of {futureShock} shock'
-			rowAnnualCondMedian = f'Median(Q{quarter} MPC | MPC > 0) out of news of {futureShock} shock'
 
 			csimQuarter = np.asarray(self.csim[:,ii])
 			if self.t == 1:

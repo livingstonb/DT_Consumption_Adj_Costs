@@ -103,6 +103,9 @@ cdef class CModel:
 
 				blockMats[iyP1][iyP2] = sparse.block_diag(blocks)
 
+			print(f'    Completed income block {iyP1+1} of {self.p.nyP}')
+
+		print('    Concatenating income blocks...')
 		self.interpMat = sparse.bmat(blockMats)
 
 	@cython.boundscheck(False)
