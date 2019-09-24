@@ -29,7 +29,8 @@ class Simulator(CSimulator):
 		self.xsim = np.asarray(self.asim) + np.asarray(self.ysim)
 
 	def updateAssets(self):
-		self.asim = self.p.R * (np.asarray(self.xsim) - np.asarray(self.csim))
+		self.asim = self.p.R * (np.asarray(self.xsim) - np.asarray(self.csim)) \
+			+ self.p.govTransfer
 		self.asim = np.minimum(self.asim,self.p.xMax)
 
 		if (self.p.deathProb > 0) and (not self.p.Bequests):
@@ -98,6 +99,14 @@ class EquilibriumSimulator(Simulator):
 		self.incomeHistory = np.zeros((self.nSim,4))
 
 		self.initialized = True
+
+		if self.t == self.T - 1:
+			self.finalStates = {'csim': self.csim}
+		elif self.t == self.T:
+			self.finalStates.update({	'yPind': self.yPind,
+										'xsim': self.xsim,
+										'zind': self.zind,
+										})
 
 	def computeTransitionStatistics(self):
 		"""
@@ -172,15 +181,6 @@ class EquilibriumSimulator(Simulator):
 		self.results['Stdev log annual income'] = np.log(self.incomeHistory.sum(axis=1)).std()
 
 		print(f"Mean wealth = {self.results['Mean wealth']}")
-
-	def returnFinalStates(self):
-		finalStates = {
-			'yPind': self.yPind,
-			'xsim': self.xsim,
-			'csim': self.csim,
-			'zind': self.zind,
-		}
-		return finalStates
 
 class MPCSimulator(Simulator):
 	def __init__(self, params, income, grids, model, shockIndices, finalStates):

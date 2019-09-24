@@ -37,7 +37,7 @@ name = False
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
+IterateBeta = True
 Simulate = True # relevant if IterateBeta is False
 
 basedir = os.getcwd()
@@ -194,7 +194,7 @@ else:
 if Simulate:
 	shockIndices = [0,1,2,3,4,5]
 
-	finalSimStates = eqSimulator.returnFinalStates()
+	finalSimStates = eqSimulator.finalStates
 	mpcSimulator = simulator.MPCSimulator(
 		params,income,grids,model,shockIndices,finalSimStates)
 	mpcSimulator.simulate()

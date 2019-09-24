@@ -30,9 +30,9 @@ cdef class Params:
 		public list MPCshocks, wealthConstraints, wealthPercentiles
 		public int xMax, nx
 		public double xGridCurv, borrowLim, minGridSpacing
-		public int nc
+		public int nc, nshocks
 		public double cMin, cMax, cGridCurv
-		public double r, R, deathProb
+		public double r, R, deathProb, govTransfer
 		public double riskAver, adjustCost, timeDiscount
 		public object risk_aver_grid, discount_factor_grid
 		public double[:,:,:,:] discount_factor_grid_wide
@@ -77,7 +77,8 @@ cdef class Params:
 
 		# mpc options
 		self.NsimMPC = long(2e5) # number of draws to sim MPCs
-		self.MPCshocks = [-1e-5,-0.01,-0.1,1e-5,0.01,0.1]
+		self.MPCshocks = [-0.081,-0.0405,-0.0081,0.0081,0.0405,0.081]
+		self.nshocks = len(self.MPCshocks)
 
 		# fraction of mean annual income
 		self.wealthConstraints = [0,0.005,0.01,0.015,0.02,0.05,0.1,0.15]
@@ -115,6 +116,9 @@ cdef class Params:
 		self.timeDiscount = 0.8
 		self.risk_aver_grid = np.array([0.0],dtype=float) # riskAver is added to this
 		self.discount_factor_grid = np.array([0.0],dtype=float) # timeDiscount is added to this
+
+		# gov transfer
+		self.govTransfer = 0.0081 * 2
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #
@@ -300,7 +304,8 @@ cdef class GridCreator:
 	def createCashGrid(self, income):
 		self.x  = GridDouble()
 
-		xmin = self.p.borrowLim + income.ymat.min().min()
+		xmin = self.p.borrowLim + income.ymat.min().min() \
+			+ self.p.govTransfer
 
 		xgrid = np.linspace(0,1,num=self.p.nx)
 		xgrid = xgrid.reshape((self.p.nx,1))
