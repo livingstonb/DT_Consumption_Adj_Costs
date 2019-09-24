@@ -1,5 +1,5 @@
-from misc cimport functions
-from misc.functions cimport FnArgs, objectiveFn
+from misc cimport cfunctions
+from misc.cfunctions cimport FnArgs, objectiveFn
 from misc cimport spline
 import numpy as np
 cimport numpy as np
@@ -18,22 +18,22 @@ def testGSS():
 
 	objective = <objectiveFn> myfun
 
-	functions.goldenSectionSearch(objective, -0.5, 0.5, 
+	cfunctions.goldenSectionSearch(objective, -0.5, 0.5, 
 		1e-8, &out[0], fargs)
 
 	print(out)
 
 	# cgrid = np.array([0.001,0.05,1,2])
 	# for cval in [-0.1,0.001,0.05,1.2,3]:
-	# 	ind2 = functions.searchSortedSingleInput(cgrid, cval)
+	# 	ind2 = cfunctions.searchSortedSingleInput(cgrid, cval)
 	# 	ind1 = ind2 - 1
-	# 	weights = functions.getInterpolationWeights(cgrid, cval, ind2)
+	# 	weights = cfunctions.getInterpolationWeights(cgrid, cval, ind2)
 	# 	print(f'cval is {cval}')
 	# 	print(f'index is {ind2}')
 	# 	print(np.asarray(weights))
 
 	# cvals = np.array([-0.1,0.001,0.05,1.2,3])
-	# print(np.asarray(functions.searchSortedMultipleInput(cgrid,cvals)))
+	# print(np.asarray(cfunctions.searchSortedMultipleInput(cgrid,cvals)))
 
 def testInterpolation():
 	cdef double weights[2]
@@ -44,7 +44,7 @@ def testInterpolation():
 	randNums = np.random.random(100) * 5 - 1
 
 	for num in randNums:
-		functions.getInterpolationWeights(&grid[0],num,3,&indices[0],&weights[0])
+		cfunctions.getInterpolationWeights(&grid[0],num,3,&indices[0],&weights[0])
 		print(f'Random number = {num}')
 		print(f'    indices = {indices}')
 		print(f'    weights = {weights}')
@@ -87,7 +87,7 @@ def testFastSearch(double[:] draws):
 	grid = np.linspace(0,5,num=nGrid)
 
 	for i in range(draws.size):
-		indices[i] = functions.fastSearchSingleInput(&grid[0], draws[i], nGrid)
+		indices[i] = cfunctions.fastSearchSingleInput(&grid[0], draws[i], nGrid)
 
 	return indices
 
@@ -104,7 +104,7 @@ def testNaiveSearch(double[:] draws):
 	grid = np.linspace(0,5,num=nGrid)
 
 	for i in range(draws.size):
-		indices[i] = functions.searchSortedSingleInput(grid, draws[i], nGrid)
+		indices[i] = cfunctions.searchSortedSingleInput(grid, draws[i], nGrid)
 
 	return indices
 

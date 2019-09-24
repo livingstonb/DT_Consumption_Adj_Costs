@@ -111,13 +111,21 @@ cdef class CSimulator:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	def computeGini(self):
-		cdef long i, j
-		cdef double asim_i, giniNumerator = 0.0
+		cdef long i
+		cdef double giniNumerator = 0.0
 
 		for i in prange(self.nSim, schedule='static', nogil=True):
-			asim_i = self.asim[i,0]
-			for j in range(self.nSim):
-				giniNumerator += fabs(asim_i - self.asim[j,0])
+			self.giniHelper(&giniNumerator, i)
 
 		self.results['Gini coefficient (wealth)'] = \
 			giniNumerator / (2 * self.nSim * np.sum(self.asim))
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void giniHelper(self, double *giniNumerator, long i) nogil:
+		cdef long j
+		cdef double asim_i
+
+		asim_i = self.asim[i,0]
+		for j in range(self.nSim):
+			giniNumerator[0] += fabs(asim_i - self.asim[j,0])
