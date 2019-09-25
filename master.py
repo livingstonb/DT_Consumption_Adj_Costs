@@ -127,8 +127,8 @@ if IterateBeta:
 	#-----------------------------------------------------------#
 	print('\nLooking for valid upper bound on discount rate\n')
 	neg_stepsize = -0.02
-	pos_stepsize = 0.01
-	upperBoundInitial = 0.99
+	pos_stepsize = 0.004
+	upperBoundInitial = 0.995
 	upperBoundFinder = BoundsFinder(
 		neg_stepsize,pos_stepsize,upperBoundInitial)
 	upperBoundFound = False
