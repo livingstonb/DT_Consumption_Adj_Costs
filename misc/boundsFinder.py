@@ -35,6 +35,7 @@ class BoundsFinder:
 			self.lag += 1
 
 		self.betaBoundHistory.append(self.currentBetaBound)
+		self.lastDirection = 'up'
 
 	def decrease(self):
 		if self.lastDirection in [None,'down']:
@@ -48,3 +49,4 @@ class BoundsFinder:
 			self.lag += 1
 
 		self.betaBoundHistory.append(self.currentBetaBound)
+		self.lastDirection = 'down'

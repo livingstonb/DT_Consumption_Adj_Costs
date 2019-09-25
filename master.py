@@ -38,7 +38,7 @@ name = ''
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
+IterateBeta = True
 Simulate = True # relevant if IterateBeta is False
 
 basedir = os.getcwd()
