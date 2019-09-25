@@ -33,12 +33,12 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = ''
+name = 'custom'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
+IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 
 basedir = os.getcwd()
@@ -60,6 +60,7 @@ if name:
 	params = load_specifications(locIncomeProcess,name=name)
 else:
 	params = load_specifications(locIncomeProcess,index=paramIndex)
+import pdb; pdb.set_trace()
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #

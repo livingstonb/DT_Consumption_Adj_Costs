@@ -107,7 +107,7 @@ cdef class Params:
 		self.R = 1 + self.r
 
 		# death probability (annual)
-		self.deathProb = 1/50
+		self.deathProb = 1.0/50.0
 		self.Bequests = True
 
 		# preferences
@@ -185,12 +185,12 @@ cdef class Params:
 			return
 
 		self.R = (1 + self.r) ** 0.25
-		self.r = self.R - 1
+		self.r = self.R - 1.0
 		self.tSim *= 4
-		self.deathProb = 1 - (1 - self.deathProb) ** 0.25
+		self.deathProb = 1.0 - (1.0 - self.deathProb) ** 0.25
 		self.timeDiscount = self.timeDiscount ** 0.25
 		self.discount_factor_grid = self.discount_factor_grid ** 0.25
-		self.adjustCost /= 4
+		self.adjustCost /= 4.0
 
 	def addIncomeParameters(self, income):
 		self.nyP = income.nyP
