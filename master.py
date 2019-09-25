@@ -228,7 +228,7 @@ for ishock in futureShockIndices:
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF NEWS                            #
 #-----------------------------------------------------------#
-currentShockIndices = [0] * (len(futureShockIndices)+1)
+currentShockIndices = [7] * (len(futureShockIndices)+1)
 models = futureShockModels[3:] + [model]
 mpcNewsSimulator = simulator.MPCSimulatorNews(
 	params, income, grids, models,
