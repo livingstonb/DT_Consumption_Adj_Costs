@@ -33,7 +33,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'True'
+name = ''
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -60,7 +60,6 @@ if name:
 	params = load_specifications(locIncomeProcess,name=name)
 else:
 	params = load_specifications(locIncomeProcess,index=paramIndex)
-import pdb; pdb.set_trace()
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -72,7 +71,6 @@ params.addIncomeParameters(income)
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
 grids = modelObjects.GridCreator(params,income)
-# import pdb; pdb.set_trace()
 
 #---------------------------------------------------------------#
 #      CREATE MODEL                                             #
@@ -205,7 +203,7 @@ if Simulate:
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
 futureShockIndices = [3,4,5]
-currentShockIndices = [6] # 6 is no shock
+currentShockIndices = [6,6,6] # 6 is no shock
 mpcNewsSimulators = [None] * 6
 
 # ADD A NESTED LIST SO THAT:
@@ -229,7 +227,7 @@ for ishock in futureShockIndices:
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF NEWS                            #
 #-----------------------------------------------------------#
-currentShockIndices = [7] * (len(futureShockIndices)+1)
+currentShockIndices = [6] * (len(futureShockIndices)+1)
 models = futureShockModels[3:] + [model]
 mpcNewsSimulator = simulator.MPCSimulatorNews(
 	params, income, grids, models,

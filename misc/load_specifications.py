@@ -108,11 +108,12 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
-	paramsDicts[ii]['nx'] = 200
+	paramsDicts[ii]['nx'] = 150
 	paramsDicts[ii]['nc'] = 150
 	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.9
+	paramsDicts[ii]['timeDiscount'] = 0.99
+	paramsDicts[ii]['r'] = 0.05
 	ii += 1
 
 	#-----------------------------------------------------#

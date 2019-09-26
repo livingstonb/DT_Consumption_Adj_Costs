@@ -77,7 +77,7 @@ cdef class Params:
 
 		# mpc options
 		self.NsimMPC = long(2e5) # number of draws to sim MPCs
-		self.MPCshocks = [-0.081,-0.0405,-0.0081,0.0081,0.0405,0.081,0]
+		self.MPCshocks = [-0.081, -0.0405, -0.0081, 0.0081, 0.0405, 0.081, 0]
 		self.nshocks = len(self.MPCshocks)
 
 		# fraction of mean annual income
