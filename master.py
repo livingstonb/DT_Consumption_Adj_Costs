@@ -33,12 +33,12 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'custom'
+name = 'True'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
+IterateBeta = True
 Simulate = True # relevant if IterateBeta is False
 
 basedir = os.getcwd()

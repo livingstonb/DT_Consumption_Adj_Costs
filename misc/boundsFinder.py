@@ -30,7 +30,7 @@ class BoundsFinder:
 			self.lag = 1
 		elif self.lastDirection == 'down':
 			# updating by midpoint formula
-			self.currentBetaBound = (self.betaBoundHistory[-lag-1]
+			self.currentBetaBound = (self.betaBoundHistory[-self.lag-1]
 										+ self.currentBetaBound) / 2
 			self.lag += 1
 
@@ -44,7 +44,7 @@ class BoundsFinder:
 			self.lag = 1
 		elif self.lastDirection == 'up':
 			# update by midpoint formula
-			self.currentBetaBound = (self.betaBoundHistory[-lag-1]
+			self.currentBetaBound = (self.betaBoundHistory[-self.lag-1]
 										+ self.currentBetaBound) / 2
 			self.lag += 1
 
