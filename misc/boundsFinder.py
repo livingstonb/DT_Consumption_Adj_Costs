@@ -20,16 +20,18 @@ class BoundsFinder:
 		self.currentBetaBound = beta0
 		self.lastDirection = None
 		self.lag = None
+		self.midpoint = False
 
 		self.maxIter = 50
 
 	def increase(self):
-		if self.lastDirection in [None,'up']:
+		if (self.lastDirection == 'up') or (not self.midpoint):
 			# increase by step
 			self.currentBetaBound += self.pos_stepsize
 			self.lag = 1
-		elif self.lastDirection == 'down':
+		else:
 			# updating by midpoint formula
+			self.midpoint = True
 			self.currentBetaBound = (self.betaBoundHistory[-self.lag-1]
 										+ self.currentBetaBound) / 2
 			self.lag += 1
@@ -38,12 +40,13 @@ class BoundsFinder:
 		self.lastDirection = 'up'
 
 	def decrease(self):
-		if self.lastDirection in [None,'down']:
+		if (self.lastDirection == 'down') or (not self.midpoint):
 			# decrease by step
 			self.currentBetaBound += self.neg_stepsize
 			self.lag = 1
 		elif self.lastDirection == 'up':
 			# update by midpoint formula
+			self.midpoint = True
 			self.currentBetaBound = (self.betaBoundHistory[-self.lag-1]
 										+ self.currentBetaBound) / 2
 			self.lag += 1
