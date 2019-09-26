@@ -21,7 +21,7 @@ class Model(CModel):
 		if np.abs(denom) < 1e-3:
 			denom = 1e-3
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
-			self.grids.c.matrix) / denom
+			self.grids.x.matrix) / denom
 
 		# subtract the adjustment cost for states with c > x
 		self.valueFunction = valueGuess

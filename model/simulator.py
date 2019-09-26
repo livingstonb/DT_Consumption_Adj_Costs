@@ -45,7 +45,7 @@ class EquilibriumSimulator(Simulator):
 		self.transitionStatistics = {}
 		self.results = pd.Series()
 
-	def simulate(self):
+	def simulate(self, final=False):
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
 
@@ -73,7 +73,8 @@ class EquilibriumSimulator(Simulator):
 				self.makeRandomDraws()
 
 			self.t += 1
-		self.computeEquilibriumStatistics()
+
+		self.computeEquilibriumStatistics(final)
 
 	def initialize(self):
 		self.makeRandomDraws()
@@ -113,9 +114,10 @@ class EquilibriumSimulator(Simulator):
 		used to evaluate convergence to the equilibrium
 		distribution.
 		"""
-		self.transitionStatistics = {	'E[a]': np.zeros((self.T,)),
-										'Var[a]': np.zeros((self.T,))
-									}
+		if self.t == 1:
+			self.transitionStatistics = {	'E[a]': np.zeros((self.T,)),
+											'Var[a]': np.zeros((self.T,))
+										}
 		self.transitionStatistics['E[a]'][self.t-1] = np.mean(self.asim,axis=0)
 		self.transitionStatistics['Var[a]'][self.t-1] = np.var(self.asim,axis=0)
 
@@ -130,7 +132,7 @@ class EquilibriumSimulator(Simulator):
 										'zind': self.zind,
 										})
 
-	def computeEquilibriumStatistics(self):
+	def computeEquilibriumStatistics(self, final):
 		# mean wealth
 		self.results['Mean wealth'] = np.mean(self.asim)
 
@@ -168,8 +170,9 @@ class EquilibriumSimulator(Simulator):
 		self.results['Top 1% wealth share'] = \
 			asimNumpy[asimNumpy>=pctile99].sum() / asimNumpy.sum()
 
-		# gini
-		self.computeGini()
+		if final:
+			# gini
+			self.computeGini()
 
 		# consumption percentiles
 		for pctile in self.p.wealthPercentiles:

@@ -95,7 +95,7 @@ cdef class CSimulator:
 			long xIndices[2]
 			long conIndices[2]
 			bint switch
-			double consumption, cash, myValueDiff, cSwitch
+			double consumption, cash, myValueDiff
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -117,7 +117,7 @@ cdef class CSimulator:
 				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP,modelNum] \
 				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP,modelNum]
 
-			switch = myValueDiff > 0
+			switch = (myValueDiff > 0)
 
 		if switch:
 			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \

@@ -33,12 +33,12 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = ''
+name = 'custom'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
+IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 
 basedir = os.getcwd()
@@ -57,9 +57,9 @@ locIncomeProcess = os.path.join(
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
 if name:
-	params = load_specifications(locIncomeProcess,name=name)
+	params = load_specifications(locIncomeProcess, name=name)
 else:
-	params = load_specifications(locIncomeProcess,index=paramIndex)
+	params = load_specifications(locIncomeProcess, index=paramIndex)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -70,12 +70,12 @@ params.addIncomeParameters(income)
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
-grids = modelObjects.GridCreator(params,income)
+grids = modelObjects.GridCreator(params, income)
 
 #---------------------------------------------------------------#
 #      CREATE MODEL                                             #
 #---------------------------------------------------------------#
-model = Model(params,income,grids)
+model = Model(params, income, grids)
 
 if IterateBeta:
 	Simulate = True
@@ -175,18 +175,21 @@ if IterateBeta:
 		assets = eqSimulator.results['Mean wealth']
 		return assets - params.wealthTarget
 
-	betaOpt = optimize.brentq(iterateOverBeta, betaLowerBound, betaUpperBound,
-		xtol=1e-6,rtol=1e-8)
+	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(betaLowerBound,betaUpperBound),
+		method='bisect', xtol=1e-6, rtol=1e-8).root
 
-else:
-	#-----------------------------------------------------------#
-	#      SOLVE MODEL ONCE                                     #
-	#-----------------------------------------------------------#
-	model.solve()
+	params.resetDiscountRate(betaOpt)
 
-	if Simulate:
-		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
-		eqSimulator.simulate()
+#-----------------------------------------------------------#
+#      SOLVE MODEL ONCE                                     #
+#-----------------------------------------------------------#
+model.solve()
+
+if Simulate:
+	eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
+	eqSimulator.simulate(final=True)
+
+	import pdb; pdb.set_trace()
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
