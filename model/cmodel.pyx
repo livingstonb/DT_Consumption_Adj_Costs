@@ -51,67 +51,6 @@ cdef class CModel:
 	@cython.wraparound(False)
 	def constructInterpolantForEMAX(self):
 		"""
-		This method constructs an interpolant array interpMat such that
-		interpMat * valueFunction(:) = E[V]. That is, the expected continuation 
-		value of being in state (x_i,~,z_k,yP_k) and choosing to consume c_j, 
-		the (i,j,k,l)-th element of the matrix product of interpMat and 
-		valueFunction(:) is the quantity below:
-
-		E[V(R(x_i-c_j)+yP'yT', c_j, z_k, yP')|x_i,c_j,z_k,yP_l]
-
-		where the expectation is taken over yP' and yT'.
-
-		Output is stored in self.interpMat. Note that this array is constructed
-		in Fortran style, must use order='F' for matrix multiplication.
-		"""
-		cdef:
-			int iyP1, iyP2, ic, iz, i
-			long iblock
-			double yP, PyP1yP2
-			np.ndarray[np.float64_t, ndim=1] xgrid
-			np.ndarray[np.float64_t, ndim=2] xprime, yTvec, yTdist
-			double[:,:] newBlock
-			double[:,:,:] interpWithyT
-			list blocks
-
-		yTvec = self.income.yTgrid.reshape((1,-1))
-		yTdistvec = self.income.yTdist.reshape((1,-1))
-
-		xgrid = np.asarray(self.grids.x.flat)
-
-		blockMats = [[None] * self.p.nyP] * self.p.nyP
-		
-		for iyP1 in range(self.p.nyP):
-			for iyP2 in range(self.p.nyP):
-				iblock = 0
-				blocks = [None] * (self.p.nz*self.p.nc)
-				
-				yP = self.income.yPgrid[iyP2]
-				PyP1yP2 = self.income.yPtrans[iyP1,iyP2]
-
-				for iz in range(self.p.nz):
-
-					for ic in range(self.p.nc):
-						xprime = self.p.R * (xgrid[:,None] - self.grids.c.flat[ic]) \
-							+ yP * yTvec + self.nextMPCShock + self.p.govTransfer
-						interpWithyT = cfunctions.interpolateTransitionProbabilities2D(xgrid,xprime)
-						newBlock = PyP1yP2 * np.squeeze(np.dot(yTdistvec,interpWithyT))
-
-						blocks[iblock] = sparse.csr_matrix(newBlock)
-
-						iblock += 1
-
-				blockMats[iyP1][iyP2] = sparse.block_diag(blocks)
-
-			print(f'    Completed income block {iyP1+1} of {self.p.nyP}')
-
-		print('    Concatenating income blocks...')
-		self.interpMat = sparse.bmat(blockMats)
-
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
-	def updateEMAXslow(self):
-		"""
 		This method can be used to double check the construction of the
 		interpolation matrix for updating EMAT.
 		"""
@@ -122,10 +61,15 @@ cdef class CModel:
 			double[:,:] yPtrans
 			double[:] yPgrid, yTdist, yTgrid
 			double xWeights[2]
-			double *yderivs
-			double *value
 			long xIndices[2]
 			int ix, ic, iz, iyP1, iyP2, iyT, ix2
+			long ii
+			long[:] I, J
+			double[:] V
+
+		I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
+		J = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
+		V = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2))
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
@@ -134,10 +78,9 @@ cdef class CModel:
 		yTgrid = self.income.yTgrid.flatten()
 		yTdist = self.income.yTdist.flatten()
 
-		yderivs = <double *> malloc(self.p.nx * sizeof(double))
-		value = <double *> malloc(self.p.nx * sizeof(double))
-
 		self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
+
+		ii = 0
 		
 		for ix in range(self.p.nx):
 			xval = xgrid[ix]
@@ -148,42 +91,29 @@ cdef class CModel:
 				for iz in range(self.p.nz):
 
 					for iyP1 in range(self.p.nyP):
-						emax = 0
-
+					
 						for iyP2 in range(self.p.nyP):
 							Pytrans = yPtrans[iyP1,iyP2]
 							yP2 = yPgrid[iyP2]
 
-							for ix2 in range(self.p.nx):
-								value[ix2] = self.valueFunction[ix2,ic,iz,iyP2]
-
-							if self.p.cubicEMAXInterp:
-								spline.spline(&xgrid[0], value, self.p.nx, 
-									1.0e30, 1.0e30, yderivs)
-
 							for iyT in range(self.p.nyT):
 								cash = assets + yP2 * yTgrid[iyT] + self.nextMPCShock + self.p.govTransfer
 
-								if self.p.cubicEMAXInterp:
-									spline.splint(&xgrid[0], value, yderivs, self.p.nx, cash, &vInterp)
+								I[ii] = ix + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP1
+								I[ii+1] = ix + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP1
 
-									if vInterp > value[self.p.nx]:
-										vInterp = value[self.p.nx]
-									elif vInterp < value[0]:
-										vInterp = value[0]
-									emax += Pytrans * yTdist[iyT] * vInterp
-								else:
-									cfunctions.getInterpolationWeights(&xgrid[0],cash,self.p.nx,&xIndices[0],&xWeights[0])
+								cfunctions.getInterpolationWeights(&xgrid[0],cash,self.p.nx,&xIndices[0],&xWeights[0])
 
-									emax += Pytrans * yTdist[iyT] * (
-										xWeights[0] * self.valueFunction[xIndices[0],ic,iz,iyP2]
-										+ xWeights[1] * self.valueFunction[xIndices[1],ic,iz,iyP2]
-										)
+								J[ii] = xIndices[0] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
+								J[ii+1] = xIndices[1] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
 
-						self.EMAX[ix,ic,iz,iyP1] = emax
+								V[ii] = Pytrans * yTdist[iyT] * xWeights[0]
+								V[ii+1] = Pytrans * yTdist[iyT] * xWeights[1]
 
-		free(yderivs)
-		free(value)
+								ii += 2
+
+		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
+		self.interpMat = sparse.coo_matrix((V,(I,J)),shape=(length,length)).tocsr()
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)

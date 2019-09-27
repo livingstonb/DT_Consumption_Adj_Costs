@@ -12,9 +12,8 @@ class Model(CModel):
 	def initialize(self):
 		self.nextMPCShock = 0
 
-		if not self.p.cubicEMAXInterp:
-			print('\nConstructing interpolant array for EMAX')
-			self.constructInterpolantForEMAX()
+		print('\nConstructing interpolant array for EMAX')
+		self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
 		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
@@ -23,7 +22,6 @@ class Model(CModel):
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
 			self.grids.x.matrix) / denom
 
-		# subtract the adjustment cost for states with c > x
 		self.valueFunction = valueGuess
 
 	def solve(self):
@@ -39,10 +37,7 @@ class Model(CModel):
 			Vprevious = self.valueFunction
 
 			# update EMAX = E[V|x,c,z,yP], where c is chosen c
-			if self.p.cubicEMAXInterp:
-				self.updateEMAXslow()
-			else:
-				self.updateEMAX()
+			self.updateEMAX()
 
 			# update value function of not switching
 			self.updateValueNoSwitch()
@@ -86,8 +81,10 @@ class Model(CModel):
 		"""
 		This method computes E[V] from the most recent value function iteration.
 		"""
-		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
-				).reshape(self.grids.matrixDim,order='F')
+		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')).reshape(self.grids.matrixDim, order='F')
+
+			# np.reshape(self.valueFunction,(-1,1),order='F')
+				# ).reshape(self.grids.matrixDim,order='F')
 
 	def updateValueNoSwitch(self):
 		"""

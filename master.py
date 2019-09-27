@@ -40,6 +40,7 @@ name = 'custom'
 #---------------------------------------------------------------#
 IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
+SimulateMPCs = False
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir,'output')
@@ -194,12 +195,13 @@ if Simulate:
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
-if Simulate:
-	shockIndices = [0,1,2,3,4,5]
+shockIndices = [0,1,2,3,4,5]
 
-	finalSimStates = eqSimulator.finalStates
-	mpcSimulator = simulator.MPCSimulator(
-		params, income, grids, [model], shockIndices, finalSimStates)
+finalSimStates = eqSimulator.finalStates
+mpcSimulator = simulator.MPCSimulator(
+	params, income, grids, [model], shockIndices, finalSimStates)
+
+if Simulate and SimulateMPCs:
 	mpcSimulator.simulate()
 
 #-----------------------------------------------------------#
@@ -218,14 +220,16 @@ for ishock in futureShockIndices:
 	futureShockModels[ishock] = ModelWithNews(
 		params, income, grids, model.valueFunction, 
 		params.MPCshocks[ishock])
-	futureShockModels[ishock].solve()
 
-	# for period in range(1,4):
-	# 	# shock in two or more periods
-	# 	futureShockModels[period] = Model(
-	# 		params,income,grids,
-	# 		EMAX=futureShockModels[period-1].EMAX)
-	# 	futureShockModels[period].solve()
+	if SimulateMPCs:
+		futureShockModels[ishock].solve()
+
+		# for period in range(1,4):
+		# 	# shock in two or more periods
+		# 	futureShockModels[period] = Model(
+		# 		params,income,grids,
+		# 		EMAX=futureShockModels[period-1].EMAX)
+		# 	futureShockModels[period].solve()
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF NEWS                            #
@@ -236,7 +240,9 @@ mpcNewsSimulator = simulator.MPCSimulatorNews(
 	params, income, grids, models,
 	futureShockIndices, currentShockIndices,
 	finalSimStates)
-mpcNewsSimulator.simulate()
+
+if SimulateMPCs:
+	mpcNewsSimulator.simulate()
 
 #-----------------------------------------------------------#
 #      RESULTS                                              #

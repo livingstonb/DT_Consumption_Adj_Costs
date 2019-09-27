@@ -118,7 +118,7 @@ cdef class Params:
 		self.discount_factor_grid = np.array([0.0],dtype=float) # timeDiscount is added to this
 
 		# gov transfer
-		self.govTransfer = 0.0081 * 2
+		self.govTransfer = 0.0081 * 2 * 4
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #
@@ -184,13 +184,14 @@ cdef class Params:
 		if self.freq == 1:
 			return
 
-		self.R = (1 + self.r) ** 0.25
+		self.R = (1.0 + self.r) ** 0.25
 		self.r = self.R - 1.0
 		self.tSim *= 4
 		self.deathProb = 1.0 - (1.0 - self.deathProb) ** 0.25
 		self.timeDiscount = self.timeDiscount ** 0.25
 		self.discount_factor_grid = self.discount_factor_grid ** 0.25
 		self.adjustCost /= 4.0
+		self.govTransfer /= 4.0
 
 	def addIncomeParameters(self, income):
 		self.nyP = income.nyP
@@ -314,7 +315,7 @@ cdef class GridCreator:
 
 		xgrid = np.linspace(0,1,num=self.p.nx)
 		xgrid = xgrid.reshape((self.p.nx,1))
-		xgrid = xgrid ** (1 / self.p.xGridCurv)
+		xgrid = xgrid ** (1.0 / self.p.xGridCurv)
 		xgrid = xmin \
 			+ (self.p.xMax - xmin) * xgrid
 
