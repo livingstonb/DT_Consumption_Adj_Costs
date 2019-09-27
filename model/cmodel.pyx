@@ -66,7 +66,7 @@ cdef class CModel:
 		"""
 		cdef:
 			double[:] xgrid, cgrid
-			double[:] yPgrid, yTdist, yTgrid
+			double[:] yPgrid, yTdist, yTgrid, yPtrans
 			long ix
 			interpMatArgs interp_args
 
