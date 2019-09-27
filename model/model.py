@@ -5,6 +5,8 @@ from misc import functions
 
 class Model(CModel):
 	def __init__(self, params, income, grids):
+		self.interpMat = None
+
 		super().__init__(params, income, grids)
 		
 		self.initialize()
@@ -32,7 +34,7 @@ class Model(CModel):
 		while distance > self.p.tol:
 
 			if self.iteration > self.p.maxIters:
-				raise Exception(f'No convergence after {iteration+1} iterations...')
+				raise Exception(f'No convergence after {self.iteration+1} iterations...')
 
 			Vprevious = self.valueFunction
 

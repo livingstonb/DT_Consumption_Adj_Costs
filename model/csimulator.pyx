@@ -15,8 +15,6 @@ cdef class CSimulator:
 	cdef:
 		readonly object p, income, grids
 		readonly double[:,:,:,:,:] valueDiff, cSwitchingPolicy
-		readonly double[:,:,:,:,:] yderivs
-		readonly double[:,:,:,:,:] EMAX
 		public int nCols
 		readonly int periodsBeforeRedraw
 		public int nSim, t, T, randIndex
@@ -25,24 +23,15 @@ cdef class CSimulator:
 		public long[:] yPind, zind
 		public double[:,:] ysim, csim, xsim, asim
 
-	def __init__(self, params, income, grids, models, simPeriods):
+	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
 
-		cSwitchingPolicy = np.zeros((params.nx,1,params.nz,params.nyP,len(models)),dtype=float)
-		valueDiff = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(models)),dtype=float)
-		EMAX = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(models)),dtype=float)
+		self.cSwitchingPolicy = cSwitchingPolicies
+		self.valueDiff = valueDiffs
 
-		for i in range(len(models)):
-			cSwitchingPolicy[:,:,:,:,i] = np.asarray(models[i].cSwitchingPolicy)
-			valueDiff[:,:,:,:,i] = np.asarray(models[i].valueSwitch) - np.asarray(models[i].valueNoSwitch)
-			EMAX[:,:,:,:,i] = np.asarray(models[i].EMAX)
-		self.cSwitchingPolicy = cSwitchingPolicy
-		self.valueDiff = valueDiff
-		self.EMAX = EMAX
-
-		self.nCols = len(models)
+		self.nCols = valueDiffs.shape[4]
 
 		self.periodsBeforeRedraw = np.minimum(simPeriods,10)
 
@@ -53,7 +42,7 @@ cdef class CSimulator:
 
 		self.initialized = False
 
-		if len(models) > 1:
+		if valueDiffs.shape[4] > 1:
 			self.news = True
 		else:
 			self.news = False
@@ -108,7 +97,7 @@ cdef class CSimulator:
 			long xIndices[2]
 			long conIndices[2]
 			bint switch
-			double consumption, cash, emaxNoSwitch, emaxSwitch, cSwitch
+			double consumption, cash, myValueDiff
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -118,36 +107,23 @@ cdef class CSimulator:
 		
 		cfunctions.getInterpolationWeights(xgrid, cash, nx, &xIndices[0], &xWeights[0])
 
-		cSwitch = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
-					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
-
 		if consumption > cash:
 			# forced to switch consumption
 			switch = True
 		else:
 			# check if switching is optimal
-			uSwitch = cfunctions.utility(risk_aver_grid[iz], cSwitch);
-			uNoSwitch = cfunctions.utility(risk_aver_grid[iz], consumption);
-
 			cfunctions.getInterpolationWeights(cgrid, consumption, nc, &conIndices[0], &conWeights[0])
 
-			emaxNoSwitch = xWeights[0] * conWeights[0] * self.EMAX[xIndices[0],conIndices[0],iz,iyP,modelNum] \
-				+ xWeights[1] * conWeights[0] * self.EMAX[xIndices[1],conIndices[0],iz,iyP,modelNum] \
-				+ xWeights[0] * conWeights[1] * self.EMAX[xIndices[0],conIndices[1],iz,iyP,modelNum] \
-				+ xWeights[1] * conWeights[1] * self.EMAX[xIndices[1],conIndices[1],iz,iyP,modelNum]
+			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP,modelNum] \
+				+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP,modelNum] \
+				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP,modelNum] \
+				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP,modelNum]
 
-			cfunctions.getInterpolationWeights(cgrid, cSwitch, nc, &conIndices[0], &conWeights[0])
-
-			emaxSwitch = xWeights[0] * conWeights[0] * self.EMAX[xIndices[0],conIndices[0],iz,iyP,modelNum] \
-				+ xWeights[1] * conWeights[0] * self.EMAX[xIndices[1],conIndices[0],iz,iyP,modelNum] \
-				+ xWeights[0] * conWeights[1] * self.EMAX[xIndices[0],conIndices[1],iz,iyP,modelNum] \
-				+ xWeights[1] * conWeights[1] * self.EMAX[xIndices[1],conIndices[1],iz,iyP,modelNum]
-
-			switch = (uSwitch + discount_factor_grid[iz] * (1-deathProb) * emaxSwitch - adjustCost) \
-				> (uNoSwitch + discount_factor_grid[iz] * (1-deathProb) * emaxNoSwitch)
+			switch = (myValueDiff > 0)
 
 		if switch:
-			self.csim[i,col] = cSwitch
+			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
+					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
 			self.switched[i,col] = 1
 		else:
 			self.switched[i,col] = 0

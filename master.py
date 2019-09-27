@@ -101,7 +101,8 @@ if IterateBeta:
 			# Attempt to solve model
 			params.resetDiscountRate(lowerBoundFinder.currentBetaBound)
 			model.solve()
-			eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
+			eqSimulator = simulator.EquilibriumSimulator(params, income, grids, model.cSwitchingPolicy,
+				model.valueDiff)
 			eqSimulator.simulate()
 
 			if eqSimulator.results['Mean wealth'] < params.wealthTarget:
@@ -141,7 +142,8 @@ if IterateBeta:
 			print(f'--Trying upper bound = {upperBoundFinder.currentBetaBound:.6f}')
 			params.resetDiscountRate(upperBoundFinder.currentBetaBound)
 			model.solve()
-			eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
+			eqSimulator = simulator.EquilibriumSimulator(params, income, grids, model.cSwitchingPolicy,
+				model.valueDiff)
 			eqSimulator.simulate()
 
 			if eqSimulator.results['Mean wealth'] > params.wealthTarget:
@@ -171,14 +173,15 @@ if IterateBeta:
 		params.resetDiscountRate(x)
 		model.solve()
 
-		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
+		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
+			model.cSwitchingPolicy, model.valueDiff)
 		eqSimulator.simulate()
 
 		assets = eqSimulator.results['Mean wealth']
 		return assets - params.wealthTarget
 
 	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(betaLowerBound,betaUpperBound),
-		method='bisect', xtol=1e-6, rtol=1e-8).root
+		method='bisect', xtol=1e-6, rtol=1e-8, maxiter=params.wealthIters).root
 
 	params.resetDiscountRate(betaOpt)
 
@@ -188,7 +191,8 @@ if IterateBeta:
 model.solve()
 
 if Simulate:
-	eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
+	eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
+		model.cSwitchingPolicy, model.valueDiff)
 	eqSimulator.simulate(final=True)
 
 #-----------------------------------------------------------#
@@ -198,7 +202,10 @@ shockIndices = [0,1,2,3,4,5]
 
 finalSimStates = eqSimulator.finalStates
 mpcSimulator = simulator.MPCSimulator(
-	params, income, grids, [model], shockIndices, finalSimStates)
+	params, income, grids, 
+	model.cSwitchingPolicy,
+	model.valueDiff, 
+	shockIndices, finalSimStates)
 
 if Simulate and SimulateMPCs:
 	mpcSimulator.simulate()
@@ -208,25 +215,30 @@ if Simulate and SimulateMPCs:
 #-----------------------------------------------------------#
 futureShockIndices = [3,4,5]
 currentShockIndices = [6,6,6] # 6 is no shock
-mpcNewsSimulators = [None] * 6
 
-# ADD A NESTED LIST SO THAT:
-# i-th element is the model for a shock in i+1 periods
+cSwitchingPolicies = np.zeros((params.nx,1,params.nz,params.nyP,len(futureShockIndices)+1))
+valueDiffs = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(futureShockIndices)+1))
 
-model.interpMat = []
+cSwitchingPolicies[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+valueDiffs[:,:,:,:,-1] = model.valueDiff[:,:,:,:,0]
+valueBaseline = model.valueFunction
+del model
 
-futureShockModels = [None] * 6
+i = 0
 for ishock in futureShockIndices:
 	# shock next period
-	futureShockModels[ishock] = ModelWithNews(
+	futureShockModel = ModelWithNews(
 		params, income, grids,
-		model.valueFunction,
+		valueBaseline,
 		params.MPCshocks[ishock])
 
 	if SimulateMPCs:
-		futureShockModels[ishock].solve()
-		futureShockModels[ishock].interpMat = []
+		futureShockModel.solve()
+		cSwitchingPolicies[:,:,:,:,i] = futureShockModel.cSwitchingPolicy[:,:,:,:,0]
+		valueDiffs[:,:,:,:,i] = futureShockModel.valueDiff[:,:,:,:,0]
 
+	del futureShockModel
+	i += 1
 		# for period in range(1,4):
 		# 	# shock in two or more periods
 		# 	futureShockModels[period] = Model(
@@ -238,9 +250,9 @@ for ishock in futureShockIndices:
 #      SIMULATE MPCs OUT OF NEWS                            #
 #-----------------------------------------------------------#
 currentShockIndices = [6] * (len(futureShockIndices)+1)
-models = futureShockModels[3:] + [model]
 mpcNewsSimulator = simulator.MPCSimulatorNews(
-	params, income, grids, models,
+	params, income, grids, 
+	cSwitchingPolicies, valueDiffs,
 	futureShockIndices, currentShockIndices,
 	finalSimStates)
 

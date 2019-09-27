@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 
 class Simulator(CSimulator):
-	def __init__(self, params, income, grids, model, simPeriods):
-		super().__init__(params, income, grids, model, simPeriods)
+	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods):
+		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods)
 
 	def makeRandomDraws(self):
 		self.yPrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
@@ -37,8 +37,8 @@ class Simulator(CSimulator):
 
 class EquilibriumSimulator(Simulator):
 
-	def __init__(self, params, income, grids, model):
-		super().__init__(params,income,grids,model,params.tSim)
+	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs):
+		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, params.tSim)
 
 		self.initialize()
 
@@ -193,8 +193,8 @@ class EquilibriumSimulator(Simulator):
 		print(f"Mean wealth = {self.results['Mean wealth']}")
 
 class MPCSimulator(Simulator):
-	def __init__(self, params, income, grids, models, shockIndices, finalStates):
-		super().__init__(params, income, grids, models, 4)
+	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, shockIndices, finalStates):
+		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, 4)
 		self.nCols = len(shockIndices) + 1
 		self.shockIndices = shockIndices
 		self.mpcs = pd.Series()
@@ -343,10 +343,10 @@ class MPCSimulator(Simulator):
 			ii += 1
 
 class MPCSimulatorNews(MPCSimulator):
-	def __init__(self, params, income, grids, models, futureShockIndices, currentShockIndices, finalStates):
+	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, futureShockIndices, currentShockIndices, finalStates):
 		self.futureShockIndices = futureShockIndices
-		super().__init__(params, income, grids, models, currentShockIndices, finalStates)
-		self.nCols = len(models)
+		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, currentShockIndices, finalStates)
+		self.nCols = valueDiffs.shape[4]
 
 		self.T = 1
 

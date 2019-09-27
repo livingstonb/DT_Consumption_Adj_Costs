@@ -44,11 +44,10 @@ cdef class CModel:
 		readonly tuple dims, dims_yT
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
 		public double[:,:,:,:] EMAX
-		public object interpMat
-		public double[:,:,:,:] cSwitchingPolicy
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
 		long [:] I, J
 		double [:] V
+		public object valueDiff, cSwitchingPolicy
 
 	def __init__(self, params, income, grids):
 		self.p = params
@@ -71,7 +70,7 @@ cdef class CModel:
 			double[:] xgrid, cgrid, valueVec
 			double[:] yPtrans
 			double[:] yPgrid, yTdist, yTgrid
-			long ix, midpoint, ii = 0
+			long ix
 			interpMatArgs interp_args
 
 		self.I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
@@ -100,17 +99,14 @@ cdef class CModel:
 		interp_args.govTransfer = self.p.govTransfer
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
-		midpoint =  self.p.nx + self.p.nx*self.p.nc + self.p.nx*self.p.nc*self.p.nz \
-			+ self.p.nx*self.p.nc*self.p.nz*self.p.nyP + self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyT
-
-		for ix in prange(interp_args.nx, schedule='static', nogil=True):
-			self.findInterpMatOneX(ix, interp_args, &ii)
+		for ix in prange(interp_args.nx, num_threads=4, schedule='static', nogil=True):
+			self.findInterpMatOneX(ix, interp_args)
 
 		self.interpMat = sparse.coo_matrix((self.V,(self.I,self.J)),shape=(length,length)).tocsr()
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void findInterpMatOneX(self, long ix, interpMatArgs args, long *count) nogil:
+	cdef void findInterpMatOneX(self, long ix, interpMatArgs args) nogil:
 
 		cdef: 
 			double xWeights[2]
@@ -119,6 +115,9 @@ cdef class CModel:
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
 		xval = args.xgrid[ix]
+
+		ii = ix * 2 * args.nc * args.nz * args.nyP * args.nyP * args.nyT
+		ii2 = ii + 1
 
 		for ic in range(args.nc):
 			assets = args.R * (xval - args.cgrid[ic])
@@ -132,11 +131,7 @@ cdef class CModel:
 						yP2 = args.yPgrid[iyP2]
 
 						for iyT in range(args.nyT):
-							with gil:
-								ii = count[0]
-								count[0] += 2
 
-							ii2 = ii + 1
 							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
 
 							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
@@ -151,6 +146,9 @@ cdef class CModel:
 
 							self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
 							self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
+
+							ii += 2
+							ii2 += 2
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -310,6 +308,10 @@ cdef class CModel:
 					else:
 						self.inactionRegionLower[ix,iz,iyP] = np.nan
 						self.inactionRegionUpper[ix,iz,iyP] = np.nan
+
+		self.valueDiff = (np.asarray(self.valueSwitch) - np.asarray(self.valueNoSwitch)
+			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1))
+		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1))
 
 	def resetParams(self, newParams):
 		self.p = newParams
