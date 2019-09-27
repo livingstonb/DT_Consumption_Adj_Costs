@@ -3,7 +3,7 @@ import numpy as np
 cimport numpy as np
 
 cimport cython
-from cython.parallel cimport prange, parallel
+from cython.parallel cimport prange
 
 from misc cimport cfunctions
 from misc.cfunctions cimport FnArgs, objectiveFn
@@ -15,6 +15,15 @@ from scipy import sparse
 from libc.math cimport fmin
 from libc.stdlib cimport malloc, free
 
+ctypedef struct interpMatArgs:
+	long nx, nc, nz, nyP, nyT
+	double R, govTransfer
+	double *cgrid
+	double *xgrid
+	double *yPgrid
+	double *yPtrans
+	double *yTgrid
+	double *yTdist
 
 cdef enum:
 	# number of sections to try in golden section search
@@ -38,6 +47,8 @@ cdef class CModel:
 		readonly object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
+		long [:] I, J
+		double [:] V
 
 	def __init__(self, params, income, grids):
 		self.p = params
@@ -58,62 +69,88 @@ cdef class CModel:
 			double emax, Pytrans, assets, cash, yP2
 			double vInterp, xval
 			double[:] xgrid, cgrid, valueVec
-			double[:,:] yPtrans
+			double[:] yPtrans
 			double[:] yPgrid, yTdist, yTgrid
-			double xWeights[2]
-			long xIndices[2]
-			int ix, ic, iz, iyP1, iyP2, iyT, ix2
-			long ii
-			long[:] I, J
-			double[:] V
+			long ix, midpoint, ii = 0
+			interpMatArgs interp_args
 
-		I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
-		J = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
-		V = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2))
+		self.I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
+		self.J = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
+		self.V = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2))
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
 		yPgrid = self.income.yPgrid.flatten()
-		yPtrans = self.income.yPtrans
+		yPtrans = self.income.yPtrans.flatten(order='F')
 		yTgrid = self.income.yTgrid.flatten()
 		yTdist = self.income.yTdist.flatten()
 
-		self.EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
-
-		ii = 0
-		
-		for ix in range(self.p.nx):
-			xval = xgrid[ix]
-
-			for ic in range(self.p.nc):
-				assets = self.p.R * (xval - cgrid[ic])
-
-				for iz in range(self.p.nz):
-
-					for iyP1 in range(self.p.nyP):
-					
-						for iyP2 in range(self.p.nyP):
-							Pytrans = yPtrans[iyP1,iyP2]
-							yP2 = yPgrid[iyP2]
-
-							for iyT in range(self.p.nyT):
-								cash = assets + yP2 * yTgrid[iyT] + self.nextMPCShock + self.p.govTransfer
-
-								I[ii] = ix + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP1
-								I[ii+1] = ix + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP1
-
-								cfunctions.getInterpolationWeights(&xgrid[0],cash,self.p.nx,&xIndices[0],&xWeights[0])
-
-								J[ii] = xIndices[0] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
-								J[ii+1] = xIndices[1] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
-
-								V[ii] = Pytrans * yTdist[iyT] * xWeights[0]
-								V[ii+1] = Pytrans * yTdist[iyT] * xWeights[1]
-
-								ii += 2
+		interp_args.xgrid = &xgrid[0]
+		interp_args.cgrid = &cgrid[0]
+		interp_args.yPgrid = &yPgrid[0]
+		interp_args.yPtrans = &yPtrans[0]
+		interp_args.yTgrid = &yTgrid[0]
+		interp_args.yTdist = &yTdist[0]
+		interp_args.nx = self.p.nx
+		interp_args.nc = self.p.nc
+		interp_args.nz = self.p.nz
+		interp_args.nyP = self.p.nyP
+		interp_args.nyT = self.p.nyT
+		interp_args.R = self.p.R
+		interp_args.govTransfer = self.p.govTransfer
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
-		self.interpMat = sparse.coo_matrix((V,(I,J)),shape=(length,length)).tocsr()
+		midpoint =  self.p.nx + self.p.nx*self.p.nc + self.p.nx*self.p.nc*self.p.nz \
+			+ self.p.nx*self.p.nc*self.p.nz*self.p.nyP + self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyT
+
+		for ix in prange(interp_args.nx, schedule='static', nogil=True):
+			self.findInterpMatOneX(ix, interp_args, &ii)
+
+		self.interpMat = sparse.coo_matrix((self.V,(self.I,self.J)),shape=(length,length)).tocsr()
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void findInterpMatOneX(self, long ix, interpMatArgs args, long *count) nogil:
+
+		cdef: 
+			double xWeights[2]
+			long xIndices[2]
+			double xval, assets, cash, Pytrans, yP2
+			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
+
+		xval = args.xgrid[ix]
+
+		for ic in range(args.nc):
+			assets = args.R * (xval - args.cgrid[ic])
+
+			for iz in range(args.nz):
+
+				for iyP1 in range(args.nyP):
+
+					for iyP2 in range(args.nyP):
+						Pytrans = args.yPtrans[iyP1+args.nyP*iyP2]
+						yP2 = args.yPgrid[iyP2]
+
+						for iyT in range(args.nyT):
+							with gil:
+								ii = count[0]
+								count[0] += 2
+
+							ii2 = count[0] + 1
+							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
+
+							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
+
+							self.I[ii] = row
+							self.I[ii2] = row
+
+							cfunctions.getInterpolationWeights(args.xgrid,cash,args.nx,&xIndices[0],&xWeights[0])
+
+							self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+							self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+
+							self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
+							self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
