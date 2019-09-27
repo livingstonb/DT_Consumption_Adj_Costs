@@ -213,15 +213,19 @@ mpcNewsSimulators = [None] * 6
 # ADD A NESTED LIST SO THAT:
 # i-th element is the model for a shock in i+1 periods
 
+model.interpMat = []
+
 futureShockModels = [None] * 6
 for ishock in futureShockIndices:
 	# shock next period
 	futureShockModels[ishock] = ModelWithNews(
-		params, income, grids, model.valueFunction, 
+		params, income, grids, model.interpMat,
+		model.valueFunction,
 		params.MPCshocks[ishock])
 
 	if SimulateMPCs:
 		futureShockModels[ishock].solve()
+		futureShockModels[ishock].interpMat = []
 
 		# for period in range(1,4):
 		# 	# shock in two or more periods
@@ -257,7 +261,7 @@ if Simulate:
 	print('\nMPCS out of news:\n')
 	print(mpcNewsSimulator.results.to_string())
 
-	name_series = pd.Series({'Experiment':params.name})
+	name_series = pd.Series({'Experiments':params.name})
 	index_series = pd.Series({'Index':params.index})
 	results = pd.concat([	name_series,
 							params.series, 

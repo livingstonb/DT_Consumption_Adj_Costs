@@ -98,9 +98,9 @@ class Model(CModel):
 		super().doComputations()
 
 class ModelWithNews(Model):
-	def __init__(self, params, income, grids, valueGuess, nextMPCShock):
+	def __init__(self, params, income, grids, valueNext, nextMPCShock):
 		self.nextMPCShock = nextMPCShock
-		self.valueFunction = valueGuess
+		self.valueFunction = valueNext
 
 		super().__init__(params, income, grids)
 

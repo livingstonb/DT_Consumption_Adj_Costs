@@ -44,7 +44,7 @@ cdef class CModel:
 		readonly tuple dims, dims_yT
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
 		public double[:,:,:,:] EMAX
-		readonly object interpMat
+		public object interpMat
 		public double[:,:,:,:] cSwitchingPolicy
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
 		long [:] I, J
