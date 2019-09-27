@@ -219,7 +219,7 @@ futureShockModels = [None] * 6
 for ishock in futureShockIndices:
 	# shock next period
 	futureShockModels[ishock] = ModelWithNews(
-		params, income, grids, model.interpMat,
+		params, income, grids,
 		model.valueFunction,
 		params.MPCshocks[ishock])
 

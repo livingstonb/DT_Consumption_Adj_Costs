@@ -30,7 +30,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['noPersIncome'] = False
 				paramsDicts[ii]['riskAver'] = riskAver
 				paramsDicts[ii]['wealthTarget'] = wealthTarget
-				paramsDicts[ii]['nx'] = 200
+				paramsDicts[ii]['nx'] = 150
 				paramsDicts[ii]['nc'] = 150
 				paramsDicts[ii]['nSim'] = 1e5
 				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
@@ -54,7 +54,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['riskAver'] = 1
 			paramsDicts[ii]['risk_aver_grid'] = np.array(RAgrid)
 			paramsDicts[ii]['wealthTarget'] = wealthTarget
-			paramsDicts[ii]['nx'] = 200
+			paramsDicts[ii]['nx'] = 150
 			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
@@ -79,7 +79,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['riskAver'] = 1
 			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
 			paramsDicts[ii]['wealthTarget'] = wealthTarget
-			paramsDicts[ii]['nx'] = 200
+			paramsDicts[ii]['nx'] = 150
 			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
