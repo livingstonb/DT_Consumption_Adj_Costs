@@ -136,7 +136,7 @@ cdef class CModel:
 								ii = count[0]
 								count[0] += 2
 
-							ii2 = count[0] + 1
+							ii2 = ii + 1
 							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
 
 							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
