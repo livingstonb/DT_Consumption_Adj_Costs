@@ -12,6 +12,18 @@ from libc.math cimport log, fabs
 from libc.stdlib cimport malloc, free
 
 cdef class CSimulator:
+	"""
+	Serves as the base class for simulations.
+
+	cSwitching policies contains the optimal policies
+	conditional on switching, with an additional dimension
+	for model. The last dimension is used for policies
+	out of news.
+
+	valueDiff is the difference between the value of
+	switching and the value of not switching, with the
+	last dimension being the model.
+	"""
 	cdef:
 		readonly object p, income, grids
 		readonly double[:,:,:,:,:] valueDiff, cSwitchingPolicy

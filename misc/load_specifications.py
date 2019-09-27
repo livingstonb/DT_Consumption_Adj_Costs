@@ -24,7 +24,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['name'] = f'adjustCost{adjustCost},' \
 					+ ' riskAver{riskAver}, wealth{wealthTarget}'
 				paramsDicts[ii]['index'] = ii
-				paramsDicts[ii]['cubicEMAXInterp'] = False
 				paramsDicts[ii]['cubicValueInterp'] = True
 				paramsDicts[ii]['adjustCost'] = adjustCost
 				paramsDicts[ii]['noPersIncome'] = False
@@ -47,7 +46,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts.append({})
 			paramsDicts[ii]['name'] = f'IES Heterogeneity {ilabel}'
 			paramsDicts[ii]['index'] = ii
-			paramsDicts[ii]['cubicEMAXInterp'] = False
 			paramsDicts[ii]['cubicValueInterp'] = True
 			paramsDicts[ii]['adjustCost'] = adjustCost
 			paramsDicts[ii]['noPersIncome'] = False
@@ -72,7 +70,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts.append({})
 			paramsDicts[ii]['name'] = f'Discount Factor Heterogeneity {ilabel}'
 			paramsDicts[ii]['index'] = ii
-			paramsDicts[ii]['cubicEMAXInterp'] = False
 			paramsDicts[ii]['cubicValueInterp'] = True
 			paramsDicts[ii]['adjustCost'] = adjustCost
 			paramsDicts[ii]['noPersIncome'] = False
@@ -102,7 +99,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'custom'
-	paramsDicts[ii]['cubicEMAXInterp'] = False
 	paramsDicts[ii]['cubicValueInterp'] = True
 	paramsDicts[ii]['adjustCost'] = 0.1
 	paramsDicts[ii]['noPersIncome'] = False

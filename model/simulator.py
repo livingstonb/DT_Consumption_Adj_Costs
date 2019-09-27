@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 
 class Simulator(CSimulator):
+	"""
+	Base class for simulations
+	"""
 	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods):
 		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods)
 
@@ -36,7 +39,9 @@ class Simulator(CSimulator):
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
 class EquilibriumSimulator(Simulator):
-
+	"""
+	This class is used to simulate statistics for the solved model.
+	"""
 	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs):
 		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, params.tSim)
 
@@ -193,6 +198,12 @@ class EquilibriumSimulator(Simulator):
 		print(f"Mean wealth = {self.results['Mean wealth']}")
 
 class MPCSimulator(Simulator):
+	"""
+	This class is used to simulate MPCs.
+
+	finalStates contains the stationary distribution from simulating
+	the original solved model.
+	"""
 	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, shockIndices, finalStates):
 		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, 4)
 		self.nCols = len(shockIndices) + 1

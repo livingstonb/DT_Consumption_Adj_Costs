@@ -4,15 +4,17 @@ from model.cmodel import CModel
 from misc import functions
 
 class Model(CModel):
+	"""
+	Inherits attributes and methods from the base extension class
+	CModel. This is not to be used when computing MPCs out of news.
+	"""
 	def __init__(self, params, income, grids):
 		self.interpMat = None
-
 		super().__init__(params, income, grids)
-		
 		self.initialize()
 
 	def initialize(self):
-		self.nextMPCShock = 0
+		self.nextMPCShock = 0 # no shock next period
 
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
@@ -71,7 +73,7 @@ class Model(CModel):
 
 	def updateValueFunction(self):
 		"""
-		This method updates self.valueFunction by finding max(valueSwitch-adjustCost,valueNoSwitch),
+		This method updates valueFunction by finding max(valueSwitch-adjustCost,valueNoSwitch),
 		where valueSwitch is used wherever c > x in the state space.
 		"""
 		self.valueFunction = np.where(self.grids.mustSwitch,
@@ -81,16 +83,16 @@ class Model(CModel):
 
 	def updateEMAX(self):
 		"""
-		This method computes E[V] from the most recent value function iteration.
+		This method computes EMAX, which is interpMat * valueFunction when
+		there is NOT news of a future shock. In the case of news, next
+		period's value function should be used.
 		"""
-		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')).reshape(self.grids.matrixDim, order='F')
-
-			# np.reshape(self.valueFunction,(-1,1),order='F')
-				# ).reshape(self.grids.matrixDim,order='F')
+		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
+			).reshape(self.grids.matrixDim, order='F')
 
 	def updateValueNoSwitch(self):
 		"""
-		Updates self.valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
+		Updates valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
 		"""
 		self.valueNoSwitch = functions.utilityMat(self.p.risk_aver_grid,self.grids.c.matrix) \
 			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
@@ -100,6 +102,11 @@ class Model(CModel):
 		super().doComputations()
 
 class ModelWithNews(Model):
+	"""
+	This class solves the model when a future shock is expected. The value function
+	used to compute EMAX should come from the solution to a model in which an
+	there is an immediate shock or if a future shock is expected.
+	"""
 	def __init__(self, params, income, grids, valueNext, nextMPCShock):
 		self.nextMPCShock = nextMPCShock
 		self.valueFunction = valueNext
@@ -107,9 +114,11 @@ class ModelWithNews(Model):
 		super().__init__(params, income, grids)
 
 	def initialize(self):
+		# EMAX is only found once
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
 
 	def updateEMAX(self):
+		# EMAX is only found once
 		pass

@@ -34,8 +34,7 @@ cdef enum:
 
 cdef class CModel:
 	"""
-	This extension class solves for the value function of a heterogenous
-	agent model with disutility of consumption adjustment.
+	Base class which serves as the workhorse of the model.
 	"""
 	cdef:
 		public object p
@@ -61,18 +60,17 @@ cdef class CModel:
 	@cython.wraparound(False)
 	def constructInterpolantForEMAX(self):
 		"""
-		This method can be used to double check the construction of the
-		interpolation matrix for updating EMAT.
+		This method constructs the sparse matrix A such that
+		EMAX(x,c,z,yP) = A * E[V(R(x-c),c,z',yP')|z,yP] where
+		the expectation on the right is a flattened vector.
 		"""
 		cdef:
-			double emax, Pytrans, assets, cash, yP2
-			double vInterp, xval
-			double[:] xgrid, cgrid, valueVec
-			double[:] yPtrans
+			double[:] xgrid, cgrid
 			double[:] yPgrid, yTdist, yTgrid
 			long ix
 			interpMatArgs interp_args
 
+		# (I,J) indicate the (row,column) for the value in V
 		self.I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
 		self.J = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
 		self.V = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2))
@@ -107,7 +105,11 @@ cdef class CModel:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void findInterpMatOneX(self, long ix, interpMatArgs args) nogil:
-
+		"""
+		Constructs the rwos of the interpolant matrix
+		corresponding with initial cash holdings of
+		xgrid[ix]
+		"""
 		cdef: 
 			double xWeights[2]
 			long xIndices[2]
@@ -154,7 +156,7 @@ cdef class CModel:
 	@cython.wraparound(False)
 	def maximizeValueFromSwitching(self, bint findPolicy=False):
 		"""
-		Updates self.valueSwitch via a maximization over u(c) + beta * EMAX(c)
+		Updates valueSwitch via a maximization over u(c) + beta * EMAX(c)
 		at each point in the (x,z,yP)-space by computing u(c) and interpolating 
 		EMAX(c) at each iteration.
 		"""
