@@ -33,14 +33,14 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'custom'
+name = ''
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
+IterateBeta = True
 Simulate = True # relevant if IterateBeta is False
-SimulateMPCs = False
+SimulateMPCs = True
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir,'output')
@@ -80,6 +80,7 @@ model = Model(params, income, grids)
 
 if IterateBeta:
 	Simulate = True
+	SimulateMPCs = True
 
 	#-----------------------------------------------------------#
 	#      FIND VALID LOWER BOUND FOR DISCOUNT RATE             #
@@ -189,8 +190,6 @@ model.solve()
 if Simulate:
 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids, [model])
 	eqSimulator.simulate(final=True)
-
-	import pdb; pdb.set_trace()
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
