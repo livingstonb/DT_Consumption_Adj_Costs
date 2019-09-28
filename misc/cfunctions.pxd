@@ -21,13 +21,7 @@ ctypedef double (*objectiveFn)(double x, FnArgs fargs) nogil
 
 cdef double utility(double riskaver, double con) nogil
 
-cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals)
-
 cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
-
-cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil
-
-cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals)
 
 cdef void getInterpolationWeights(
 	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
@@ -40,3 +34,5 @@ cdef double cmax(double *vals, int nVals) nogil
 cdef double cmin(double *vals, int nVals) nogil
 
 cdef long cargmax(double *vals, int nVals) nogil
+
+cpdef double gini(double[:] vals)

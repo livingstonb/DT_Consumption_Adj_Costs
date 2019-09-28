@@ -105,7 +105,7 @@ cdef class Params:
 
 		# returns (annual)
 		self.r = 0.02
-		self.R = 1 + self.r
+		self.R = 1.0 + self.r
 
 		# death probability (annual)
 		self.deathProb = 1.0/50.0
@@ -119,7 +119,7 @@ cdef class Params:
 		self.discount_factor_grid = np.array([0.0],dtype=float) # timeDiscount is added to this
 
 		# gov transfer
-		self.govTransfer = 0.0081 * 2 * 4
+		self.govTransfer = 0.0081 * 2.0 * 4.0
 
 		#-----------------------------------#
 		#        OVERRIDE DEFAULTS          #

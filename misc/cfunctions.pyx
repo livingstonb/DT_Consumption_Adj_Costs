@@ -19,52 +19,6 @@ cdef inline double utility(double riskaver, double con) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef long[:] searchSortedMultipleInput(double[:] grid, double[:] vals):
-	"""
-	For each value in vals, this function finds the index i for which
-	grid[i-1] <= value < grid[i], with the exception that i = 0 is 
-	taken to be i = 1 (i.e. 0 is never an output). Each element i
-	of the output can be used as the index of the second value for
-	interpolation.
-	"""
-	cdef long n, m, i
-	cdef double currentVal
-	cdef long[:] indices
-
-	n = grid.size
-	m = vals.size
-
-	indices = np.empty((m),dtype=int)
-
-	for i in range(m):
-		currentVal = vals[i]
-
-		indices[i] = fastSearchSingleInput(&grid[0], currentVal, n)
-
-	return indices
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef long searchSortedSingleInput(double[:] grid, double val, long nGrid) nogil:
-	"""
-	For the value val, this function finds the index i for which
-	grid[i-1] <= val < grid[i], with the exception that i = 0 is 
-	taken to be i = 1 (i.e. 0 is never an output). The output can
-	be used as the index of the second value for
-	interpolation.
-	"""
-	cdef long index = 1
-
-	while index < nGrid - 1:
-		if val >= grid[index]:
-			index += 1
-		else:
-			break
-
-	return index
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
 cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
 	"""
 	A faster version of searchSortedSingleInput, uses a bisection algorithm.
@@ -96,49 +50,6 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
 	else:
 		return midpt
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef double[:,:,:] interpolateTransitionProbabilities2D(double[:] grid, double[:,:] vals):
-	"""
-	This function interpolates vals onto grid. If grid is of dimension N and vals is
-	of dimension (M,L), output is dimension (M,L,N). Element (m,l,n) of the output
-	is the weight that should be placed on grid point n for element (m,l) of vals.
-	No extrapolation is performed; for any input that is outside the bounds of grid,
-	the interpolated value is taken to be either the lowest or the highest value of
-	grid.
-	"""
-	cdef:
-		long[:] gridIndices
-		double[:,:,:] probabilities
-		long i, j, igrid1, igrid2
-		double Pi, gridPt1, gridPt2
-
-	probabilities = np.zeros((vals.shape[0],vals.shape[1],grid.shape[0]))
-
-	nGrid = grid.shape[0]
-
-	for j in range(vals.shape[1]):
-		gridIndices = searchSortedMultipleInput(grid,vals[:,j])
-
-		for i in range(vals.shape[0]):
-			igrid2 = gridIndices[i]
-			igrid1 = igrid2 - 1
-
-			gridPt1 = grid[igrid1]
-			gridPt2 = grid[igrid2]
-			Pi = (vals[i,j] - gridPt1) / (gridPt2 - gridPt1)
-
-			if Pi < 0:
-				probabilities[i,j,igrid1] = 1
-				probabilities[i,j,igrid2] = 0
-			elif Pi > 1:
-				probabilities[i,j,igrid1] = 0
-				probabilities[i,j,igrid2] = 1
-			else:
-				probabilities[i,j,igrid1] = 1 - Pi
-				probabilities[i,j,igrid2] = Pi
-
-	return probabilities
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -165,29 +76,6 @@ cdef void getInterpolationWeights(
 	else:
 		weights[0] = weight0
 		weights[1] = 1 - weight0
-
-# @cython.boundscheck(False)
-# @cython.wraparound(False)
-# cdef double mbrak(double ax, double bx, objectiveFn f, FnArgs fargs) nogil:
-# 	cdef double ulim, u, r, q, fu, dum, fa, fb, fc
-
-# 	fa = f(ax,fargs)
-# 	fb = f(bx,fargs)
-
-# 	if fa > fb:
-# 		dum = ax
-# 		ax = bx
-# 		bx = dum
-
-# 		dum = fb
-# 		fb = fa
-# 		fa = dum
-
-# 	cx = bx + GOLD * (bx - ax)
-# 	fc = f(cx,fargs)
-
-# 	while (fc > fb):
-# 		r = (bx-ax)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -306,3 +194,20 @@ cdef long cargmax(double *vals, int nVals) nogil:
 			currentArgMax = i
 
 	return currentArgMax
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef double gini(double[:] vals):
+	cdef:
+		double temp, numerator = 0
+		double denom = 0
+		long i, n = vals.size
+		double[:] vals_sorted = np.sort(vals)
+
+	for i in range(n):
+		numerator += <double> (i+1) * vals_sorted[i]
+		denom += vals_sorted[i]
+
+	temp = <double> n - (numerator/denom)
+
+	return 1.0 - (2.0/(<double>n-1.0)) * temp

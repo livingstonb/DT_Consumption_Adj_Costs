@@ -91,39 +91,22 @@ def testFastSearch(double[:] draws):
 
 	return indices
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-def testNaiveSearch(double[:] draws):
-	cdef long i, nGrid
-	cdef double[:] grid
-	cdef long[:] indices
+# def checkSearch(runs):
+# 	cdef long[:] indicesFast
+# 	cdef long[:] indicesNaive
+# 	draws = np.random.random(runs) * 5
 
-	indices = np.zeros(draws.size,dtype=int)
+# 	indicesFast = testFastSearch(draws)
+# 	indicesNaive = testNaiveSearch(draws)
 
-	nGrid = 800
-	grid = np.linspace(0,5,num=nGrid)
+# 	nGrid = 800
+# 	grid = np.linspace(0,5,num=nGrid)
 
-	for i in range(draws.size):
-		indices[i] = cfunctions.searchSortedSingleInput(grid, draws[i], nGrid)
+# 	for i in range(runs):
+# 		if not (indicesFast[i] == indicesNaive[i]):
+# 			print(f'index from fast algorithm = {indicesFast[i]}')
+# 			print(f'index from slow algorithm = {indicesNaive[i]}')
 
-	return indices
-
-def checkSearch(runs):
-	cdef long[:] indicesFast
-	cdef long[:] indicesNaive
-	draws = np.random.random(runs) * 5
-
-	indicesFast = testFastSearch(draws)
-	indicesNaive = testNaiveSearch(draws)
-
-	nGrid = 800
-	grid = np.linspace(0,5,num=nGrid)
-
-	for i in range(runs):
-		if not (indicesFast[i] == indicesNaive[i]):
-			print(f'index from fast algorithm = {indicesFast[i]}')
-			print(f'index from slow algorithm = {indicesNaive[i]}')
-
-			print(f'grid value at {indicesFast[i]} = {grid[indicesFast[i]]}')
-			print(f'grid value at {indicesNaive[i]} = {grid[indicesNaive[i]]}')
-			print(f'draw value = {draws[i]}')
+# 			print(f'grid value at {indicesFast[i]} = {grid[indicesFast[i]]}')
+# 			print(f'grid value at {indicesNaive[i]} = {grid[indicesNaive[i]]}')
+# 			print(f'draw value = {draws[i]}')

@@ -11,7 +11,6 @@ class Model(CModel):
 	def __init__(self, params, income, grids):
 		self.interpMat = None
 		super().__init__(params, income, grids)
-		self.initialize()
 
 	def initialize(self):
 		self.nextMPCShock = 0 # no shock next period
@@ -98,9 +97,6 @@ class Model(CModel):
 			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
 
-	def doComputations(self):
-		super().doComputations()
-
 class ModelWithNews(Model):
 	"""
 	This class solves the model when a future shock is expected. The value function
@@ -113,12 +109,13 @@ class ModelWithNews(Model):
 
 		super().__init__(params, income, grids)
 
-	def initialize(self):
-		# EMAX is only found once
+	def solve(self):
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
+		super().solve()
 
 	def updateEMAX(self):
-		# EMAX is only found once
+		# EMAX has already been found, based on next period's
+		# value function
 		pass

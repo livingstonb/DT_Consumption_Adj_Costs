@@ -18,12 +18,8 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 					'  $5000 in 3 months',
 					'NEWS-LOSS',
 					'  $500 in 3 months',
-					'  $2500 in 3 months',
-					'  $5000 in 3 months',
 					'LOAN',
 					'  $500',
-					'  $2500',
-					'  $5000',
 				]
 
 	colnames = [	
@@ -52,10 +48,6 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 					np.nan,
 					np.nan,
 					np.nan,
-					np.nan,
-					np.nan,
-					np.nan,
-					np.nan,
 				]
 
 	neg_mpc_share = [	
@@ -71,10 +63,6 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 						mpcNewsSimulator.results[f'P(Q1 MPC < 0) for news of {p.MPCshocks[3]} shock'],
 						mpcNewsSimulator.results[f'P(Q1 MPC < 0) for news of {p.MPCshocks[4]} shock'],
 						mpcNewsSimulator.results[f'P(Q1 MPC < 0) for news of {p.MPCshocks[5]} shock'],
-						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
 						np.nan,
 						np.nan,
 						np.nan,
@@ -98,10 +86,6 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 						np.nan,
 						np.nan,
 						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
 						]
 
 	pos_mpc_share = [	
@@ -117,10 +101,6 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 						mpcNewsSimulator.results[f'P(Q1 MPC > 0) for news of {p.MPCshocks[3]} shock'],
 						mpcNewsSimulator.results[f'P(Q1 MPC > 0) for news of {p.MPCshocks[4]} shock'],
 						mpcNewsSimulator.results[f'P(Q1 MPC > 0) for news of {p.MPCshocks[5]} shock'],
-						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
 						np.nan,
 						np.nan,
 						np.nan,
@@ -144,10 +124,6 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 						np.nan,
 						np.nan,
 						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
 						]
 
 	med_cond_mpc = [
@@ -163,10 +139,6 @@ def create(p, mpcSimulator, mpcNewsSimulator):
 						mpcNewsSimulator.results[f'Median(Q1 MPC | MPC > 0) out of news of {p.MPCshocks[3]} shock'],
 						mpcNewsSimulator.results[f'Median(Q1 MPC | MPC > 0) out of news of {p.MPCshocks[4]} shock'],
 						mpcNewsSimulator.results[f'Median(Q1 MPC | MPC > 0) out of news of {p.MPCshocks[5]} shock'],
-						np.nan,
-						np.nan,
-						np.nan,
-						np.nan,
 						np.nan,
 						np.nan,
 						np.nan,

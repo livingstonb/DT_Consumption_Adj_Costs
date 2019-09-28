@@ -77,6 +77,7 @@ grids = modelObjects.GridCreator(params, income)
 #      CREATE MODEL                                             #
 #---------------------------------------------------------------#
 model = Model(params, income, grids)
+model.initialize()
 
 if IterateBeta:
 	Simulate = True
@@ -213,8 +214,8 @@ if Simulate and SimulateMPCs:
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
-futureShockIndices = [3,4,5]
-currentShockIndices = [6,6,6] # 6 is no shock
+futureShockIndices = [2,3,4,5]
+currentShockIndices = [6] * len(futureShockIndices) # 6 is shock of 0
 
 cSwitchingPolicies = np.zeros((params.nx,1,params.nz,params.nyP,len(futureShockIndices)+1))
 valueDiffs = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(futureShockIndices)+1))

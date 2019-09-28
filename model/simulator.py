@@ -1,5 +1,7 @@
 from model.csimulator import CSimulator
 
+from misc.cfunctions import gini
+
 import numpy as np
 import pandas as pd
 
@@ -175,9 +177,7 @@ class EquilibriumSimulator(Simulator):
 		self.results['Top 1% wealth share'] = \
 			asimNumpy[asimNumpy>=pctile99].sum() / asimNumpy.sum()
 
-		if final:
-			# gini
-			self.computeGini()
+		self.results['Gini coefficient (wealth)'] = gini(self.asim[:,0])
 
 		# consumption percentiles
 		for pctile in self.p.wealthPercentiles:
@@ -366,16 +366,17 @@ class MPCSimulatorNews(MPCSimulator):
 		self.results = pd.Series(name=self.p.name)
 		rows = []
 		for ishock in range(6):
-			futureShock = self.p.MPCshocks[ishock]
+			shock = self.p.MPCshocks[ishock]
 			for quarter in range(1,2):
-				rows.append(f'E[Q{quarter} MPC] out of news of {futureShock} shock')
-				rows.append(f'E[Q{quarter} MPC | MPC > 0] out of news of {futureShock} shock')
-				rows.append(f'Median(Q{quarter} MPC | MPC > 0) out of news of {futureShock} shock')
+				rows.append(f'E[Q{quarter} MPC] out of news of {shock} shock')
+				rows.append(f'E[Q{quarter} MPC | MPC > 0] out of news of {shock} shock')
+				rows.append(f'Median(Q{quarter} MPC | MPC > 0) out of news of {shock} shock')
 
 		for ishock in range(6):
-			rows.append(f'P(Q1 MPC < 0) for news of {futureShock} shock')
-			rows.append(f'P(Q1 MPC = 0) for news of {futureShock} shock')
-			rows.append(f'P(Q1 MPC > 0) for news of {futureShock} shock')
+			shock = self.p.MPCshocks[ishock]
+			rows.append(f'P(Q1 MPC < 0) for news of {shock} shock')
+			rows.append(f'P(Q1 MPC = 0) for news of {shock} shock')
+			rows.append(f'P(Q1 MPC > 0) for news of {shock} shock')
 
 		for row in rows:
 			self.results[row] = np.nan
