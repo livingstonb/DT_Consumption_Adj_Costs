@@ -7,6 +7,6 @@
 #SBATCH --time=8:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem-per-cpu=6000
+#SBATCH --mem-per-cpu=8000
 
 python -u master.py $SLURM_ARRAY_TASK_ID

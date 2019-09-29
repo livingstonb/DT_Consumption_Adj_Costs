@@ -277,6 +277,7 @@ if Simulate:
 	name_series = pd.Series({'Experiments':params.name})
 	index_series = pd.Series({'Index':params.index})
 	results = pd.concat([	name_series,
+							index_series,
 							params.series, 
 							eqSimulator.results,
 							mpcSimulator.results,
