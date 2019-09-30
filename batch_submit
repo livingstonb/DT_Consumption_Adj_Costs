@@ -1,0 +1,20 @@
+#!/bin/bash
+
+for i in $(seq 0 84);
+do
+	if [ i -lt 61 ]; then
+		memory=4G
+	else
+		memory=8G
+	fi
+
+	sbatch --job-name=cyth$i \
+		--output=output/run$i.out \
+		--error=output/run$i.err \
+		--partition=broadwl \
+		--time=8:00:00 \
+		--nodes=1 \
+		--ntasks-per-node=1 \
+		--mem=$memory \
+		run_job.sh $i
+done

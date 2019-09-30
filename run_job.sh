@@ -1,0 +1,1 @@
+python -u master.py $1
