@@ -17,3 +17,4 @@ run: all
 clean:
 	rm -f $(CFILES) $(OBJECTS)
 	rm -rf temp
+	rm -f output/*
