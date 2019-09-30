@@ -201,6 +201,7 @@ cdef class Params:
 	def resetDiscountRate(self, newTimeDiscount):
 		self.discount_factor_grid += newTimeDiscount - self.timeDiscount
 		self.timeDiscount = newTimeDiscount
+		self.series['Discount factor (annualized)'] = newTimeDiscount ** self.freq
 
 
 class Income:

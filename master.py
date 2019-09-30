@@ -33,7 +33,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = ''
+name = 'custom'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -191,17 +191,20 @@ if IterateBeta:
 #-----------------------------------------------------------#
 model.solve()
 
+
+eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
+	model.cSwitchingPolicy, model.valueDiff)
 if Simulate:
-	eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
-		model.cSwitchingPolicy, model.valueDiff)
 	eqSimulator.simulate(final=True)
+	finalSimStates = eqSimulator.finalStates
+else:
+	finalSimStates = []
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
 shockIndices = [0,1,2,3,4,5]
 
-finalSimStates = eqSimulator.finalStates
 mpcSimulator = simulator.MPCSimulator(
 	params, income, grids, 
 	model.cSwitchingPolicy,
@@ -223,7 +226,7 @@ valueDiffs = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(futureShockI
 cSwitchingPolicies[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 valueDiffs[:,:,:,:,-1] = model.valueDiff[:,:,:,:,0]
 valueBaseline = model.valueFunction
-del model
+model.interpMat = []
 
 i = 0
 for ishock in futureShockIndices:
@@ -281,6 +284,7 @@ if Simulate:
 							params.series, 
 							eqSimulator.results,
 							mpcSimulator.results,
+							mpcNewsSimulator,
 							])
 
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
@@ -301,7 +305,7 @@ cvals = np.array([grids.c.flat[i] for i in icvals])
 
 def plot_policies():
 	cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch)
-	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy) + (~cSwitch) * np.asarray(grids.c.matrix)
+	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy[:,:,:,:,0]) + (~cSwitch) * np.asarray(grids.c.matrix)
 
 	print(xvals)
 

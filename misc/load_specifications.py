@@ -22,7 +22,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			for wealthTarget in wealthTargets:
 				paramsDicts.append({})
 				paramsDicts[ii]['name'] = f'adjustCost{adjustCost},' \
-					+ ' riskAver{riskAver}, wealth{wealthTarget}'
+					+ f' riskAver{riskAver}, wealth{wealthTarget}'
 				paramsDicts[ii]['index'] = ii
 				paramsDicts[ii]['cubicValueInterp'] = True
 				paramsDicts[ii]['adjustCost'] = adjustCost
@@ -61,14 +61,15 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			ilabel += 1
 
 	adjustCosts = [0.1,0.5,1,2,5]
-	discountGrids = [[-0.02,0.02],[-0.05,0.05],[-0.1,0.1]]
+	discountGrids = [[-0.01,0.01],[-0.025,0.025],[-0.05,0.05]]
+	discount_width = [0.02,0.05,0.1]
 	wealthTarget = 3.2
 
-	ilabel = 0
 	for adjustCost in adjustCosts:
+		i_discount_grid = 0
 		for discountGrid in discountGrids:
 			paramsDicts.append({})
-			paramsDicts[ii]['name'] = f'Discount Factor Heterogeneity {ilabel}'
+			paramsDicts[ii]['name'] = f'Discount Factor Heterogeneity, beta width{discount_width[i_discount_grid]}'
 			paramsDicts[ii]['index'] = ii
 			paramsDicts[ii]['cubicValueInterp'] = True
 			paramsDicts[ii]['adjustCost'] = adjustCost
@@ -80,6 +81,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['nc'] = 150
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+			i_discount_grid += 1
 
 			ii += 1
 			ilabel += 1
@@ -100,12 +102,12 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'custom'
 	paramsDicts[ii]['cubicValueInterp'] = True
-	paramsDicts[ii]['adjustCost'] = 0.1
+	paramsDicts[ii]['adjustCost'] = 1
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
-	paramsDicts[ii]['nx'] = 100
-	paramsDicts[ii]['nc'] = 100
+	paramsDicts[ii]['nx'] = 150
+	paramsDicts[ii]['nc'] = 150
 	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['timeDiscount'] = 0.9

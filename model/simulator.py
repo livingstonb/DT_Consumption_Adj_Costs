@@ -212,10 +212,11 @@ class MPCSimulator(Simulator):
 
 		self.finalStates = finalStates
 
+	def simulate(self):
+
 		self.initialize_variables()
 		self.initialize_results()
 
-	def simulate(self):
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
 
