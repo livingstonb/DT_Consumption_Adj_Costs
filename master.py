@@ -33,7 +33,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'custom'
+name = ''
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
