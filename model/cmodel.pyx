@@ -42,7 +42,7 @@ cdef class CModel:
 		public double nextMPCShock
 		readonly tuple dims, dims_yT
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
-		public double[:,:,:,:] EMAX, add_to_EMAX
+		public double[:,:,:,:] EMAX, EMAXnext, add_to_EMAX
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
 		long [:] I, J
 		double [:] V
@@ -69,6 +69,8 @@ cdef class CModel:
 			double[:] yPgrid, yTdist, yTgrid, yPtrans
 			long ix
 			interpMatArgs interp_args
+
+		self.add_to_EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
 
 		# (I,J) indicate the (row,column) for the value in V
 		self.I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
@@ -143,7 +145,7 @@ cdef class CModel:
 
 							if cash < args.xmin:
 								cfunctions.getInterpolationWeights(args.cgrid,cash,args.nc,&cIndices[0],&cWeights[0])
-								self.add_to_EMAX[ix,ic,iz,iyP1] = Pytrans * args.yTdist[iyT] * (
+								self.add_to_EMAX[ix,ic,iz,iyP1] += Pytrans * args.yTdist[iyT] * (
 									cfunctions.utility(fargs.riskAver, cash)
 									+ args.timeDiscountAdj
 										* 	( 	xWeights[0] * cWeights[0] * self.EMAXnext[xIndices[0],cIndices[0],iz,iyP2]
@@ -153,21 +155,20 @@ cdef class CModel:
 											)
 									)
 
-								continue
+							else
+								row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
 
-							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
+								self.I[ii] = row
+								self.I[ii2] = row
 
-							self.I[ii] = row
-							self.I[ii2] = row
+								self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+								self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
 
-							self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
-							self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+								self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
+								self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
 
-							self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
-							self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
-
-							ii += 2
-							ii2 += 2
+								ii += 2
+								ii2 += 2
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)

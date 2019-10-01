@@ -103,9 +103,10 @@ class ModelWithNews(Model):
 	used to compute EMAX should come from the solution to a model in which an
 	there is an immediate shock or if a future shock is expected.
 	"""
-	def __init__(self, params, income, grids, valueNext, nextMPCShock):
+	def __init__(self, params, income, grids, valueNext, EMAXnext, nextMPCShock):
 		self.nextMPCShock = nextMPCShock
 		self.valueFunction = valueNext
+		self.EMAXnext = EMAXnext
 
 		super().__init__(params, income, grids)
 
@@ -113,6 +114,10 @@ class ModelWithNews(Model):
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
+
+		if self.nextMPCShock < 0:
+			self.EMAX = np.asarray(self.EMAX) + np.asarray(self.add_to_EMAX)
+
 		super().solve()
 
 	def updateEMAX(self):

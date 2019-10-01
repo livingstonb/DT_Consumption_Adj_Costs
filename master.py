@@ -226,6 +226,7 @@ valueDiffs = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(futureShockI
 cSwitchingPolicies[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 valueDiffs[:,:,:,:,-1] = model.valueDiff[:,:,:,:,0]
 valueBaseline = model.valueFunction
+emaxBaseline = model.EMAX
 model.interpMat = []
 
 i = 0
@@ -234,6 +235,7 @@ for ishock in futureShockIndices:
 	futureShockModel = ModelWithNews(
 		params, income, grids,
 		valueBaseline,
+		emaxBaseline,
 		params.MPCshocks[ishock])
 
 	if SimulateMPCs:
