@@ -17,7 +17,7 @@ from libc.stdlib cimport malloc, free
 
 ctypedef struct interpMatArgs:
 	long nx, nc, nz, nyP, nyT
-	double R, govTransfer
+	double R, govTransfer, xmin, timeDiscountAdj
 	double *cgrid
 	double *xgrid
 	double *yPgrid
@@ -42,7 +42,7 @@ cdef class CModel:
 		public double nextMPCShock
 		readonly tuple dims, dims_yT
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
-		public double[:,:,:,:] EMAX
+		public double[:,:,:,:] EMAX, add_to_EMAX
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
 		long [:] I, J
 		double [:] V
@@ -82,6 +82,7 @@ cdef class CModel:
 		yTgrid = self.income.yTgrid.flatten()
 		yTdist = self.income.yTdist.flatten()
 
+		interp_args.xmin = xgrid[0]
 		interp_args.xgrid = &xgrid[0]
 		interp_args.cgrid = &cgrid[0]
 		interp_args.yPgrid = &yPgrid[0]
@@ -95,6 +96,7 @@ cdef class CModel:
 		interp_args.nyT = self.p.nyT
 		interp_args.R = self.p.R
 		interp_args.govTransfer = self.p.govTransfer
+		interp_args.timeDiscountAdj = self.p.timeDiscount * (1-self.p.deathProb)
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
 		for ix in prange(interp_args.nx, num_threads=4, schedule='static', nogil=True):
@@ -112,7 +114,9 @@ cdef class CModel:
 		"""
 		cdef: 
 			double xWeights[2]
+			double cWeights[2]
 			long xIndices[2]
+			long cIndices[2]
 			double xval, assets, cash, Pytrans, yP2
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
@@ -135,13 +139,26 @@ cdef class CModel:
 						for iyT in range(args.nyT):
 
 							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
+							cfunctions.getInterpolationWeights(args.xgrid,cash,args.nx,&xIndices[0],&xWeights[0])
+
+							if cash < args.xmin:
+								cfunctions.getInterpolationWeights(args.cgrid,cash,args.nc,&cIndices[0],&cWeights[0])
+								self.add_to_EMAX[ix,ic,iz,iyP1] = Pytrans * args.yTdist[iyT] * (
+									cfunctions.utility(fargs.riskAver, cash)
+									+ args.timeDiscountAdj
+										* 	( 	xWeights[0] * cWeights[0] * self.EMAXnext[xIndices[0],cIndices[0],iz,iyP2]
+												+ xWeights[1] * cWeights[0] * self.EMAXnext[xIndices[1],cIndices[0],iz,iyP2]
+												+ xWeights[0] * cWeights[1] * self.EMAXnext[xIndices[0],cIndices[1],iz,iyP2]
+												+ xWeights[1] * cWeights[1] * self.EMAXnext[xIndices[1],cIndices[1],iz,iyP2]
+											)
+									)
+
+								continue
 
 							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
 
 							self.I[ii] = row
 							self.I[ii2] = row
-
-							cfunctions.getInterpolationWeights(args.xgrid,cash,args.nx,&xIndices[0],&xWeights[0])
 
 							self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
 							self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2

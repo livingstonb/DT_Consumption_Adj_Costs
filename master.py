@@ -38,9 +38,9 @@ name = ''
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
-Simulate = True # relevant if IterateBeta is False
-SimulateMPCs = True
+IterateBeta = False
+Simulate = False # relevant if IterateBeta is False
+SimulateMPCs = False
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir,'output')
