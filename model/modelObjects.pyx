@@ -133,32 +133,14 @@ cdef class Params:
 					raise Exception(f'"{parameter}" is not a valid parameter')
 
 		self.risk_aver_grid = self.risk_aver_grid.astype(float)
-		self.risk_aver_grid += self.riskAver
+		
 
 		self.discount_factor_grid = self.discount_factor_grid.astype(float)
-		self.discount_factor_grid += self.timeDiscount
 
 		if (self.risk_aver_grid.size>1) and (self.discount_factor_grid.size>1):
 			raise Exception('Cannot have both IES and discount factor heterogeneity')
 		else:
 			self.nz = max(self.risk_aver_grid.size, self.discount_factor_grid.size)
-
-		#-----------------------------------#
-		#     SERIES FOR OUTPUT TABLE       #
-		#-----------------------------------#
-		index = [	'Discount factor (annualized)',
-					'Adjustment cost (annualized)',
-					'RA Coeff',
-					'Returns r (annualized)',
-					'Frequency',
-					]
-		data = [	self.timeDiscount,
-					self.adjustCost,
-					self.riskAver,
-					self.r,
-					self.freq,
-					]
-		self.series = pd.Series(data=data,index=index)
 
 		#-----------------------------------#
 		#     ADJUST TO QUARTERLY FREQ      #
@@ -167,12 +149,35 @@ cdef class Params:
 		if self.freq == 4:
 			self.adjustToQuarterly()
 
+		self.discount_factor_grid += self.timeDiscount
+		self.risk_aver_grid += self.riskAver
+
 		#-----------------------------------#
 		#     CREATE USEFUL OBJECTS         #
 		#-----------------------------------#
 		self.discount_factor_grid_wide = \
 			self.discount_factor_grid.reshape(
 				(1,1,self.discount_factor_grid.size,1))
+
+		#-----------------------------------#
+		#     SERIES FOR OUTPUT TABLE       #
+		#-----------------------------------#
+		index = [	'Discount factor (annualized)',
+					'Discount factor (quarterly)',
+					'Adjustment cost',
+					'RA Coeff',
+					'Returns r',
+					'Frequency',
+					]
+		data = [	self.timeDiscount ** self.freq,
+					self.timeDiscount ** (self.freq/4),
+					self.adjustCost,
+					self.riskAver,
+					self.r,
+					self.freq,
+					]
+		self.series = pd.Series(data=data,index=index)
+
 
 	def adjustToQuarterly(self):
 		"""
@@ -190,7 +195,6 @@ cdef class Params:
 		self.tSim *= 4
 		self.deathProb = 1.0 - (1.0 - self.deathProb) ** 0.25
 		self.timeDiscount = self.timeDiscount ** 0.25
-		self.discount_factor_grid = self.discount_factor_grid ** 0.25
 		self.adjustCost /= 4.0
 		self.govTransfer /= 4.0
 
@@ -202,6 +206,7 @@ cdef class Params:
 		self.discount_factor_grid += newTimeDiscount - self.timeDiscount
 		self.timeDiscount = newTimeDiscount
 		self.series['Discount factor (annualized)'] = newTimeDiscount ** self.freq
+		self.series['Discount factor (quarterly)'] = newTimeDiscount ** (self.freq/4)
 
 
 class Income:

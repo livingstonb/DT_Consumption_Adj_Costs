@@ -152,6 +152,10 @@ class EquilibriumSimulator(Simulator):
 			constrained = np.mean(np.asarray(self.asim) <= threshold)
 			self.results[f'Wealth <= {threshold:.2g}'] = constrained
 
+		self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0081*2)
+		self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
+		self.results['Wealth <= $10000'] = np.mean(np.asarray(self.asim) <= 0.081*2)
+
 		self.results['Wealth <= own quarterly income/6'] = np.mean(
 			np.asarray(self.asim) <= (np.asarray(self.ysim) / 6))
 		self.results['Wealth <= own quarterly income/12'] = np.mean(

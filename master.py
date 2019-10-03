@@ -33,12 +33,12 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'custom'
+name = ''
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
+IterateBeta = True
 Simulate = True # relevant if IterateBeta is False
 SimulateMPCs = True
 
@@ -361,7 +361,7 @@ if Simulate:
 	print('\nMPCS out of news:\n')
 	print(mpcNewsSimulator_shockNextPeriod.results.dropna().to_string())
 
-	name_series = pd.Series({'Experiments':params.name})
+	name_series = pd.Series({'Experiment':params.name})
 	index_series = pd.Series({'Index':params.index})
 	results = pd.concat([	name_series,
 							index_series,

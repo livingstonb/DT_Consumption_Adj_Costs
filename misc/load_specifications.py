@@ -10,9 +10,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [0.1,0.5,1,2,5]
-	riskAvers = [0.5,1,2,4]
-	wealthTargets = [0.3,3.2,5.4]
+	adjustCosts = [0.005,0.01,0.025,0.05]
+	riskAvers = [1]
+	wealthTargets = [0.3,3.2]
 
 	paramsDicts = []
 
@@ -36,40 +36,16 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 				ii += 1
 
-	adjustCosts = [0.1,0.5,1,2,5]
-	RAgrids = [[-0.25,0,0.25],[-0.5,0,0.5]]
-	wealthTarget = 3.2
-
-	ilabel = 0
-	for adjustCost in adjustCosts:
-		for RAgrid in RAgrids:
-			paramsDicts.append({})
-			paramsDicts[ii]['name'] = f'IES Heterogeneity {ilabel}'
-			paramsDicts[ii]['index'] = ii
-			paramsDicts[ii]['cubicValueInterp'] = True
-			paramsDicts[ii]['adjustCost'] = adjustCost
-			paramsDicts[ii]['noPersIncome'] = False
-			paramsDicts[ii]['riskAver'] = 1
-			paramsDicts[ii]['risk_aver_grid'] = np.array(RAgrid)
-			paramsDicts[ii]['wealthTarget'] = wealthTarget
-			paramsDicts[ii]['nx'] = 150
-			paramsDicts[ii]['nc'] = 150
-			paramsDicts[ii]['nSim'] = 1e5
-			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-
-			ii += 1
-			ilabel += 1
-
-	adjustCosts = [0.1,0.5,1,2,5]
-	discountGrids = [[-0.01,0.01],[-0.025,0.025],[-0.05,0.05]]
-	discount_width = [0.02,0.05,0.1]
-	wealthTarget = 3.2
+	adjustCosts = [0.005,0.01,0.025,0.05]
+	discountGrids = [[-0.01,0.01],[-0.02,0.02],[-0.025,0.025],[-0.05,0.05],[-0.075,0.075]]
+	discount_width = [0.02,0.04,0.05,0.1,0.15]
+	wealthTargets = [0.3,3.2]
 
 	for adjustCost in adjustCosts:
 		i_discount_grid = 0
 		for discountGrid in discountGrids:
 			paramsDicts.append({})
-			paramsDicts[ii]['name'] = f'Discount Factor Heterogeneity, beta width{discount_width[i_discount_grid]}'
+			paramsDicts[ii]['name'] = f'2-pt discount factor w/width{discount_width[i_discount_grid]}'
 			paramsDicts[ii]['index'] = ii
 			paramsDicts[ii]['cubicValueInterp'] = True
 			paramsDicts[ii]['adjustCost'] = adjustCost
@@ -84,7 +60,40 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			i_discount_grid += 1
 
 			ii += 1
-			ilabel += 1
+
+	adjustCosts = [0.005,0.01,0.025,0.05]
+	RAGrids = [	[np.exp(-0.5),np.exp(0.5)],
+				[np.exp(-1),np.exp(1)],
+				[np.exp(-1.25),np.exp(1.25)],
+				[np.exp(-1.5),np.exp(1.5)],
+				]
+	grid_str = [
+						"exp(-0.5), exp(0.5)",
+						"exp(-1), exp(1)",
+						"exp(-1.25), exp(1.25)",
+						"exp(-1.5), exp(1.5)",
+						]
+	wealthTargets = [0.3,3.2]
+
+	for adjustCost in adjustCosts:
+		i_ra_grid = 0
+		for RAGrid in RAGrids:
+			paramsDicts.append({})
+			paramsDicts[ii]['name'] = f'2-pt RA grid at ' + grid_str[i_ra_grid]
+			paramsDicts[ii]['index'] = ii
+			paramsDicts[ii]['cubicValueInterp'] = True
+			paramsDicts[ii]['adjustCost'] = adjustCost
+			paramsDicts[ii]['noPersIncome'] = False
+			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
+			paramsDicts[ii]['wealthTarget'] = wealthTarget
+			paramsDicts[ii]['riskAver'] = 0
+			paramsDicts[ii]['nx'] = 150
+			paramsDicts[ii]['nc'] = 150
+			paramsDicts[ii]['nSim'] = 1e5
+			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+			i_ra_grid += 1
+
+			ii += 1
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
