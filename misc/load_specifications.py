@@ -88,21 +88,24 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
-	paramsDicts[ii]['adjustCost'] = 0.1
+	paramsDicts[ii]['cubicValueInterp'] = True
+	paramsDicts[ii]['adjustCost'] = 1
 	paramsDicts[ii]['noPersIncome'] = True
-	paramsDicts[ii]['discount_factor_grid'] = np.array([0])
-	paramsDicts[ii]['nx'] = 50
-	paramsDicts[ii]['nc'] = 50
-	paramsDicts[ii]['nSim'] = 3e4
+	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
+	paramsDicts[ii]['nx'] = 120
+	paramsDicts[ii]['nc'] = 120
+	paramsDicts[ii]['nSim'] = 4e4
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.85
-	paramsDicts[ii]['wealthTarget'] = 5
+	paramsDicts[ii]['timeDiscount'] = 0.8
+	paramsDicts[ii]['r'] = 0.02
+	paramsDicts[ii]['wealthTarget'] = 0.5
 	ii += 1
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'custom'
 	paramsDicts[ii]['cubicValueInterp'] = True
-	paramsDicts[ii]['adjustCost'] = 1
+	paramsDicts[ii]['adjustCost'] = 0.01
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])

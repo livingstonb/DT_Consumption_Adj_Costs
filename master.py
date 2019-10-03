@@ -33,14 +33,14 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = ''
+name = 'custom'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
 IterateBeta = False
-Simulate = False # relevant if IterateBeta is False
-SimulateMPCs = False
+Simulate = True # relevant if IterateBeta is False
+SimulateMPCs = True
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir,'output')
@@ -217,33 +217,33 @@ if Simulate and SimulateMPCs:
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
-futureShockIndices = [2,3,4,5]
-currentShockIndices = [6] * len(futureShockIndices) # 6 is shock of 0
+shockIndices_shockNextPeriod = [2,3,4,5]
+currentShockIndices = [6] * len(shockIndices_shockNextPeriod) # 6 is shock of 0
 
-cSwitchingPolicies = np.zeros((params.nx,1,params.nz,params.nyP,len(futureShockIndices)+1))
-valueDiffs = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(futureShockIndices)+1))
+cSwitch_shockNextPeriod = np.zeros((params.nx,1,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
+valueDiffs_shockNextPeriod = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
 
-cSwitchingPolicies[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-valueDiffs[:,:,:,:,-1] = model.valueDiff[:,:,:,:,0]
+cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+valueDiffs_shockNextPeriod[:,:,:,:,-1] = model.valueDiff[:,:,:,:,0]
 valueBaseline = model.valueFunction
 emaxBaseline = model.EMAX
 model.interpMat = []
 
 i = 0
-for ishock in futureShockIndices:
-	# shock next period
-	futureShockModel = ModelWithNews(
+for ishock in shockIndices_shockNextPeriod:
+	model_shockNextPeriod = ModelWithNews(
 		params, income, grids,
 		valueBaseline,
 		emaxBaseline,
 		params.MPCshocks[ishock])
 
 	if SimulateMPCs:
-		futureShockModel.solve()
-		cSwitchingPolicies[:,:,:,:,i] = futureShockModel.cSwitchingPolicy[:,:,:,:,0]
-		valueDiffs[:,:,:,:,i] = futureShockModel.valueDiff[:,:,:,:,0]
+		print(f'Solving for shock of {params.MPCshocks[ishock]} next period')
+		model_shockNextPeriod.solve()
+		cSwitch_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.cSwitchingPolicy[:,:,:,:,0]
+		valueDiffs_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.valueDiff[:,:,:,:,0]
 
-	del futureShockModel
+	del model_shockNextPeriod
 	i += 1
 		# for period in range(1,4):
 		# 	# shock in two or more periods
@@ -253,17 +253,99 @@ for ishock in futureShockIndices:
 		# 	futureShockModels[period].solve()
 
 #-----------------------------------------------------------#
-#      SIMULATE MPCs OUT OF NEWS                            #
+#      SOLVE FOR 1-YEAR LOAN                                #
 #-----------------------------------------------------------#
-currentShockIndices = [6] * (len(futureShockIndices)+1)
-mpcNewsSimulator = simulator.MPCSimulatorNews(
-	params, income, grids, 
-	cSwitchingPolicies, valueDiffs,
-	futureShockIndices, currentShockIndices,
-	finalSimStates)
+cSwitch_loan = np.zeros((params.nx,1,params.nz,params.nyP,2))
+valueDiffs_loan = np.zeros((params.nx,params.nc,params.nz,params.nyP,2))
+
+ishock = 0
+# start with last quarter
+model_loan = ModelWithNews(
+	params, income, grids,
+	valueBaseline,
+	emaxBaseline,
+	params.MPCshocks[ishock])
 
 if SimulateMPCs:
-	mpcNewsSimulator.simulate()
+	print(f'Solving for one year loan')
+	model_loan.solve()
+
+	for period in range(3):
+		shock = 0.0
+		model_loan = ModelWithNews(
+			params, income, grids,
+			model_loan.valueFunction,
+			model_loan.EMAX,
+			shock)
+		model_loan.solve()
+
+	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
+	cSwitch_loan[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
+	valueDiffs_loan[:,:,:,:,0] = model_loan.valueDiff[:,:,:,:,0]
+	valueDiffs_loan[:,:,:,:,1] = model.valueDiff[:,:,:,:,0]
+	del model_loan
+
+#-----------------------------------------------------------#
+#      SHOCK OF -$500 IN 2 YEARS                            #
+#-----------------------------------------------------------#
+cSwitch_shock2Years = np.zeros((params.nx,1,params.nz,params.nyP,2))
+valueDiffs_shock2Years = np.zeros((params.nx,params.nc,params.nz,params.nyP,2))
+
+ishock = 2
+model_shock2Years = ModelWithNews(
+	params, income, grids,
+	valueBaseline,
+	emaxBaseline,
+	params.MPCshocks[ishock])
+
+if SimulateMPCs:
+	model_shock2Years.solve()
+
+	for period in range(7):
+		shock = 0.0
+		model_shock2Years = ModelWithNews(
+			params, income, grids,
+			model_shock2Years.valueFunction,
+			model_shock2Years.EMAX,
+			shock)
+		model_shock2Years.solve()
+
+	cSwitch_shock2Years[:,:,:,:,0] = model_shock2Years.cSwitchingPolicy[:,:,:,:,0]
+	cSwitch_shock2Years[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
+	valueDiffs_shock2Years[:,:,:,:,0] = model_shock2Years.valueDiff[:,:,:,:,0]
+	valueDiffs_shock2Years[:,:,:,:,1] = model.valueDiff[:,:,:,:,0]
+	del model_shock2Years
+
+#-----------------------------------------------------------#
+#      SIMULATE MPCs OUT OF NEWS                            #
+#-----------------------------------------------------------#
+currentShockIndices = [6] * len(shockIndices_shockNextPeriod)
+mpcNewsSimulator_shockNextPeriod = simulator.MPCSimulatorNews(
+	params, income, grids, 
+	cSwitch_shockNextPeriod, valueDiffs_shockNextPeriod,
+	shockIndices_shockNextPeriod, currentShockIndices,
+	finalSimStates, periodsUntilShock=1)
+
+shockIndices_shock2Years = [2]
+currentShockIndices = [6]
+mpcNewsSimulator_shock2Years = simulator.MPCSimulatorNews(
+	params, income, grids,
+	cSwitch_shock2Years, valueDiffs_shock2Years,
+	shockIndices_shock2Years, currentShockIndices,
+	finalSimStates, periodsUntilShock=8)
+
+shockIndices_loan = [0]
+currentShockIndices = [5]
+mpcNewsSimulator_loan = simulator.MPCSimulatorNews_Loan(
+	params, income, grids,
+	cSwitch_loan, valueDiffs_loan,
+	shockIndices_loan, currentShockIndices,
+	finalSimStates, periodsUntilShock=4)
+
+if SimulateMPCs:
+	mpcNewsSimulator_shockNextPeriod.simulate()
+	mpcNewsSimulator_shock2Years.simulate()
+	mpcNewsSimulator_loan.simulate()
 
 #-----------------------------------------------------------#
 #      RESULTS                                              #
@@ -271,30 +353,36 @@ if SimulateMPCs:
 
 if Simulate:
 	print('\nResults from simulation:\n')
-	print(eqSimulator.results.to_string())
+	print(eqSimulator.results.dropna().to_string())
 
 	print('\nMPCS:\n')
-	print(mpcSimulator.results.to_string())
+	print(mpcSimulator.results.dropna().to_string())
 
 	print('\nMPCS out of news:\n')
-	print(mpcNewsSimulator.results.to_string())
+	print(mpcNewsSimulator_shockNextPeriod.results.dropna().to_string())
 
 	name_series = pd.Series({'Experiments':params.name})
 	index_series = pd.Series({'Index':params.index})
 	results = pd.concat([	name_series,
 							index_series,
 							params.series, 
-							eqSimulator.results,
-							mpcSimulator.results,
-							mpcNewsSimulator,
+							eqSimulator.results.dropna(),
+							mpcSimulator.results.dropna(),
+							mpcNewsSimulator_shockNextPeriod.results.dropna(),
+							mpcNewsSimulator_shock2Years.results.dropna(),
+							mpcNewsSimulator_loan.results.dropna(),
 							])
 
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
 	results.to_pickle(savepath)
 
-	mpcs_table = mpcsTable.create(params, mpcSimulator, mpcNewsSimulator)
+	mpcs_table = mpcsTable.create(params, mpcSimulator, 
+		mpcNewsSimulator_shockNextPeriod,
+		mpcNewsSimulator_shock2Years,
+		mpcNewsSimulator_loan,
+		)
 	savepath = os.path.join(outdir,f'mpcs_table_{paramIndex}.xlsx')
-	mpcs_table.to_excel(savepath, freeze_panes=(0,0))
+	mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
 
 #-----------------------------------------------------------#
 #      PLOTS                                                #

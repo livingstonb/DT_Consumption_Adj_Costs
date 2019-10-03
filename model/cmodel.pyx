@@ -5,6 +5,7 @@ cimport numpy as np
 cimport cython
 from cython.parallel cimport prange
 
+from misc import functions
 from misc cimport cfunctions
 from misc.cfunctions cimport FnArgs, objectiveFn
 from misc cimport spline
@@ -12,12 +13,13 @@ from misc cimport spline
 import pandas as pd
 from scipy import sparse
 
-from libc.math cimport fmin
+from libc.math cimport fmin, fmax
 from libc.stdlib cimport malloc, free
 
 ctypedef struct interpMatArgs:
 	long nx, nc, nz, nyP, nyT
 	double R, govTransfer, xmin, timeDiscountAdj
+	double riskAver, adjustCost
 	double *cgrid
 	double *xgrid
 	double *yPgrid
@@ -98,7 +100,9 @@ cdef class CModel:
 		interp_args.nyT = self.p.nyT
 		interp_args.R = self.p.R
 		interp_args.govTransfer = self.p.govTransfer
+		interp_args.adjustCost = self.p.adjustCost
 		interp_args.timeDiscountAdj = self.p.timeDiscount * (1-self.p.deathProb)
+		interp_args.riskAver = self.p.riskAver
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
 		for ix in prange(interp_args.nx, num_threads=4, schedule='static', nogil=True):
@@ -143,32 +147,38 @@ cdef class CModel:
 							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
 							cfunctions.getInterpolationWeights(args.xgrid,cash,args.nx,&xIndices[0],&xWeights[0])
 
-							if cash < args.xmin:
-								cfunctions.getInterpolationWeights(args.cgrid,cash,args.nc,&cIndices[0],&cWeights[0])
-								self.add_to_EMAX[ix,ic,iz,iyP1] += Pytrans * args.yTdist[iyT] * (
-									cfunctions.utility(fargs.riskAver, cash)
-									+ args.timeDiscountAdj
-										* 	( 	xWeights[0] * cWeights[0] * self.EMAXnext[xIndices[0],cIndices[0],iz,iyP2]
-												+ xWeights[1] * cWeights[0] * self.EMAXnext[xIndices[1],cIndices[0],iz,iyP2]
-												+ xWeights[0] * cWeights[1] * self.EMAXnext[xIndices[0],cIndices[1],iz,iyP2]
-												+ xWeights[1] * cWeights[1] * self.EMAXnext[xIndices[1],cIndices[1],iz,iyP2]
-											)
-									)
+							# if (self.nextMPCShock<0) and (cash > 0) and (cash < args.xmin):
+							# 	pass
+							# 	# cfunctions.getInterpolationWeights(args.cgrid,cash,args.nc,&cIndices[0],&cWeights[0])
+							# 	# self.add_to_EMAX[ix,ic,iz,iyP1] += Pytrans * args.yTdist[iyT] * (
+							# 	# 	cfunctions.utility(args.riskAver, cash)
+							# 	# 	- args.adjustCost
+							# 	# 	+ args.timeDiscountAdj
+							# 	# 		* ( cWeights[0] * self.EMAXnext[0,cIndices[0],iz,iyP2]
+							# 	# 			+ cWeights[1] * self.EMAXnext[0,cIndices[1],iz,iyP2])
+							# 	# 		# * 	( 	xWeights[0] * cWeights[0] * self.EMAXnext[xIndices[0],cIndices[0],iz,iyP2]
+							# 	# 		# 		+ xWeights[1] * cWeights[0] * self.EMAXnext[xIndices[1],cIndices[0],iz,iyP2]
+							# 	# 		# 		+ xWeights[0] * cWeights[1] * self.EMAXnext[xIndices[0],cIndices[1],iz,iyP2]
+							# 	# 		# 		+ xWeights[1] * cWeights[1] * self.EMAXnext[xIndices[1],cIndices[1],iz,iyP2]
+							# 	# 		# 	)
+							# 	# 	)
 
-							else
-								row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
+							# elif (self.nextMPCShock<0) and (cash <= 0):
+							# 	self.add_to_EMAX[ix,ic,iz,iyP1] = - 1e8
+							# else:
+							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
 
-								self.I[ii] = row
-								self.I[ii2] = row
+							self.I[ii] = row
+							self.I[ii2] = row
 
-								self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
-								self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+							self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+							self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
 
-								self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
-								self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
+							self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
+							self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
 
-								ii += 2
-								ii2 += 2
+							ii += 2
+							ii2 += 2
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -218,6 +228,7 @@ cdef class CModel:
 
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
+		ymin = self.income.ymat.flatten().min() + self.p.govTransfer
 
 		emaxVec = np.zeros(self.p.nc)
 		yderivs = np.zeros(self.p.nc)
@@ -237,7 +248,11 @@ cdef class CModel:
 
 			for ix in range(self.p.nx):
 				xval = xgrid[ix]
-				maxAdmissibleC = fmin(xval,self.p.cMax)
+				if self.nextMPCShock < 0:
+					maxAdmissibleC = fmin(xval+(ymin+self.nextMPCShock)/self.p.R,self.p.cMax)
+					maxAdmissibleC = fmax(maxAdmissibleC, self.p.cMin+1e-6)
+				else:
+					maxAdmissibleC = fmin(xval,self.p.cMax)
 
 				bounds[0][1] = maxAdmissibleC * sections[0]
 				for ii in range(1,NSECTIONS):
@@ -308,10 +323,30 @@ cdef class CModel:
 		return value
 
 	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	def updateValueNoSwitch(self):
+		"""
+		Updates valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
+		"""
+		cdef long ix, ic
+
+		self.valueNoSwitch = functions.utilityMat(self.p.risk_aver_grid,self.grids.c.matrix) \
+			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
+			* np.asarray(self.EMAX)
+
+		ymin = self.income.ymat.flatten().min() + self.p.govTransfer
+		for ix in range(self.p.nx):
+			for ic in range(self.p.nc):
+				if self.grids.c.flat[ic] > self.grids.x.flat[ix] + (ymin+self.nextMPCShock)/self.p.R:
+					self.valueNoSwitch[ix,ic,:,:] = -1e9
+
+	@cython.boundscheck(False)
 	def doComputations(self):
 		cdef np.ndarray[np.uint8_t, ndim=4, cast=True] cSwitch
 		cdef np.ndarray[np.int64_t, ndim=1] inactionRegion
-		cdef long ix, iz, iyP
+		cdef long ix, iz, ic, iyP
+
+		ymin = self.income.ymat.flatten().min() + self.p.govTransfer
 
 		cSwitch = np.asarray(self.valueSwitch) > np.asarray(self.valueNoSwitch)
 
@@ -331,6 +366,7 @@ cdef class CModel:
 
 		self.valueDiff = (np.asarray(self.valueSwitch) - np.asarray(self.valueNoSwitch)
 			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1))
+
 		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1))
 
 	def resetParams(self, newParams):

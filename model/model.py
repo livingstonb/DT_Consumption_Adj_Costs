@@ -56,7 +56,7 @@ class Model(CModel):
 				).flatten().max()
 
 			if np.mod(self.iteration,50) == 0:
-				print(f'    Iteration {self.iteration}, norm of |V1-V| = {distance}')
+				print(f'    Iteration {self.iteration+1}, norm of |V1-V| = {distance}')
 
 			if (self.iteration>2000) and (distance>1e5):
 				raise Exception('No convergence')
@@ -66,7 +66,7 @@ class Model(CModel):
 		# compute c-policy function conditional on switching
 		self.maximizeValueFromSwitching(findPolicy=True)
 
-		print(f'Value function converged after {self.iteration+1} iterations.')
+		print(f'Value function converged after {self.iteration} iterations.')
 
 		self.doComputations()
 
@@ -89,14 +89,6 @@ class Model(CModel):
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
 			).reshape(self.grids.matrixDim, order='F')
 
-	def updateValueNoSwitch(self):
-		"""
-		Updates valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
-		"""
-		self.valueNoSwitch = functions.utilityMat(self.p.risk_aver_grid,self.grids.c.matrix) \
-			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
-			* np.asarray(self.EMAX)
-
 class ModelWithNews(Model):
 	"""
 	This class solves the model when a future shock is expected. The value function
@@ -115,8 +107,8 @@ class ModelWithNews(Model):
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
 
-		if self.nextMPCShock < 0:
-			self.EMAX = np.asarray(self.EMAX) + np.asarray(self.add_to_EMAX)
+		# if self.nextMPCShock < 0:
+		# 	self.EMAX = np.asarray(self.EMAX) + np.asarray(self.add_to_EMAX)
 
 		super().solve()
 
