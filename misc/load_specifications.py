@@ -44,22 +44,24 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	for adjustCost in adjustCosts:
 		i_discount_grid = 0
 		for discountGrid in discountGrids:
-			paramsDicts.append({})
-			paramsDicts[ii]['name'] = f'2-pt discount factor w/width{discount_width[i_discount_grid]}'
-			paramsDicts[ii]['index'] = ii
-			paramsDicts[ii]['cubicValueInterp'] = True
-			paramsDicts[ii]['adjustCost'] = adjustCost
-			paramsDicts[ii]['noPersIncome'] = False
-			paramsDicts[ii]['riskAver'] = 1
-			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
-			paramsDicts[ii]['wealthTarget'] = wealthTarget
-			paramsDicts[ii]['nx'] = 120
-			paramsDicts[ii]['nc'] = 120
-			paramsDicts[ii]['nSim'] = 1e5
-			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-			i_discount_grid += 1
+			for wealthTarget in wealthTargets:
+				paramsDicts.append({})
+				paramsDicts[ii]['name'] = f'2-pt discount factor w/width{discount_width[i_discount_grid]}'
+				paramsDicts[ii]['index'] = ii
+				paramsDicts[ii]['cubicValueInterp'] = True
+				paramsDicts[ii]['adjustCost'] = adjustCost
+				paramsDicts[ii]['noPersIncome'] = False
+				paramsDicts[ii]['riskAver'] = 1
+				paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
+				paramsDicts[ii]['wealthTarget'] = wealthTarget
+				paramsDicts[ii]['nx'] = 120
+				paramsDicts[ii]['nc'] = 120
+				paramsDicts[ii]['nSim'] = 1e5
+				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+				
+				ii += 1
 
-			ii += 1
+			i_discount_grid += 1
 
 	adjustCosts = [0.005,0.01,0.025,0.05]
 	RAGrids = [	[np.exp(-0.5),np.exp(0.5)],
@@ -78,22 +80,24 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	for adjustCost in adjustCosts:
 		i_ra_grid = 0
 		for RAGrid in RAGrids:
-			paramsDicts.append({})
-			paramsDicts[ii]['name'] = f'2-pt RA grid at ' + grid_str[i_ra_grid]
-			paramsDicts[ii]['index'] = ii
-			paramsDicts[ii]['cubicValueInterp'] = True
-			paramsDicts[ii]['adjustCost'] = adjustCost
-			paramsDicts[ii]['noPersIncome'] = False
-			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
-			paramsDicts[ii]['wealthTarget'] = wealthTarget
-			paramsDicts[ii]['riskAver'] = 0
-			paramsDicts[ii]['nx'] = 120
-			paramsDicts[ii]['nc'] = 120
-			paramsDicts[ii]['nSim'] = 1e5
-			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-			i_ra_grid += 1
+			for wealthTarget in wealthTargets:
+				paramsDicts.append({})
+				paramsDicts[ii]['name'] = f'2-pt RA grid at ' + grid_str[i_ra_grid]
+				paramsDicts[ii]['index'] = ii
+				paramsDicts[ii]['cubicValueInterp'] = True
+				paramsDicts[ii]['adjustCost'] = adjustCost
+				paramsDicts[ii]['noPersIncome'] = False
+				paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
+				paramsDicts[ii]['wealthTarget'] = wealthTarget
+				paramsDicts[ii]['riskAver'] = 0
+				paramsDicts[ii]['nx'] = 120
+				paramsDicts[ii]['nc'] = 120
+				paramsDicts[ii]['nSim'] = 1e5
+				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 
-			ii += 1
+				ii += 1
+
+			i_ra_grid += 1
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
