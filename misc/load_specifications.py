@@ -29,8 +29,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['noPersIncome'] = False
 				paramsDicts[ii]['riskAver'] = riskAver
 				paramsDicts[ii]['wealthTarget'] = wealthTarget
-				paramsDicts[ii]['nx'] = 150
-				paramsDicts[ii]['nc'] = 150
+				paramsDicts[ii]['nx'] = 120
+				paramsDicts[ii]['nc'] = 120
 				paramsDicts[ii]['nSim'] = 1e5
 				paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 
@@ -53,8 +53,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['riskAver'] = 1
 			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
 			paramsDicts[ii]['wealthTarget'] = wealthTarget
-			paramsDicts[ii]['nx'] = 150
-			paramsDicts[ii]['nc'] = 150
+			paramsDicts[ii]['nx'] = 120
+			paramsDicts[ii]['nc'] = 120
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 			i_discount_grid += 1
@@ -87,8 +87,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			paramsDicts[ii]['discount_factor_grid'] = np.array(discountGrid)
 			paramsDicts[ii]['wealthTarget'] = wealthTarget
 			paramsDicts[ii]['riskAver'] = 0
-			paramsDicts[ii]['nx'] = 150
-			paramsDicts[ii]['nc'] = 150
+			paramsDicts[ii]['nx'] = 120
+			paramsDicts[ii]['nc'] = 120
 			paramsDicts[ii]['nSim'] = 1e5
 			paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 			i_ra_grid += 1
@@ -118,8 +118,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
-	paramsDicts[ii]['nx'] = 150
-	paramsDicts[ii]['nc'] = 150
+	paramsDicts[ii]['nx'] = 120
+	paramsDicts[ii]['nc'] = 120
 	paramsDicts[ii]['nSim'] = 1e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['timeDiscount'] = 0.9

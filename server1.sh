@@ -3,10 +3,10 @@
 #SBATCH --output=/home/livingstonb/GitHub/DT_Consumption_Adj_Costs/output/run%a.out
 #SBATCH --error=/home/livingstonb/GitHub/DT_Consumption_Adj_Costs/output/run%a.err
 #SBATCH --partition=broadwl
-#SBATCH --array=0-43
+#SBATCH --array=0-7
 #SBATCH --time=8:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem-per-cpu=8000
+#SBATCH --mem-per-cpu=6000
 
 python -u master.py $SLURM_ARRAY_TASK_ID
