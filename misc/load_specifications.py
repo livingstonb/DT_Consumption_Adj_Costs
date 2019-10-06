@@ -87,7 +87,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				paramsDicts[ii]['cubicValueInterp'] = True
 				paramsDicts[ii]['adjustCost'] = adjustCost
 				paramsDicts[ii]['noPersIncome'] = False
-				paramsDicts[ii]['discount_factor_grid'] = np.array(RAGrid)
+				paramsDicts[ii]['risk_aver_grid'] = np.array(RAGrid)
 				paramsDicts[ii]['wealthTarget'] = wealthTarget
 				paramsDicts[ii]['riskAver'] = 0
 				paramsDicts[ii]['nx'] = 120
