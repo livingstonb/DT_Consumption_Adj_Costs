@@ -216,7 +216,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -236,7 +236,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -256,7 +256,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -276,7 +276,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -296,7 +296,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -316,7 +316,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -336,7 +336,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
@@ -356,7 +356,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
+		paramsDicts[ii]['riskAver'] = 0
 		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
