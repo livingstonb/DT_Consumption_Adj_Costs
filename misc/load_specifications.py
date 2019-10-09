@@ -367,8 +367,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 		ii += 1
 
-	import pdb; pdb.set_trace()
-
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
 	paramsDicts[ii]['cubicValueInterp'] = True
