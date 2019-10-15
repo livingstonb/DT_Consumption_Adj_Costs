@@ -50,7 +50,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'2-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
@@ -73,7 +73,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'2-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
@@ -96,7 +96,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'2-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
@@ -118,7 +118,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'2-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
