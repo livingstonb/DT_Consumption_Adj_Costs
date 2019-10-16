@@ -182,7 +182,7 @@ if IterateBeta:
 		return assets - params.wealthTarget
 
 	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(betaLowerBound,betaUpperBound),
-		method='bisect', xtol=1e-7, rtol=1e-9, maxiter=params.wealthIters).root
+		method='brentq', xtol=1e-7, rtol=1e-9, maxiter=params.wealthIters).root
 
 	params.resetDiscountRate(betaOpt)
 
