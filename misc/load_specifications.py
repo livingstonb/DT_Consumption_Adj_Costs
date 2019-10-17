@@ -137,9 +137,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	###########################################################
 
 	adjustCost = 0.005
-	discount_widths = [	0.016541305451518,
-						0.009712090220147,
-						0.00681044574274,
+	discount_widths = [	0.01651039812107,
+						0.009734770875813,
+						0.006790600131364,
 						]
 	wealthTarget = 3.2
 
@@ -160,9 +160,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.01
-	discount_widths = [	0.016959141437817,
-						0.009587208552695,
-						0.00671559019522,
+	discount_widths = [	0.00671559019522,
+						0.016959141437817,
+						0.00959594985356,
 						]
 	wealthTarget = 3.2
 
@@ -183,9 +183,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.025
-	discount_widths = [	0.018226011574319,
-						0.009822759489542,
-						0.006927493234898,
+	discount_widths = [	0.018330388490419,
+						0.006931535236858,
 						]
 	wealthTarget = 3.2
 
@@ -206,8 +205,9 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.05
-	discount_widths = [	0.020800768461677,
-						0.007212818271361,
+	discount_widths = [	0.020700768461677,
+						0.020800768461677,
+						0.020900768461677,
 						]
 	wealthTarget = 3.2
 
