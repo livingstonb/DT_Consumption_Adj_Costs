@@ -133,25 +133,27 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	ii += 1
 
 	###########################################################
-	##### 5-PT DISCOUNT FACTOR HETEROGENEITY ##################
+	##### 3-PT DISCOUNT FACTOR HETEROGENEITY: RA = 2 ##########
 	###########################################################
 
 	adjustCost = 0.005
-	discount_widths = [	0.01651039812107,
-						0.009734770875813,
-						0.006790600131364,
+	discount_widths = [	0.04,
+						0.031262804098703,
+						0.019123368101102,
+						0.013129768413022,
+						0.01,
 						]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
-		paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+		paramsDicts[ii]['riskAver'] = 2
+		paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
 		paramsDicts[ii]['nc'] = 120
@@ -160,21 +162,23 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.01
-	discount_widths = [	0.00671559019522,
-						0.016959141437817,
-						0.00959594985356,
+	discount_widths = [	0.04,
+						0.031928196837238,
+						0.018806744625507,
+						0.013045865727511,
+						0.01,
 						]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
-		paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+		paramsDicts[ii]['riskAver'] = 2
+		paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
 		paramsDicts[ii]['nc'] = 120
@@ -183,20 +187,23 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.025
-	discount_widths = [	0.018330388490419,
-						0.006931535236858,
+	discount_widths = [	0.04,
+						0.035365099279654,
+						0.019339420312185,
+						0.013597038299208,
+						0.01,
 						]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
-		paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+		paramsDicts[ii]['riskAver'] = 2
+		paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
 		paramsDicts[ii]['nc'] = 120
@@ -205,27 +212,125 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.05
-	discount_widths = [	0.020700768461677,
-						0.020800768461677,
-						0.020900768461677,
+	discount_widths = [	0.05,
+						0.04152681089598,
+						0.035,
+						0.02,
+						0.014246309,
+						0.01,
 						]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+		paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
-		paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+		paramsDicts[ii]['riskAver'] = 2
+		paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
 		paramsDicts[ii]['wealthTarget'] = wealthTarget
 		paramsDicts[ii]['nx'] = 120
 		paramsDicts[ii]['nc'] = 120
 		paramsDicts[ii]['nSim'] = 1e5
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 		ii += 1
+
+	# ###########################################################
+	# ##### 5-PT DISCOUNT FACTOR HETEROGENEITY ##################
+	# ###########################################################
+
+	# adjustCost = 0.005
+	# discount_widths = [	0.01651039812107,
+	# 					0.009734770875813,
+	# 					0.006790600131364,
+	# 					]
+	# wealthTarget = 3.2
+
+	# for w in discount_widths:
+	# 	paramsDicts.append({})
+	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+	# 	paramsDicts[ii]['index'] = ii
+	# 	paramsDicts[ii]['cubicValueInterp'] = True
+	# 	paramsDicts[ii]['adjustCost'] = adjustCost
+	# 	paramsDicts[ii]['noPersIncome'] = False
+	# 	paramsDicts[ii]['riskAver'] = 1
+	# 	paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+	# 	paramsDicts[ii]['wealthTarget'] = wealthTarget
+	# 	paramsDicts[ii]['nx'] = 120
+	# 	paramsDicts[ii]['nc'] = 120
+	# 	paramsDicts[ii]['nSim'] = 1e5
+	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# 	ii += 1
+
+	# adjustCost = 0.01
+	# discount_widths = [	0.00671559019522,
+	# 					0.016959141437817,
+	# 					0.00959594985356,
+	# 					]
+	# wealthTarget = 3.2
+
+	# for w in discount_widths:
+	# 	paramsDicts.append({})
+	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+	# 	paramsDicts[ii]['index'] = ii
+	# 	paramsDicts[ii]['cubicValueInterp'] = True
+	# 	paramsDicts[ii]['adjustCost'] = adjustCost
+	# 	paramsDicts[ii]['noPersIncome'] = False
+	# 	paramsDicts[ii]['riskAver'] = 1
+	# 	paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+	# 	paramsDicts[ii]['wealthTarget'] = wealthTarget
+	# 	paramsDicts[ii]['nx'] = 120
+	# 	paramsDicts[ii]['nc'] = 120
+	# 	paramsDicts[ii]['nSim'] = 1e5
+	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# 	ii += 1
+
+	# adjustCost = 0.025
+	# discount_widths = [	0.018330388490419,
+	# 					0.006931535236858,
+	# 					]
+	# wealthTarget = 3.2
+
+	# for w in discount_widths:
+	# 	paramsDicts.append({})
+	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+	# 	paramsDicts[ii]['index'] = ii
+	# 	paramsDicts[ii]['cubicValueInterp'] = True
+	# 	paramsDicts[ii]['adjustCost'] = adjustCost
+	# 	paramsDicts[ii]['noPersIncome'] = False
+	# 	paramsDicts[ii]['riskAver'] = 1
+	# 	paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+	# 	paramsDicts[ii]['wealthTarget'] = wealthTarget
+	# 	paramsDicts[ii]['nx'] = 120
+	# 	paramsDicts[ii]['nc'] = 120
+	# 	paramsDicts[ii]['nSim'] = 1e5
+	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# 	ii += 1
+
+	# adjustCost = 0.05
+	# discount_widths = [	0.020700768461677,
+	# 					0.020800768461677,
+	# 					0.020900768461677,
+	# 					]
+	# wealthTarget = 3.2
+
+	# for w in discount_widths:
+	# 	paramsDicts.append({})
+	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
+	# 	paramsDicts[ii]['index'] = ii
+	# 	paramsDicts[ii]['cubicValueInterp'] = True
+	# 	paramsDicts[ii]['adjustCost'] = adjustCost
+	# 	paramsDicts[ii]['noPersIncome'] = False
+	# 	paramsDicts[ii]['riskAver'] = 1
+	# 	paramsDicts[ii]['discount_factor_grid'] = np.array([-2*w, -w, 0, w, 2*w])
+	# 	paramsDicts[ii]['wealthTarget'] = wealthTarget
+	# 	paramsDicts[ii]['nx'] = 120
+	# 	paramsDicts[ii]['nc'] = 120
+	# 	paramsDicts[ii]['nSim'] = 1e5
+	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# 	ii += 1
 
 	###########################################################
 	##### IES HETEROGENEITY ###################################
