@@ -137,7 +137,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	###########################################################
 
 	adjustCost = 0.005
-	discount_widths = [	0.053602353291592]
+	discount_widths = [	0.035660061154208,
+						0.053602353291592]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
@@ -179,7 +180,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.025
-	discount_widths = [	0.05344428679477]
+	discount_widths = [	0.03510498642002,
+						0.05344428679477]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
@@ -199,7 +201,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		ii += 1
 
 	adjustCost = 0.05
-	discount_widths = [	0.053044165114212]
+	discount_widths = [	0.035172176637578,
+						0.053044165114212]
 	wealthTarget = 3.2
 
 	for w in discount_widths:
@@ -217,7 +220,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts[ii]['nSim'] = 1e5
 		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 		ii += 1
-
 
 	# ###########################################################
 	# ##### 5-PT DISCOUNT FACTOR HETEROGENEITY ##################
