@@ -18,8 +18,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	ii = 0
 	for adjustCost in adjustCosts:
 		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'adjustCost{adjustCost},' \
-			+ f' riskAver{riskAver}, wealth{wealthTarget}'
+		paramsDicts[ii]['name'] = f'adjustCost = {adjustCost}'
 		paramsDicts[ii]['index'] = ii
 		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
