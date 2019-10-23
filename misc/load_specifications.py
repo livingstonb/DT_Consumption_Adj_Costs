@@ -10,7 +10,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [0.0001, 0.00025, 0.0005, 0.001, 0.002, 0.003, 0.004]
+	adjustCosts = np.arange(0.004, 0.0060, 0.0001);
 
 	paramsDicts = []
 	ii = 0
