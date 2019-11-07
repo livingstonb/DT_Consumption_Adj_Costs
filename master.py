@@ -402,31 +402,31 @@ if Simulate:
 	mpcs_over_states['$5000 NEWS-GAIN'] = mpcNewsSimulator_shockNextPeriod.mpcs[5]
 	mpcs_over_states['$500 NEWS-LOSS'] = mpcNewsSimulator_shockNextPeriod.mpcs[2]
 	mpcs_over_states['$500 NEWS-LOSS IN 2 YEARS'] = mpcNewsSimulator_shock2Years.mpcs[2]
-	mpcs_over_states['$5000 LOAN'] = mpcNewsSimulator_loan.mpcs[5]
+	mpcs_over_states['$5000 LOAN'] = mpcNewsSimulator_loan.mpcs[0]
 
 	index = []
-	treatmentResponses = DataFrame()
-	thisTreatmentPair = dict()
+	treatmentResponses = pd.DataFrame()
 	for pair in combinations(mpcs_over_states.keys(), 2):
 		key = pair[0] + ', ' + pair[1]
 		index.append(key)
 		thisTreatmentPair = {
-			'Response to 1' : (mpcs_over_states[pair[0]] > 0).mean(),
-			'Response to 2' : (mpcs_over_states[pair[1]] > 0).mean(),
+			'Response to 1 only' : ((mpcs_over_states[pair[0]] > 0)  & (mpcs_over_states[pair[1]] == 0) ).mean(),
+			'Response to 2 only' : ((mpcs_over_states[pair[0]] == 0)  & (mpcs_over_states[pair[1]] > 0) ).mean(),
 			'Response to both' : ((mpcs_over_states[pair[0]] > 0)  & (mpcs_over_states[pair[1]] > 0) ).mean(),
 			'Response to neither' : ((mpcs_over_states[pair[0]] == 0)  & (mpcs_over_states[pair[1]] == 0) ).mean(),
 		}
-		treatmentResponses.append(thisTreatmentPair, ignore_index=True)
-		thisTreatmentPair = dict()
+		treatmentResponses = treatmentResponses.append(thisTreatmentPair, ignore_index=True)
 
+	
 	treatmentResponses.index = index
 	savepath = os.path.join(outdir, f'run{paramIndex}_treatment_responses.xlsx')
+	treatmentResponses.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
 
 	# find fractions responding in certain wealth groups
-	group1 = finalSimStates['asim'] <= 0.081
-	group2 = (finalSimStates['asim'] > 0.081) & (finalSimStates['asim'] <= 0.486)
-	group3 = (finalSimStates['asim'] > 0.486) & (finalSimStates['asim'] <= 4.05)
-	group4 = (finalSimStates['asim'] > 4.05)
+	group1 = np.asarray(finalSimStates['asim']) <= 0.081
+	group2 = (np.asarray(finalSimStates['asim']) > 0.081) & (np.asarray(finalSimStates['asim'])<= 0.486)
+	group3 = (np.asarray(finalSimStates['asim']) > 0.486) & (np.asarray(finalSimStates['asim']) <= 4.05)
+	group4 = (np.asarray(finalSimStates['asim']) > 4.05)
 
 	groups = [group1, group2, group3, group4]
 
@@ -454,16 +454,16 @@ if Simulate:
 			
 			index.append(pair[0] + ', ' + pair[1])
 
-			mpcs_treatment1 = mpcs_over_states['$500 GAIN'][groups[i]]
-			mpcs_treatment2 = mpcs_over_states['$500 NEWS-GAIN'][groups[i]]
-			thisTreatmentPair['Response to 1'] = (mpcs_treatment1 > 0).mean()
-			thisTreatmentPair['Response to 2'] = (mpcs_treatment2 > 0).mean()
+			mpcs_treatment1 = mpcs_over_states[pair[0]][groups[i].flatten()]
+			mpcs_treatment2 = mpcs_over_states[pair[1]][groups[i].flatten()]
+			thisTreatmentPair['Response to 1 only'] =  ((mpcs_treatment1 > 0) & (mpcs_treatment2 == 0)).mean()
+			thisTreatmentPair['Response to 2 only'] =  ((mpcs_treatment1 == 0) & (mpcs_treatment2 > 0)).mean()
 			thisTreatmentPair['Response to both'] = ((mpcs_treatment1 > 0) & (mpcs_treatment2 > 0)).mean()
 			thisTreatmentPair['Response to neither'] = ((mpcs_treatment1 == 0) & (mpcs_treatment2 == 0)).mean()
 
 			treatmentResults.append(thisTreatmentPair)
 		
-		thisGroup = DataFrame(data=treatmentResults, index=index)
+		thisGroup = pd.DataFrame(data=treatmentResults, index=index)
 		savepath = os.path.join(outdir, f'run{paramIndex}_wealthgroup{i+1}_responses.xlsx')
 		thisGroup.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
 
