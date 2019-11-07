@@ -2,6 +2,7 @@ import sys
 import os
 from matplotlib import pyplot as plt
 import numpy as np
+from itertools import combinations
 
 from scipy import optimize
 
@@ -253,7 +254,6 @@ mpcSimulator = simulator.MPCSimulator(
 
 if Simulate and SimulateMPCs:
 	mpcSimulator.simulate()
-
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
@@ -390,8 +390,84 @@ if SimulateMPCs:
 #-----------------------------------------------------------#
 #      RESULTS                                              #
 #-----------------------------------------------------------#
-
+# find fractions of households that respond to one, both, or neither of
+# two treatments
 if Simulate:
+	mpcs_over_states = dict()
+	mpcs_over_states['$500 GAIN'] = mpcSimulator.mpcs[3]
+	mpcs_over_states['$2500 GAIN'] = mpcSimulator.mpcs[4]
+	mpcs_over_states['$5000 GAIN'] = mpcSimulator.mpcs[5]
+	mpcs_over_states['$500 LOSS'] = mpcSimulator.mpcs[2]
+	mpcs_over_states['$500 NEWS-GAIN'] = mpcNewsSimulator_shockNextPeriod.mpcs[3]
+	mpcs_over_states['$5000 NEWS-GAIN'] = mpcNewsSimulator_shockNextPeriod.mpcs[5]
+	mpcs_over_states['$500 NEWS-LOSS'] = mpcNewsSimulator_shockNextPeriod.mpcs[2]
+	mpcs_over_states['$500 NEWS-LOSS IN 2 YEARS'] = mpcNewsSimulator_shock2Years.mpcs[2]
+	mpcs_over_states['$5000 LOAN'] = mpcNewsSimulator_loan.mpcs[5]
+
+	index = []
+	treatmentResponses = DataFrame()
+	thisTreatmentPair = dict()
+	for pair in combinations(mpcs_over_states.keys(), 2):
+		key = pair[0] + ', ' + pair[1]
+		index.append(key)
+		thisTreatmentPair = {
+			'Response to 1' : (mpcs_over_states[pair[0]] > 0).mean(),
+			'Response to 2' : (mpcs_over_states[pair[1]] > 0).mean(),
+			'Response to both' : ((mpcs_over_states[pair[0]] > 0)  & (mpcs_over_states[pair[1]] > 0) ).mean(),
+			'Response to neither' : ((mpcs_over_states[pair[0]] == 0)  & (mpcs_over_states[pair[1]] == 0) ).mean(),
+		}
+		treatmentResponses.append(thisTreatmentPair, ignore_index=True)
+		thisTreatmentPair = dict()
+
+	treatmentResponses.index = index
+	savepath = os.path.join(outdir, f'run{paramIndex}_treatment_responses.xlsx')
+
+	# find fractions responding in certain wealth groups
+	group1 = finalSimStates['asim'] <= 0.081
+	group2 = (finalSimStates['asim'] > 0.081) & (finalSimStates['asim'] <= 0.486)
+	group3 = (finalSimStates['asim'] > 0.486) & (finalSimStates['asim'] <= 4.05)
+	group4 = (finalSimStates['asim'] > 4.05)
+
+	groups = [group1, group2, group3, group4]
+
+	groupLabels = [
+		'$0-$5000',
+		'$5000-$30,000',
+		'$30,000-$250,000',
+		'$250,000+',
+	]
+
+	treatments = [
+		('$500 GAIN', '$500 NEWS-GAIN'),
+		('$5000 GAIN', '$5000 NEWS-GAIN'),
+		('$500 GAIN', '$500 LOSS'),
+		('$500 LOSS', '$500 NEWS-LOSS'),	
+	]
+
+	# loop over income groups
+	for i in range(4):	
+		index = []
+		treatmentResults = []
+
+		for pair in treatments:
+			thisTreatmentPair = dict()
+			
+			index.append(pair[0] + ', ' + pair[1])
+
+			mpcs_treatment1 = mpcs_over_states['$500 GAIN'][groups[i]]
+			mpcs_treatment2 = mpcs_over_states['$500 NEWS-GAIN'][groups[i]]
+			thisTreatmentPair['Response to 1'] = (mpcs_treatment1 > 0).mean()
+			thisTreatmentPair['Response to 2'] = (mpcs_treatment2 > 0).mean()
+			thisTreatmentPair['Response to both'] = ((mpcs_treatment1 > 0) & (mpcs_treatment2 > 0)).mean()
+			thisTreatmentPair['Response to neither'] = ((mpcs_treatment1 == 0) & (mpcs_treatment2 == 0)).mean()
+
+			treatmentResults.append(thisTreatmentPair)
+		
+		thisGroup = DataFrame(data=treatmentResults, index=index)
+		savepath = os.path.join(outdir, f'run{paramIndex}_wealthgroup{i+1}_responses.xlsx')
+		thisGroup.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+
+	# put main results into a Series
 	print('\nResults from simulation:\n')
 	print(eqSimulator.results.dropna().to_string())
 
@@ -421,7 +497,7 @@ if Simulate:
 		mpcNewsSimulator_shock2Years,
 		mpcNewsSimulator_loan,
 		)
-	savepath = os.path.join(outdir,f'mpcs_table_{paramIndex}.xlsx')
+	savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.xlsx')
 	mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
 
 #-----------------------------------------------------------#

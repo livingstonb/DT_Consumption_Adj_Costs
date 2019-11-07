@@ -138,6 +138,7 @@ class EquilibriumSimulator(Simulator):
 			self.finalStates.update({	'yPind': self.yPind,
 										'xsim': self.xsim,
 										'zind': self.zind,
+										'asim': self.asim,
 										})
 
 	def computeEquilibriumStatistics(self, final):
