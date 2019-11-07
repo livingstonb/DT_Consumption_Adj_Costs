@@ -10,30 +10,49 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
-	adjustCosts = [	0.004760897372858,
-					0.004765897372858,
-					0.004770897372858,
-					]
+	# adjustCosts = [	0.004760897372858,
+	# 				0.004765897372858,
+	# 				0.004770897372858,
+	# 				]
 
 	paramsDicts = []
-	ii = 0
+	# ii = 0
 
-	ii = 0
-	for adjustCost in adjustCosts:
-		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'adjustCost = {adjustCost}'
-		paramsDicts[ii]['index'] = ii
-		paramsDicts[ii]['cubicValueInterp'] = True
-		paramsDicts[ii]['adjustCost'] = adjustCost
-		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 1
-		paramsDicts[ii]['wealthTarget'] = 3.2
-		paramsDicts[ii]['nx'] = 120
-		paramsDicts[ii]['nc'] = 120
-		paramsDicts[ii]['nSim'] = 1e5
-		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# ii = 0
+	# for adjustCost in adjustCosts:
+	# 	paramsDicts.append({})
+	# 	paramsDicts[ii]['name'] = f'adjustCost = {adjustCost}'
+	# 	paramsDicts[ii]['index'] = ii
+	# 	paramsDicts[ii]['cubicValueInterp'] = True
+	# 	paramsDicts[ii]['adjustCost'] = adjustCost
+	# 	paramsDicts[ii]['noPersIncome'] = False
+	# 	paramsDicts[ii]['riskAver'] = 1
+	# 	paramsDicts[ii]['wealthTarget'] = 3.2
+	# 	paramsDicts[ii]['nx'] = 120
+	# 	paramsDicts[ii]['nc'] = 120
+	# 	paramsDicts[ii]['nSim'] = 1e5
+	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 
-		ii += 1
+	# 	ii += 1
+
+	###########################################################
+	##### TARGET P(assets<$100) AND P(MPC>0) = 0.2 ############
+	###########################################################
+	ii = 0
+	paramsDicts.append({})
+	paramsDicts[ii]['name'] = f'target P(assets<1000) and P(MPC>0) = 0.2'
+	paramsDicts[ii]['index'] = ii
+	paramsDicts[ii]['cubicValueInterp'] = True
+	paramsDicts[ii]['noPersIncome'] = False
+	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['nx'] = 80
+	paramsDicts[ii]['nc'] = 80
+	paramsDicts[ii]['nSim'] = 5e5
+	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
+	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
+	ii += 1
+
 
 	# ###########################################################
 	# ##### 3-PT DISCOUNT FACTOR HETEROGENEITY ##################

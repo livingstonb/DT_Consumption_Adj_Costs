@@ -66,9 +66,9 @@ cdef class Params:
 
 		# computation
 		self.maxIters = long(2e4)
-		self.tol = 1e-7
-		self.nSim = long(1e5) # number of draws to sim distribution
-		self.tSim = 100 # number of periods to simulate
+		self.tol = 1e-9
+		self.nSim = long(5e5) # number of draws to sim distribution
+		self.tSim = 50 # number of periods to simulate
 		self.cubicValueInterp = False
 
 		# beta iteration
@@ -208,6 +208,25 @@ cdef class Params:
 		self.timeDiscount = newTimeDiscount
 		self.series['Discount factor (annualized)'] = newTimeDiscount ** self.freq
 		self.series['Discount factor (quarterly)'] = newTimeDiscount ** (self.freq/4)
+
+	def resetAdjustCost(self, newAdjustCost):
+		self.adjustCost = newAdjustCost
+		self.series['Adjustment cost'] = newAdjustCost
+
+	def reportFinalParameters(self):
+		index = [	'r',
+					'government transfer',
+					'risk aversion',
+					'death probability',
+					'number of discount factor pts']
+		data = [self.r,
+				self.govTransfer,
+				self.riskAver,
+				self.deathProb,
+				self.discount_factor_grid.shape[0]]
+		final_params = pd.Series(data=data,index=index)
+		final_params = pd.concat([self.series, final_params])
+		print(final_params)
 
 
 class Income:

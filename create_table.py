@@ -1,7 +1,8 @@
 import os
 import pandas as pd
 
-basedir = os.getcwd()
+# basedir = os.getcwd()
+basedir = '/home/brian/Documents/GitHub/DT_Consumption_Adj_Costs/'
 outdir = os.path.join(basedir,'output')
 
 pkls = []

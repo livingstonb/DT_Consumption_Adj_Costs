@@ -38,7 +38,7 @@ name = ''
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
+IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 SimulateMPCs = True
 
@@ -186,11 +186,51 @@ if IterateBeta:
 
 	params.resetDiscountRate(betaOpt)
 
+# #-----------------------------------------------------------#
+# #      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
+# #-----------------------------------------------------------#
+# def calibrator(variables):
+# 	params.resetDiscountRate(np.abs(variables[0])/(1+np.abs(variables[0]))-0.02)
+# 	params.resetAdjustCost(np.abs(variables[1])+0.0001)
+
+# 	print(params.timeDiscount)
+# 	print(params.adjustCost)
+
+# 	model.solve()
+
+# 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
+# 		model.cSwitchingPolicy, model.valueDiff)
+# 	eqSimulator.simulate()
+
+# 	shockIndices = [3]
+# 	mpcSimulator = simulator.MPCSimulator(
+# 		params, income, grids,
+# 		model.cSwitchingPolicy,
+# 		model.valueDiff,
+# 		shockIndices,
+# 		eqSimulator.finalStates)
+# 	mpcSimulator.simulate()
+
+# 	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
+
+# 	targets = np.array([
+# 		eqSimulator.results['Wealth <= $1000'] - 0.23,
+# 		mpcSimulator.results[rowname] - 0.2
+# 		])
+
+# 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
+# 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
+
+# 	return targets
+
+# # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
+# x0 = np.array([69, 0.005559])
+# opt_results = optimize.root(calibrator, x0, method='krylov').x
+
 #-----------------------------------------------------------#
 #      SOLVE MODEL ONCE                                     #
 #-----------------------------------------------------------#
 model.solve()
-
 
 eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
 	model.cSwitchingPolicy, model.valueDiff)
