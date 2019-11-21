@@ -8,6 +8,9 @@ cimport cython
 from cython.parallel cimport prange, parallel
 from misc cimport spline
 
+from Params cimport Params
+from Income cimport Income
+
 from libc.math cimport log, fabs
 from libc.stdlib cimport malloc, free
 
@@ -25,7 +28,9 @@ cdef class CSimulator:
 	last dimension being the model.
 	"""
 	cdef:
-		readonly object p, income, grids
+		readonly Params p
+		readonly Income income
+		readonly object grids
 		readonly double[:,:,:,:,:] valueDiff, cSwitchingPolicy
 		public int nCols
 		readonly int periodsBeforeRedraw

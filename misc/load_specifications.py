@@ -1,4 +1,4 @@
-from model.modelObjects import Params
+from model.Params import Params
 import numpy as np
 
 def load_specifications(locIncomeProcess, index=None, name=None):

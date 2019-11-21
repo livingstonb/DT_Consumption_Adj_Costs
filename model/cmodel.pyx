@@ -10,7 +10,8 @@ from misc cimport cfunctions
 from misc.cfunctions cimport FnArgs, objectiveFn
 from misc cimport spline
 
-from modelObjects cimport Params
+from Params cimport Params
+from Income cimport Income
 
 import pandas as pd
 from scipy import sparse
@@ -20,14 +21,8 @@ from libc.math cimport fmin, fmax
 # define a C struct to allow parallelization in
 # constructing interpMat
 ctypedef struct interpMatArgs:
-	long nx, nc, nz, nyP, nyT
-	double R, govTransfer
 	double *cgrid
 	double *xgrid
-	double *yPgrid
-	double *yPtrans
-	double *yTgrid
-	double *yTdist
 
 cdef enum:
 	# number of sections to try in golden section search
@@ -43,7 +38,8 @@ cdef class CModel:
 	cdef:
 		# parameters and grids
 		public Params p
-		readonly object grids, income
+		public Income income
+		readonly object grids
 
 		# value of the shock next period, used for MPCs out of news
 		public double nextMPCShock
@@ -106,27 +102,12 @@ cdef class CModel:
 
 		xgrid = self.grids.x.flat
 		cgrid = self.grids.c.flat
-		yPgrid = self.income.yPgrid.flatten()
-		yPtrans = self.income.yPtrans.flatten(order='F')
-		yTgrid = self.income.yTgrid.flatten()
-		yTdist = self.income.yTdist.flatten()
 
 		interp_args.xgrid = &xgrid[0]
 		interp_args.cgrid = &cgrid[0]
-		interp_args.yPgrid = &yPgrid[0]
-		interp_args.yPtrans = &yPtrans[0]
-		interp_args.yTgrid = &yTgrid[0]
-		interp_args.yTdist = &yTdist[0]
-		interp_args.nx = self.p.nx
-		interp_args.nc = self.p.nc
-		interp_args.nz = self.p.nz
-		interp_args.nyP = self.p.nyP
-		interp_args.nyT = self.p.nyT
-		interp_args.R = self.p.R
-		interp_args.govTransfer = self.p.govTransfer
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
-		for ix in prange(interp_args.nx, num_threads=4, schedule='static', nogil=True):
+		for ix in prange(self.p.nx, num_threads=4, schedule='static', nogil=True):
 			self.findInterpMatOneX(ix, interp_args)
 
 		self.interpMat = sparse.coo_matrix((self.V,(self.I,self.J)),shape=(length,length)).tocsr()
@@ -147,34 +128,34 @@ cdef class CModel:
 
 		xval = args.xgrid[ix]
 
-		ii = ix * 2 * args.nc * args.nz * args.nyP * args.nyP * args.nyT
+		ii = ix * 2 * self.p.nc * self.p.nz * self.p.nyP * self.p.nyP * self.p.nyT
 		ii2 = ii + 1
 
-		for ic in range(args.nc):
-			assets = args.R * (xval - args.cgrid[ic])
+		for ic in range(self.p.nc):
+			assets = self.p.R * (xval - args.cgrid[ic])
 
-			for iz in range(args.nz):
+			for iz in range(self.p.nz):
 
-				for iyP1 in range(args.nyP):
+				for iyP1 in range(self.p.nyP):
 
-					for iyP2 in range(args.nyP):
-						Pytrans = args.yPtrans[iyP1+args.nyP*iyP2]
-						yP2 = args.yPgrid[iyP2]
+					for iyP2 in range(self.p.nyP):
+						Pytrans = self.income.yPtrans[iyP1, iyP2]
+						yP2 = self.income.yPgrid[iyP2]
 
-						for iyT in range(args.nyT):
+						for iyT in range(self.p.nyT):
 
-							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
-							cfunctions.getInterpolationWeights(args.xgrid,cash, args.nx, &xIndices[0], &xWeights[0])
-							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
+							cash = assets + yP2 * self.income.yTgrid[iyT] + self.nextMPCShock + self.p.govTransfer
+							cfunctions.getInterpolationWeights(args.xgrid, cash, self.p.nx, &xIndices[0], &xWeights[0])
+							row = ix + self.p.nx*ic + self.p.nx*self.p.nc*iz + self.p.nx*self.p.nc*self.p.nz*iyP1
 
 							self.I[ii] = row
 							self.I[ii2] = row
 
-							self.J[ii] = xIndices[0] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
-							self.J[ii2] = xIndices[1] + args.nx * ic + args.nx * args.nc * iz + args.nx * args.nc * args.nz * iyP2
+							self.J[ii] = xIndices[0] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
+							self.J[ii2] = xIndices[1] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
 
-							self.V[ii] = Pytrans * args.yTdist[iyT] * xWeights[0]
-							self.V[ii2] = Pytrans * args.yTdist[iyT] * xWeights[1]
+							self.V[ii] = Pytrans * self.income.yTdist[iyT] * xWeights[0]
+							self.V[ii2] = Pytrans * self.income.yTdist[iyT] * xWeights[1]
 
 							ii += 2
 							ii2 += 2
@@ -227,7 +208,7 @@ cdef class CModel:
 
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
-		ymin = self.income.ymat.flatten().min() + self.p.govTransfer
+		ymin = self.income.ymin + self.p.govTransfer
 
 		emaxVec = np.zeros(self.p.nc)
 		yderivs = np.zeros(self.p.nc)
@@ -333,7 +314,7 @@ cdef class CModel:
 			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
 			* np.asarray(self.EMAX)
 
-		ymin = self.income.ymat.flatten().min() + self.p.govTransfer
+		ymin = self.income.ymin + self.p.govTransfer
 		for ix in range(self.p.nx):
 			for ic in range(self.p.nc):
 				if self.grids.c.flat[ic] > self.grids.x.flat[ix] + (ymin+self.nextMPCShock)/self.p.R:
@@ -345,7 +326,7 @@ cdef class CModel:
 		cdef np.ndarray[np.int64_t, ndim=1] inactionRegion
 		cdef long ix, iz, ic, iyP
 
-		ymin = self.income.ymat.flatten().min() + self.p.govTransfer
+		ymin = self.income.ymin + self.p.govTransfer
 
 		cSwitch = np.asarray(self.valueSwitch) > np.asarray(self.valueNoSwitch)
 

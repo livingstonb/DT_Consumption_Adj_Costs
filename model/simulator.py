@@ -26,8 +26,12 @@ class Simulator(CSimulator):
 		yTind = np.argmax(self.yTrand[:,self.randIndex,None]
 								<= self.income.yTcumdistT, axis=1)
 
-		yPsim = self.income.yPgrid[self.yPind]
-		yTsim = self.income.yTgrid[yTind]
+		if self.income.nyP > 1:
+			yPsim = np.asarray(self.income.yPgrid)[self.yPind]
+		else:
+			yPsim = self.income.yPgrid[0] * np.ones(self.nSim)
+		if self.income.nyT > 1:
+			yTsim = np.asarray(self.income.yTgrid)[yTind]
 		self.ysim = (yPsim * yTsim).reshape((-1,1))
 
 	def updateCash(self):
@@ -97,8 +101,15 @@ class EquilibriumSimulator(Simulator):
 								<= self.income.yTcumdistT, 
 								axis=1)
 
-		yPsim = self.income.yPgrid[self.yPind]
-		yTsim = self.income.yTgrid[yTind]
+		if self.income.nyP == 1:
+			yPsim = self.income.yPgrid[0] * np.ones(self.nSim)
+		else:
+			yPsim = np.asarray(self.income.yPgrid)[np.asarray(self.yPind)]
+
+		if self.income.nyT == 1:
+			yTsim = self.income.yTgrid[0] * np.ones(self.nSim)
+		else:
+			yTsim = np.asarray(self.income.yTgrid)[yTind]
 		self.ysim = (yPsim * yTsim).reshape((-1,1))
 
 		chunkSize = self.nSim // self.p.nz

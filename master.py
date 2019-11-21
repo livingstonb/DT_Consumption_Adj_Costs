@@ -8,7 +8,7 @@ from scipy import optimize
 
 import pandas as pd
 
-from model import modelObjects
+from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
 from misc.boundsFinder import BoundsFinder
 from misc import mpcsTable
@@ -66,13 +66,13 @@ else:
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
 #---------------------------------------------------------------#
-income = modelObjects.Income(params)
+income = Income.Income(params)
 params.addIncomeParameters(income)
 
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
-grids = modelObjects.GridCreator(params, income)
+grids = Grid.GridCreator(params, income)
 
 #---------------------------------------------------------------#
 #      CREATE MODEL                                             #

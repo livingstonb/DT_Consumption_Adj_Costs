@@ -20,7 +20,13 @@ extensions = [
 							extra_compile_args=compileArgs,
         					extra_link_args=compileArgs,),
 
-				Extension("model.modelObjects",["model/modelObjects.pyx"],
+				Extension("model.Grid",["model/Grid.pyx"],
+							include_dirs=[np.get_include()]),
+
+				Extension("model.Income",["model/Income.pyx"],
+							include_dirs=[np.get_include()]),
+
+				Extension("model.Params",["model/Params.pyx"],
 							include_dirs=[np.get_include()]),
 
 				Extension("misc.cfunctions",["misc/cfunctions.pyx"],
