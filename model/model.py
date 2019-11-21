@@ -106,10 +106,6 @@ class ModelWithNews(Model):
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
-
-		# if self.nextMPCShock < 0:
-		# 	self.EMAX = np.asarray(self.EMAX) + np.asarray(self.add_to_EMAX)
-
 		super().solve()
 
 	def updateEMAX(self):

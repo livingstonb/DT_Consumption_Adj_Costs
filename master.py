@@ -419,8 +419,9 @@ if Simulate:
 
 	
 	treatmentResponses.index = index
-	savepath = os.path.join(outdir, f'run{paramIndex}_treatment_responses.xlsx')
-	treatmentResponses.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+	savepath = os.path.join(outdir, f'run{paramIndex}_treatment_responses.csv')
+	# treatmentResponses.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+	treatmentResponses.to_csv(savepath, index_label=params.name)
 
 	# find fractions responding in certain wealth groups
 	group1 = np.asarray(finalSimStates['asim']) <= 0.081
@@ -464,8 +465,9 @@ if Simulate:
 			treatmentResults.append(thisTreatmentPair)
 		
 		thisGroup = pd.DataFrame(data=treatmentResults, index=index)
-		savepath = os.path.join(outdir, f'run{paramIndex}_wealthgroup{i+1}_responses.xlsx')
-		thisGroup.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+		savepath = os.path.join(outdir, f'run{paramIndex}_wealthgroup{i+1}_responses.csv')
+		# thisGroup.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+		thisGroup.to_csv(savepath, index_label=params.name)
 
 	# put main results into a Series
 	print('\nResults from simulation:\n')
@@ -497,8 +499,9 @@ if Simulate:
 		mpcNewsSimulator_shock2Years,
 		mpcNewsSimulator_loan,
 		)
-	savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.xlsx')
-	mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+	savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.csv')
+	# mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+	mpcs_table.to_csv(savepath, index_label=params.name)
 
 #-----------------------------------------------------------#
 #      PLOTS                                                #

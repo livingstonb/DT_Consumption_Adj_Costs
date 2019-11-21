@@ -21,4 +21,6 @@ for pkl in pkls:
 df = pd.concat(series_list, axis=1)
 
 xlpath = os.path.join(outdir,'table.xlsx')
-df.to_excel(xlpath, freeze_panes=(0,0), header=False)
+csvpath = os.path.join(outdir, 'table.csv')
+# df.to_excel(xlpath, freeze_panes=(0,0), header=False)
+df.to_csv(csvpath, header=False)

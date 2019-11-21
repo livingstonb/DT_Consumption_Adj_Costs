@@ -16,7 +16,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 				]
 
 	paramsDicts = []
-	# ii = 0
+	ii = 0
 
 	# ii = 0
 	# for adjustCost in adjustCosts:
@@ -36,9 +36,31 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	ii += 1
 
 	###########################################################
-	##### TARGET P(assets<$100) AND P(MPC>0) = 0.2 ############
+	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2, w/HET ####
 	###########################################################
-	ii = 0
+
+	w = 0.031928196837238
+
+	paramsDicts.append({})
+	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
+	paramsDicts[ii]['index'] = ii
+	paramsDicts[ii]['cubicValueInterp'] = True
+	paramsDicts[ii]['adjustCost'] = 0.01
+	paramsDicts[ii]['noPersIncome'] = False
+	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
+	paramsDicts[ii]['wealthTarget'] = 3.2
+	paramsDicts[ii]['nx'] = 120
+	paramsDicts[ii]['nc'] = 120
+	paramsDicts[ii]['nSim'] = 1e5
+	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	paramsDicts[ii]['timeDiscount'] = 0.875800159738212
+
+	ii += 1
+
+	###########################################################
+	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2 ###########
+	###########################################################
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = f'target P(assets<1000) and P(MPC>0) = 0.2'
 	paramsDicts[ii]['index'] = ii

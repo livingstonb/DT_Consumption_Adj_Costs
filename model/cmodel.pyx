@@ -10,16 +10,18 @@ from misc cimport cfunctions
 from misc.cfunctions cimport FnArgs, objectiveFn
 from misc cimport spline
 
+from modelObjects cimport Params
+
 import pandas as pd
 from scipy import sparse
 
 from libc.math cimport fmin, fmax
-from libc.stdlib cimport malloc, free
 
+# define a C struct to allow parallelization in
+# constructing interpMat
 ctypedef struct interpMatArgs:
 	long nx, nc, nz, nyP, nyT
-	double R, govTransfer, xmin, timeDiscountAdj
-	double riskAver, adjustCost
+	double R, govTransfer
 	double *cgrid
 	double *xgrid
 	double *yPgrid
@@ -39,18 +41,43 @@ cdef class CModel:
 	Base class which serves as the workhorse of the model.
 	"""
 	cdef:
-		public object p
+		# parameters and grids
+		public Params p
 		readonly object grids, income
+
+		# value of the shock next period, used for MPCs out of news
 		public double nextMPCShock
+
+		# tuples of dimension lengths
 		readonly tuple dims, dims_yT
+
+		# value functions
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
-		public double[:,:,:,:] EMAX, EMAXnext, add_to_EMAX
+
+		# EMAX and next period's EMAX
+		public double[:,:,:,:] EMAX, EMAXnext
+
+		# inaction regions
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
+
+		# variables for construction of interpMat
 		long [:] I, J
 		double [:] V
-		public object valueDiff, cSwitchingPolicy
+
+		# excess value from switching
+		public object valueDiff
+
+		# policy function for c, conditional on switching
+		public object cSwitchingPolicy
 
 	def __init__(self, params, income, grids):
+		"""
+		Class constructor
+
+		Parameters
+		----------
+		params : a Params object containing the model parameters
+		"""
 		self.p = params
 		self.grids = grids
 		self.income = income
@@ -72,8 +99,6 @@ cdef class CModel:
 			long ix
 			interpMatArgs interp_args
 
-		self.add_to_EMAX = np.zeros((self.p.nx,self.p.nc,self.p.nz,self.p.nyP))
-
 		# (I,J) indicate the (row,column) for the value in V
 		self.I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
 		self.J = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
@@ -86,7 +111,6 @@ cdef class CModel:
 		yTgrid = self.income.yTgrid.flatten()
 		yTdist = self.income.yTdist.flatten()
 
-		interp_args.xmin = xgrid[0]
 		interp_args.xgrid = &xgrid[0]
 		interp_args.cgrid = &cgrid[0]
 		interp_args.yPgrid = &yPgrid[0]
@@ -100,9 +124,6 @@ cdef class CModel:
 		interp_args.nyT = self.p.nyT
 		interp_args.R = self.p.R
 		interp_args.govTransfer = self.p.govTransfer
-		interp_args.adjustCost = self.p.adjustCost
-		interp_args.timeDiscountAdj = self.p.timeDiscount * (1-self.p.deathProb)
-		interp_args.riskAver = self.p.riskAver
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
 		for ix in prange(interp_args.nx, num_threads=4, schedule='static', nogil=True):
@@ -120,9 +141,7 @@ cdef class CModel:
 		"""
 		cdef: 
 			double xWeights[2]
-			double cWeights[2]
 			long xIndices[2]
-			long cIndices[2]
 			double xval, assets, cash, Pytrans, yP2
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
@@ -145,27 +164,7 @@ cdef class CModel:
 						for iyT in range(args.nyT):
 
 							cash = assets + yP2 * args.yTgrid[iyT] + self.nextMPCShock + args.govTransfer
-							cfunctions.getInterpolationWeights(args.xgrid,cash,args.nx,&xIndices[0],&xWeights[0])
-
-							# if (self.nextMPCShock<0) and (cash > 0) and (cash < args.xmin):
-							# 	pass
-							# 	# cfunctions.getInterpolationWeights(args.cgrid,cash,args.nc,&cIndices[0],&cWeights[0])
-							# 	# self.add_to_EMAX[ix,ic,iz,iyP1] += Pytrans * args.yTdist[iyT] * (
-							# 	# 	cfunctions.utility(args.riskAver, cash)
-							# 	# 	- args.adjustCost
-							# 	# 	+ args.timeDiscountAdj
-							# 	# 		* ( cWeights[0] * self.EMAXnext[0,cIndices[0],iz,iyP2]
-							# 	# 			+ cWeights[1] * self.EMAXnext[0,cIndices[1],iz,iyP2])
-							# 	# 		# * 	( 	xWeights[0] * cWeights[0] * self.EMAXnext[xIndices[0],cIndices[0],iz,iyP2]
-							# 	# 		# 		+ xWeights[1] * cWeights[0] * self.EMAXnext[xIndices[1],cIndices[0],iz,iyP2]
-							# 	# 		# 		+ xWeights[0] * cWeights[1] * self.EMAXnext[xIndices[0],cIndices[1],iz,iyP2]
-							# 	# 		# 		+ xWeights[1] * cWeights[1] * self.EMAXnext[xIndices[1],cIndices[1],iz,iyP2]
-							# 	# 		# 	)
-							# 	# 	)
-
-							# elif (self.nextMPCShock<0) and (cash <= 0):
-							# 	self.add_to_EMAX[ix,ic,iz,iyP1] = - 1e8
-							# else:
+							cfunctions.getInterpolationWeights(args.xgrid,cash, args.nx, &xIndices[0], &xWeights[0])
 							row = ix + args.nx*ic + args.nx*args.nc*iz + args.nx*args.nc*args.nz*iyP1
 
 							self.I[ii] = row
@@ -249,7 +248,7 @@ cdef class CModel:
 			for ix in range(self.p.nx):
 				xval = xgrid[ix]
 				if self.nextMPCShock < 0:
-					maxAdmissibleC = fmin(xval+(ymin+self.nextMPCShock)/self.p.R,self.p.cMax)
+					maxAdmissibleC = fmin(xval+(ymin+self.nextMPCShock)/self.p.R, self.p.cMax)
 					maxAdmissibleC = fmax(maxAdmissibleC, self.p.cMin+1e-6)
 				else:
 					maxAdmissibleC = fmin(xval,self.p.cMax)

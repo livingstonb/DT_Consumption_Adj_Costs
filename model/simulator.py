@@ -155,7 +155,9 @@ class EquilibriumSimulator(Simulator):
 
 		self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0081*2)
 		self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
-		self.results['Wealth <= $10000'] = np.mean(np.asarray(self.asim) <= 0.081*2)
+		self.results['Wealth <= $10,000'] = np.mean(np.asarray(self.asim) <= 0.081*2)
+		self.results['Wealth <= $25,000'] = np.mean(np.asarray(self.asim) <= 0.405)
+		self.results['Wealth <= $250,000'] = np.mean(np.asarray(self.asim) <= 4.05)
 
 		self.results['Wealth <= own quarterly income/6'] = np.mean(
 			np.asarray(self.asim) <= (np.asarray(self.ysim) / 6))
@@ -222,6 +224,8 @@ class MPCSimulator(Simulator):
 
 		self.initialize_variables()
 		self.initialize_results()
+
+		np.random.seed(1991)
 
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
