@@ -72,7 +72,7 @@ params.addIncomeParameters(income)
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
-grids = Grid.GridCreator(params, income)
+grids = Grid.Grid(params, income)
 
 #---------------------------------------------------------------#
 #      CREATE MODEL                                             #
@@ -507,14 +507,14 @@ if Simulate:
 #      PLOTS                                                #
 #-----------------------------------------------------------#
 ixvals = [0,params.nx//8,params.nx//6,params.nx//4,params.nx//3,params.nx//2,params.nx-1]
-xvals = np.array([grids.x.flat[i] for i in ixvals])
+xvals = np.array([grids.x_flat[i] for i in ixvals])
 
 icvals = [0,params.nc//8,params.nc//6,params.nc//4,params.nc//3,params.nc//2,params.nc-1]
-cvals = np.array([grids.c.flat[i] for i in icvals])
+cvals = np.array([grids.c_flat[i] for i in icvals])
 
 def plot_policies():
 	cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch)
-	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy[:,:,:,:,0]) + (~cSwitch) * np.asarray(grids.c.matrix)
+	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy[:,:,:,:,0]) + (~cSwitch) * np.asarray(grids.c_matrix)
 
 	print(xvals)
 
@@ -528,7 +528,7 @@ def plot_policies():
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].scatter(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids.c_flat,cPolicy[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('actual consumption')
@@ -539,7 +539,7 @@ def plot_policies():
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].scatter(grids.c.flat,cPolicy[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids.c_flat,cPolicy[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('actual consumption')
@@ -551,7 +551,7 @@ def plot_policies():
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].scatter(grids.c.flat,model.EMAX[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids.c_flat,model.EMAX[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'x = {xvals[i]}')
 			ax[row,col].set_xlabel('c, state')
 			ax[row,col].set_ylabel('EMAX')
@@ -562,7 +562,7 @@ def plot_policies():
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].scatter(grids.x.flat,cPolicy[:,icvals[i],0,iyP])
+			ax[row,col].scatter(grids.x_flat,cPolicy[:,icvals[i],0,iyP])
 			ax[row,col].set_title(f'c = {cvals[i]}')
 			ax[row,col].set_xlabel('x, cash-on-hand')
 			ax[row,col].set_ylabel('actual consumption')
@@ -573,7 +573,7 @@ def plot_policies():
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].scatter(grids.c.flat,model.EMAX[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids._flat,model.EMAX[ixvals[i],:,0,iyP])
 			ax[row,col].set_title(f'c = {cvals[i]}')
 			ax[row,col].set_xlabel('cash-on-hand, x')
 			ax[row,col].set_ylabel('EMAX')
@@ -581,9 +581,9 @@ def plot_policies():
 
 	fig = plt.figure()
 	ax = fig.add_subplot(1, 1, 1)
-	ax.scatter(grids.x.flat,model.inactionRegionLower[:,0,iyP])
-	ax.scatter(grids.x.flat,model.cSwitchingPolicy[:,0,0,iyP])
-	ax.scatter(grids.x.flat,model.inactionRegionUpper[:,0,iyP])
+	ax.scatter(grids.x_flat,model.inactionRegionLower[:,0,iyP])
+	ax.scatter(grids.x_flat,model.cSwitchingPolicy[:,0,0,iyP])
+	ax.scatter(grids.x_flat,model.inactionRegionUpper[:,0,iyP])
 
 	ax.set_title('Inaction region for consumption')
 	ax.set_xlabel('cash-on-hand, x')

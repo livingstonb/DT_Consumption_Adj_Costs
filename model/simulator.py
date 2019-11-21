@@ -277,8 +277,8 @@ class MPCSimulator(Simulator):
 		for ishock in self.shockIndices:
 			for i in range(self.p.nSim):
 				self.xsim[i,col] += self.p.MPCshocks[ishock]
-				if self.xsim[i,col] < self.grids.x.flat[0]:
-					self.xsim[i,col] = self.grids.x.flat[0]
+				if self.xsim[i,col] < self.grids.x_flat[0]:
+					self.xsim[i,col] = self.grids.x_flat[0]
 					self.pushed_below_xgrid[i,col] = True
 			col += 1
 
@@ -332,7 +332,7 @@ class MPCSimulator(Simulator):
 				indices = self.pushed_below_xgrid[:,ii]
 				if np.any(indices):
 					csimQuarter[indices] += np.asarray(self.finalStates['xsim'])[indices].flatten() \
-						+ self.p.MPCshocks[ishock] - self.grids.x.flat[0]
+						+ self.p.MPCshocks[ishock] - self.grids.x_flat[0]
 
 			# quarterly mpcs
 			allMPCS = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])

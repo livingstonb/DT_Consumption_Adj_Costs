@@ -1,5 +1,6 @@
 import numpy as np
 
+from model import Params, Income, Grid
 from model.cmodel import CModel
 from misc import functions
 
@@ -23,7 +24,7 @@ class Model(CModel):
 		if np.abs(denom) < 1e-3:
 			denom = 1e-3
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
-			self.grids.x.matrix) / denom
+			self.grids.x_matrix) / denom
 
 		self.valueFunction = valueGuess
 

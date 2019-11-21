@@ -80,9 +80,9 @@ cdef class CSimulator:
 
 		conIndices = np.zeros((self.nSim))
 			
-		cgrid = self.grids.c.flat
+		cgrid = self.grids.c_flat
 		nc = self.p.nc
-		xgrid = self.grids.x.flat
+		xgrid = self.grids.x_flat
 		nx = self.p.nx
 		discount_factor_grid = self.p.discount_factor_grid
 		deathProb = self.p.deathProb
