@@ -9,12 +9,11 @@ cdef struct FnArgs:
 	double *yderivs
 	bint cubicValueInterp
 	long error
-	long nc
 	long ncValid
 	double riskAver
 	double timeDiscount
 	double deathProb
-	double adjustCost
+	long nc
 
 # function pointer for golden section search
 ctypedef double (*objectiveFn)(double x, FnArgs fargs) nogil

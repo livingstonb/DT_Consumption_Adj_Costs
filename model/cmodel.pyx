@@ -189,9 +189,8 @@ cdef class CModel:
 		fargs.error = 0
 		fargs.cgrid = &cgrid[0]
 		fargs.cubicValueInterp = self.p.cubicValueInterp
-		fargs.nc = self.p.nc
 		fargs.deathProb = self.p.deathProb
-		fargs.adjustCost = self.p.adjustCost
+		fargs.nc = self.p.nc
 
 		if self.p.risk_aver_grid.size > 1:
 			hetType = 1
