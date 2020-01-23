@@ -23,7 +23,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'adjustCost = {adjustCost}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -44,7 +43,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['cubicValueInterp'] = True
 	paramsDicts[ii]['adjustCost'] = 0.01
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
@@ -64,7 +62,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = f'target P(assets<1000) and P(MPC>0) = 0.2'
 	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['cubicValueInterp'] = True
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['nx'] = 80
@@ -91,7 +88,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -114,7 +110,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -137,7 +132,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -159,7 +153,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -184,7 +177,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 2
@@ -206,7 +198,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 2
@@ -227,7 +218,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 2
@@ -248,7 +238,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 2
@@ -275,7 +264,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -298,7 +286,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -320,7 +307,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -343,7 +329,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	# 	paramsDicts.append({})
 	# 	paramsDicts[ii]['name'] = f'5-pt discount factor w/width{w}'
 	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['cubicValueInterp'] = True
 	# 	paramsDicts[ii]['adjustCost'] = adjustCost
 	# 	paramsDicts[ii]['noPersIncome'] = False
 	# 	paramsDicts[ii]['riskAver'] = 1
@@ -367,7 +352,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		paramsDicts.append({})
 		paramsDicts[ii]['name'] = f'2-pt RA het exp(-x), exp(x), x = {x}'
 		paramsDicts[ii]['index'] = ii
-		paramsDicts[ii]['cubicValueInterp'] = True
 		paramsDicts[ii]['adjustCost'] = adjustCost
 		paramsDicts[ii]['noPersIncome'] = False
 		paramsDicts[ii]['riskAver'] = 0
@@ -381,7 +365,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'fast'
-	paramsDicts[ii]['cubicValueInterp'] = True
 	paramsDicts[ii]['adjustCost'] = 1
 	paramsDicts[ii]['noPersIncome'] = True
 	paramsDicts[ii]['riskAver'] = 1
@@ -397,7 +380,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'custom'
-	paramsDicts[ii]['cubicValueInterp'] = True
 	paramsDicts[ii]['adjustCost'] = 0.01
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1

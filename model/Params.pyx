@@ -5,7 +5,6 @@ import pandas as pd
 
 cdef class Params:
 	def __init__(self, params_dict=None):
-
 		#-----------------------------------#
 		#        SET DEFAULT VALUES         #
 		#-----------------------------------#
@@ -34,7 +33,6 @@ cdef class Params:
 		self.tol = 1e-7
 		self.nSim = long(5e5) # number of draws to sim distribution
 		self.tSim = 100 # number of periods to simulate
-		self.cubicValueInterp = False
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7

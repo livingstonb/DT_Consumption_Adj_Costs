@@ -7,7 +7,6 @@ cdef struct FnArgs:
 	double *cgrid
 	double *emaxVec
 	double *yderivs
-	bint cubicValueInterp
 	long error
 	long ncValid
 	double riskAver

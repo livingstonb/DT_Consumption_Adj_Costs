@@ -172,7 +172,6 @@ cdef class CModel:
 
 		fargs.error = 0
 		fargs.cgrid = &self.grids.c_flat[0]
-		fargs.cubicValueInterp = self.p.cubicValueInterp
 		fargs.deathProb = self.p.deathProb
 		fargs.nc = self.p.nc
 
@@ -235,8 +234,7 @@ cdef class CModel:
 						if xval >= self.grids.c_flat[ic]:
 							fargs.ncValid += 1
 
-					if fargs.cubicValueInterp:
-						spline.spline(&self.grids.c_flat[0], &emaxVec[0], self.p.nc, 1.0e30, 1.0e30, &yderivs[0])
+					spline.spline(&self.grids.c_flat[0], &emaxVec[0], self.p.nc, 1.0e30, 1.0e30, &yderivs[0])
 
 					for ii in range(NSECTIONS):
 						errorGSS = cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
@@ -274,7 +272,7 @@ cdef class CModel:
 		cdef double weights[2]
 		cdef long indices[2]
 	
-		if (fargs.ncValid > 4) and fargs.cubicValueInterp:
+		if (fargs.ncValid > 4):
 			fargs.error = spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
 		else:
 			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
