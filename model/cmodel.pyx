@@ -89,15 +89,16 @@ cdef class CModel:
 			long ix
 
 		# (I,J) indicate the (row,column) for the value in V
-		self.I = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
-		self.J = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2),dtype=int)
-		self.V = np.zeros((self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2))
+		entries = self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2
+		self.I = np.zeros(entries, dtype=int)
+		self.J = np.zeros(entries, dtype=int)
+		self.V = np.zeros(entries)
 
 		length = self.p.nx * self.p.nc * self.p.nz * self.p.nyP
 		for ix in prange(self.p.nx, num_threads=4, schedule='static', nogil=True):
 			self.findInterpMatOneX(ix)
 
-		self.interpMat = sparse.coo_matrix((self.V,(self.I,self.J)), shape=(length,length)).tocsr()
+		self.interpMat = sparse.coo_matrix((self.V, (self.I,self.J)), shape=(length,length)).tocsr()
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -161,7 +162,6 @@ cdef class CModel:
 			double[:] emaxVec, yderivs
 			double[:] risk_aver_grid, discount_factor_grid
 			double[:] sections
-			long errorGSS
 			double bounds[NSECTIONS][2]
 			double gssResults[2]
 			double cVals[NVALUES]
@@ -170,7 +170,6 @@ cdef class CModel:
 			FnArgs fargs
 			objectiveFn iteratorFn
 
-		fargs.error = 0
 		fargs.cgrid = &self.grids.c_flat[0]
 		fargs.deathProb = self.p.deathProb
 		fargs.nc = self.p.nc
@@ -187,7 +186,6 @@ cdef class CModel:
 			hetType = 0
 			fargs.timeDiscount = self.p.timeDiscount
 			fargs.riskAver = self.p.riskAver
-
 
 		sections = np.linspace(1/<double>NSECTIONS, 1, num=NSECTIONS)
 		ymin = self.income.ymin + self.p.govTransfer
@@ -214,10 +212,10 @@ cdef class CModel:
 					maxAdmissibleC = fmin(xval+(ymin+self.nextMPCShock)/self.p.R, self.p.cMax)
 					maxAdmissibleC = fmax(maxAdmissibleC, self.p.cMin+1e-6)
 				else:
-					maxAdmissibleC = fmin(xval,self.p.cMax)
+					maxAdmissibleC = fmin(xval, self.p.cMax)
 
 				bounds[0][1] = maxAdmissibleC * sections[0]
-				for ii in range(1,NSECTIONS):
+				for ii in range(1, NSECTIONS):
 					bounds[ii][0] = maxAdmissibleC * sections[ii-1]
 					bounds[ii][1] = maxAdmissibleC * sections[ii]
 
@@ -237,15 +235,11 @@ cdef class CModel:
 					spline.spline(&self.grids.c_flat[0], &emaxVec[0], self.p.nc, 1.0e30, 1.0e30, &yderivs[0])
 
 					for ii in range(NSECTIONS):
-						errorGSS = cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
+						cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
 							bounds[ii][1],1e-8, &gssResults[0], fargs)
-						if errorGSS == -1:
-							raise Exception('Exception in golden section search')
-						elif errorGSS == 1:
-							raise Exception('Exception in fn called by golden section search')
-
 						funVals[ii] = gssResults[0]
 						cVals[ii] = gssResults[1]
+
 					ii = NSECTIONS
 
 					# try consuming cmin
@@ -273,7 +267,7 @@ cdef class CModel:
 		cdef long indices[2]
 	
 		if (fargs.ncValid > 4):
-			fargs.error = spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
+			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.nc, cSwitch, &emax)
 		else:
 			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.nc, &indices[0], &weights[0])
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]

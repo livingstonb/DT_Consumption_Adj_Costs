@@ -7,7 +7,6 @@ cdef struct FnArgs:
 	double *cgrid
 	double *emaxVec
 	double *yderivs
-	long error
 	long ncValid
 	double riskAver
 	double timeDiscount
@@ -24,8 +23,8 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
 cdef void getInterpolationWeights(
 	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
 
-cdef long goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, FnArgs args) nogil except -1
+cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
+	double tol, double* out, FnArgs args) nogil
 
 cdef double cmax(double *vals, int nVals) nogil
 
