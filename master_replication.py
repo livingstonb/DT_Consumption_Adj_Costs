@@ -29,10 +29,10 @@ if not os.path.exists(outdir):
 #      SET DIRECTORY CONTAINING INCOME PROCESS                  #
 #---------------------------------------------------------------#
 locIncomeProcess = os.path.join(
-	basedir, 'input', 'IncomeGrids', 'quarterly_b.mat')
+	basedir, 'input', 'quarterly_b.mat')
 
 #---------------------------------------------------------------#
-#      CHOOSE SPECIFICATION                                     #
+#      CHOOSE CALIBRATION                                       #
 #---------------------------------------------------------------#
 # 0 -- Baseline w/discount heterogeneity
 # 1 -- Mean wealth target, no discount heterogeneity

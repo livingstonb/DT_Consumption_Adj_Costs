@@ -53,7 +53,7 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 
 locIncomeProcess = os.path.join(
-	basedir,'input','IncomeGrids','quarterly_b.mat')
+	basedir,'input','quarterly_b.mat')
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #

@@ -1,7 +1,9 @@
 from libc.stdlib cimport malloc, free
 cimport cython
 
-# Algorithm taken from Numerical Recipes in C, 2nd Edition.
+# Algorithms here were taken from Numerical Recipes in C,
+# Second Edition, Columbia University Press 1992, by Press,
+# Teukolsky, Vetterling, and Flannery.
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
