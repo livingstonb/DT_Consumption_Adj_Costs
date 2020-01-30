@@ -2,9 +2,6 @@
 
 The code in this repository was written by Brian Livingston
 (livingstonb@uchicago.edu).
-The spline interpolation algorithm was taken from *Numerical Recipes in C*,
-Columbia University Press 1992,
-by Press, Teukolsky, Vetterling, and Flannery.
 
 ## Getting Started
 
