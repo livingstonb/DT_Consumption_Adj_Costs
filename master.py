@@ -10,7 +10,6 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
-from misc.boundsFinder import BoundsFinder
 from misc import mpcsTable
 from model.model import Model, ModelWithNews
 from model import simulator
@@ -53,7 +52,7 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 
 locIncomeProcess = os.path.join(
-	basedir,'input','quarterly_b.mat')
+	basedir,'input','income_quarterly_b.mat')
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #

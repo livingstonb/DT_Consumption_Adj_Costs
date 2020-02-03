@@ -10,7 +10,6 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
-from misc.boundsFinder import BoundsFinder
 from misc.optim_constraints import constraint_transform
 from misc.optim_constraints import constraint_transform_inv
 from misc import mpcsTable
@@ -29,7 +28,7 @@ if not os.path.exists(outdir):
 #      SET DIRECTORY CONTAINING INCOME PROCESS                  #
 #---------------------------------------------------------------#
 locIncomeProcess = os.path.join(
-	basedir, 'input', 'quarterly_b.mat')
+	basedir, 'input', 'income_quarterly_b.mat')
 
 #---------------------------------------------------------------#
 #      CHOOSE CALIBRATION                                       #

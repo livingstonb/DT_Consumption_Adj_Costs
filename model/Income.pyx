@@ -20,11 +20,11 @@ cdef class Income:
 			self.yPgrid = np.array([1.0])
 			self.yPtrans = np.array([[1.0]])
 		else:
-			self.logyPgrid = np.asarray(matFile['discmodel1']['logyPgrid'][0][0]).flatten()
+			self.logyPgrid = np.asarray(matFile['logyPgrid']).flatten()
 			self.nyP = self.logyPgrid.size
 
-			self.yPdist = np.asarray(matFile['discmodel1']['yPdist'][0][0]).flatten()
-			self.yPtrans = matFile['discmodel1']['yPtrans'][0][0]
+			self.yPdist = np.asarray(matFile['yPdist']).flatten()
+			self.yPtrans = matFile['yPtrans']
 
 			self.yPgrid = np.exp(self.logyPgrid)
 
@@ -39,10 +39,10 @@ cdef class Income:
 			self.yTdist = np.array([1.0])
 			self.yTgrid = np.array([1.0])
 		else:
-			self.logyTgrid = np.asarray(matFile['discmodel1']['logyTgrid'][0][0]).flatten()
+			self.logyTgrid = np.asarray(matFile['logyTgrid']).flatten()
 			self.nyT = self.logyTgrid.size
 
-			self.yTdist = np.asarray(matFile['discmodel1']['yTdist'][0][0]).flatten()
+			self.yTdist = np.asarray(matFile['yTdist']).flatten()
 			self.yTgrid = np.exp(self.logyTgrid)
 
 		self.yTgrid = np.asarray(self.yTgrid) / np.dot(self.yTdist.T,self.yTgrid)
