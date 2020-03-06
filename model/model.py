@@ -4,6 +4,8 @@ from model import Params, Income, Grid
 from model.cmodel import CModel
 from misc import functions
 
+from IPython.core.debugger import set_trace
+
 class Model(CModel):
 	"""
 	Inherits attributes and methods from the base extension class
@@ -15,7 +17,6 @@ class Model(CModel):
 
 	def initialize(self):
 		self.nextMPCShock = 0 # no shock next period
-		self.next_grid_provided = False
 
 		self.borrLimCurr = self.p.borrowLim
 		self.borrLimNext = self.p.borrowLim
@@ -23,7 +24,7 @@ class Model(CModel):
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 
-		# make initial guess for value function
+	def makeValueGuess(self):
 		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
 		denom = (denom < 1e-4) * 1e-3 + (denom >= 1e-4) * denom
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
@@ -35,6 +36,8 @@ class Model(CModel):
 		print('\nBeginning value function iteration...')
 		distance = 1e5
 		self.iteration = 0
+
+		self.makeValueGuess()
 
 		while distance > self.p.tol:
 

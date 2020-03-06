@@ -231,14 +231,14 @@ cdef class CModel:
 					elif hetType == 2:
 						fargs.timeDiscount = discount_factor_grid[iz]
 
-					fargs.ncValid = -1
+					fargs.ncValid = 0
 					for ic in range(self.p.nc):
 						emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
 						
 						if xval - self.grids.c_flat[ic] >= self.borrLimCurr:
 							fargs.ncValid += 1
 
-					if fargs.ncValid > 3:
+					if fargs.ncValid > 4:
 						spline.spline(&self.grids.c_flat[0], &emaxVec[0], fargs.ncValid,
 							1.0e30, 1.0e30, &yderivs[0])
 
@@ -285,15 +285,13 @@ cdef class CModel:
 		cdef double weights[2]
 		cdef long indices[2]
 	
-		if cSwitch == fargs.cgrid[0]:
+		if fargs.ncValid == 1:
 			emax = fargs.emaxVec[0]
-		elif cSwitch == fargs.cgrid[fargs.ncValid]:
-			emax = fargs.emaxVec[fargs.ncValid]
-		elif fargs.ncValid > 3:
-			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.ncValid, cSwitch, &emax)
-		else:
+		elif fargs.ncValid <= 3:
 			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.ncValid, &indices[0], &weights[0])
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
+		else:
+			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.ncValid, cSwitch, &emax)
 
 		u = cfunctions.utility(fargs.riskAver, cSwitch)
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax

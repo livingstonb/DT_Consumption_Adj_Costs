@@ -14,6 +14,8 @@ from misc import mpcsTable
 from model.model import Model, ModelWithNews
 from model import simulator
 
+from IPython.core.debugger import set_trace
+
 #---------------------------------------------------------------#
 #      SET PARAMETERIZATION NUMBER                              #
 #---------------------------------------------------------------#
@@ -33,7 +35,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'custom'
+name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -140,20 +142,20 @@ def calibrator(variables):
 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
 
-	return np.linalg.norm(targets)
+	return targets
 
 # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
 # x0 = np.array([69, 0.005559])
 # opt_results = optimize.root(calibrator, x0, method='krylov').x
 
-x0 = np.array([0.97, 0.01])
-# xbounds = ([0.9, 0.002], [0.995, 0.5])
+x0 = np.array([0.993336677, 0.07387772])
+# xbounds = ([0.9, 0.001], [0.996, 1])
 # newDiff = 1e-5
 # opt_results = optimize.least_squares(calibrator, x0, bounds=xbounds,
 # 	diff_step=newDiff, method='dogbox', verbose=1)
 # print(opt_results.status)
 
-# xbounds = ([0.9, 0.995], [0.001, 1])
+# xbounds = ([0.9, 0.985], [0.0005, 1])
 # opts = {'eps': 1e-5}
 # opt_results = optimize.minimize(calibrator, x0, bounds=xbounds,
 # 	method='SLSQP', options=opts).x
@@ -167,7 +169,7 @@ model.solve()
 eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
 	model.cSwitchingPolicy, model.valueDiff)
 if Simulate:
-	eqSimulator.simulate(final=True)
+	eqSimulator.simulate()
 	finalSimStates = eqSimulator.finalStates
 else:
 	finalSimStates = []
@@ -458,7 +460,7 @@ if Simulate:
 ixvals = [0,params.nx//8,params.nx//6,params.nx//4,params.nx//3,params.nx//2,params.nx-1]
 xvals = np.array([grids.x_flat[i] for i in ixvals])
 
-icvals = [0,params.nc//8,params.nc//6,params.nc//4,params.nc//3,params.nc//2,params.nc-1]
+icvals = [0,params.nc//6,params.nc//5,params.nc//4,params.nc//3,params.nc//2,params.nc-1]
 cvals = np.array([grids.c_flat[i] for i in icvals])
 
 def plot_policies():
@@ -518,14 +520,25 @@ def plot_policies():
 			i += 1
 
 	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('EMAX vs. cash-on-hand')
+	fig.suptitle('ValueDiff vs. cash-on-hand')
 	i = 0
 	for row in range(2):
 		for col in range(3):
-			ax[row,col].scatter(grids._flat,model.EMAX[ixvals[i],:,0,iyP])
+			ax[row,col].scatter(grids.x_flat,model.valueDiff[:,icvals[i],0,iyP])
 			ax[row,col].set_title(f'c = {cvals[i]}')
 			ax[row,col].set_xlabel('cash-on-hand, x')
-			ax[row,col].set_ylabel('EMAX')
+			ax[row,col].set_ylabel('ValueDiff')
+			i += 1
+
+	fig, ax = plt.subplots(nrows=2,ncols=3)
+	fig.suptitle('ValueDiff vs. consumption')
+	i = 0
+	for row in range(2):
+		for col in range(3):
+			ax[row,col].scatter(grids.c_flat,model.valueDiff[ixvals[i],:,0,iyP])
+			ax[row,col].set_title(f'x = {xvals[i]}')
+			ax[row,col].set_xlabel('c, state')
+			ax[row,col].set_ylabel('ValueDiff')
 			i += 1
 
 	fig = plt.figure()

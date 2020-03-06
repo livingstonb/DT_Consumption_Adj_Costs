@@ -22,3 +22,4 @@ cdef class Income:
 		public double[:] yTcumdist
 		public object yTcumdistT, yPcumdistT
 		public double ymin
+		public bint normalize

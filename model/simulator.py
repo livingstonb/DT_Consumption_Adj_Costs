@@ -63,7 +63,7 @@ class EquilibriumSimulator(Simulator):
 		self.transitionStatistics = {}
 		self.results = pd.Series()
 
-	def simulate(self, final=False):
+	def simulate(self):
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
 
@@ -92,7 +92,7 @@ class EquilibriumSimulator(Simulator):
 
 			self.t += 1
 
-		self.computeEquilibriumStatistics(final)
+		self.computeEquilibriumStatistics()
 
 	def initialize(self):
 		self.makeRandomDraws()
@@ -162,7 +162,7 @@ class EquilibriumSimulator(Simulator):
 										'asim': self.asim,
 										})
 
-	def computeEquilibriumStatistics(self, final):
+	def computeEquilibriumStatistics(self):
 		# mean wealth
 		self.results['Mean wealth'] = np.mean(self.asim)
 
@@ -202,15 +202,15 @@ class EquilibriumSimulator(Simulator):
 		pctile99 = np.percentile(self.asim,99)
 		asimNumpy = np.asarray(self.asim)
 		self.results['Top 10% wealth share'] = \
-			asimNumpy[asimNumpy>=pctile90].sum() / asimNumpy.sum()
+			asimNumpy[asimNumpy>pctile90].sum() / asimNumpy.sum()
 		self.results['Top 1% wealth share'] = \
-			asimNumpy[asimNumpy>=pctile99].sum() / asimNumpy.sum()
+			asimNumpy[asimNumpy>pctile99].sum() / asimNumpy.sum()
 
 		self.results['Gini coefficient (wealth)'] = gini(self.asim[:,0])
 
 		# consumption percentiles
 		for pctile in self.p.wealthPercentiles:
-			value = np.percentile(self.csim,pctile)
+			value = np.percentile(self.csim, pctile)
 			if pctile <= 99:
 				self.results[f'Consumption, {pctile:d}th percentile'] = value
 			else:
@@ -359,11 +359,9 @@ class MPCSimulator(Simulator):
 				self.results[rowAnnual] += self.results[rowQuarterly]
 
 			# fraction of respondents in this quarter
-			respondentsQ = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
-				) / self.p.MPCshocks[ishock] > 0
-			respondentsQ_neg = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
-				) / self.p.MPCshocks[ishock] < 0
-			nonRespondents = (csimQuarter == np.asarray(self.csim_adj[:,self.nCols-1]))
+			respondentsQ = allMPCS > 0
+			respondentsQ_neg = allMPCS < 0
+			nonRespondents = allMPCS
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for shock of {self.p.MPCshocks[ishock]}'
 				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
@@ -373,7 +371,7 @@ class MPCSimulator(Simulator):
 				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
 				
 			# update if some households responded this period but not previous periods
-			self.responded[:,ii] = np.logical_or(self.responded[:,ii],respondentsQ)
+			self.responded[:,ii] = np.logical_or(self.responded[:,ii], respondentsQ)
 
 			# fraction of respondents (annual)
 			if self.t == 4:

@@ -2,9 +2,12 @@ from scipy.io import loadmat
 import numpy as np
 cimport numpy as np
 
+from misc.ergodicdist import ergodicdist
+
 cdef class Income:
-	def __init__(self, params):
+	def __init__(self, params, normalize=True):
 		self.p = params
+		self.normalize = normalize
 
 		self.readIncome()
 
@@ -23,15 +26,20 @@ cdef class Income:
 			self.logyPgrid = np.asarray(matFile['logyPgrid']).flatten()
 			self.nyP = self.logyPgrid.size
 
-			self.yPdist = np.asarray(matFile['yPdist']).flatten()
+			# self.yPdist = np.asarray(matFile['yPdist']).flatten()
 			self.yPtrans = matFile['yPtrans']
+			self.yPdist = ergodicdist(self.yPtrans).flatten()
 
 			self.yPgrid = np.exp(self.logyPgrid)
 
-		self.yPgrid = np.asarray(self.yPgrid) / np.dot(self.yPdist.T,self.yPgrid)
+		if self.normalize:
+			mu_yP = np.dot(self.yPdist.T, self.yPgrid)
+			self.yPgrid = np.asarray(self.yPgrid) / mu_yP
+			self.logyPgrid = np.log(self.yPgrid)
+
 		self.yPcumdist = np.cumsum(self.yPdist)
 		self.yPcumdistT = np.transpose(self.yPcumdist)
-		self.yPcumtrans = np.cumsum(self.yPtrans,axis=1)
+		self.yPcumtrans = np.cumsum(self.yPtrans, axis=1)
 
 		# transitory income
 		if self.p.noTransIncome:
@@ -45,8 +53,11 @@ cdef class Income:
 			self.yTdist = np.asarray(matFile['yTdist']).flatten()
 			self.yTgrid = np.exp(self.logyTgrid)
 
-		self.yTgrid = np.asarray(self.yTgrid) / np.dot(self.yTdist.T,self.yTgrid)
-		self.yTgrid = np.asarray(self.yTgrid) / self.p.freq
+		if self.normalize:
+			mu_yT = np.dot(self.yTdist.T, self.yTgrid)
+			self.yTgrid = np.asarray(self.yTgrid) / mu_yT
+			self.yTgrid = np.asarray(self.yTgrid) / self.p.freq
+			self.logyTgrid = np.log(self.yTgrid)
 
 		self.yTcumdist = np.cumsum(self.yTdist)
 		self.yTcumdistT = np.transpose(self.yTcumdist)
