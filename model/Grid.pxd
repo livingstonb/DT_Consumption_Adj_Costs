@@ -11,4 +11,3 @@ cdef class Grid:
 		public long[:] z_flat
 		public long[:,:] z_vec
 		public long[:,:,:,:] z_wide, z_matrix
-		public object mustSwitch

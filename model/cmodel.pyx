@@ -98,6 +98,11 @@ cdef class CModel:
 		self.xgrid_next = np.asarray(self.grids.x_flat) \
 			+ (self.borrLimNext - self.p.borrowLim)
 
+		xgrid_mat = np.asarray(self.grids.x_wide) \
+			+ (self.borrLimCurr - self.p.borrowLim)
+		self.mustSwitch = xgrid_mat - self.grids.c_wide \
+			< self.borrLimCurr
+
 		# (I,J) indicate the (row,column) for the value in V
 		entries = self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2
 		self.I = np.zeros(entries, dtype=int)
@@ -108,7 +113,8 @@ cdef class CModel:
 		for ix in prange(self.p.nx, num_threads=4, schedule='static', nogil=True):
 			self.findInterpMatOneX(ix)
 
-		self.interpMat = sparse.coo_matrix((self.V, (self.I,self.J)), shape=(length,length)).tocsr()
+		self.interpMat = sparse.coo_matrix((self.V, (self.I,self.J)),
+			shape=(length,length)).tocsr()
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -121,7 +127,7 @@ cdef class CModel:
 		cdef: 
 			double xWeights[2]
 			long xIndices[2]
-			double xval, assets, cash, Pytrans, yP2
+			double xval, assets, cash, Pytrans, yP2, sav
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
 		xval = self.xgrid_curr[ix]
@@ -130,8 +136,11 @@ cdef class CModel:
 		ii2 = ii + 1
 
 		for ic in range(self.p.nc):
-			assets = self.p.R * (xval - self.grids.c_flat[ic]) \
-				+ self.nextMPCShock + self.p.govTransfer
+			sav = xval - self.grids.c_flat[ic]
+			if sav < self.borrLimCurr:
+				continue
+
+			assets = self.p.R * sav + self.nextMPCShock + self.p.govTransfer
 
 			for iz in range(self.p.nz):
 
@@ -144,6 +153,7 @@ cdef class CModel:
 						for iyT in range(self.p.nyT):
 
 							cash = assets + yP2 * self.income.yTgrid[iyT] 
+
 							# EMAX associated with next period may be over adjusted grid
 							cfunctions.getInterpolationWeights(&self.xgrid_next[0],
 								cash, self.p.nx, &xIndices[0], &xWeights[0])
@@ -212,8 +222,10 @@ cdef class CModel:
 
 		iteratorFn = <objectiveFn> self.findValueFromSwitching
 
-		self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
-		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP))
+		self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
+			order='F')
+		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
+			order='F')
 
 		for iyP in range(self.p.nyP):
 			for ix in range(self.p.nx-1, -1, -1):
@@ -238,7 +250,7 @@ cdef class CModel:
 						if xval - self.grids.c_flat[ic] >= self.borrLimCurr:
 							fargs.ncValid += 1
 
-					if fargs.ncValid > 4:
+					if fargs.ncValid >= 4:
 						spline.spline(&self.grids.c_flat[0], &emaxVec[0], fargs.ncValid,
 							1.0e30, 1.0e30, &yderivs[0])
 
@@ -288,10 +300,12 @@ cdef class CModel:
 		if fargs.ncValid == 1:
 			emax = fargs.emaxVec[0]
 		elif fargs.ncValid <= 3:
-			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch, fargs.ncValid, &indices[0], &weights[0])
+			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch,
+				fargs.ncValid, &indices[0], &weights[0])
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
 		else:
-			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs, fargs.ncValid, cSwitch, &emax)
+			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs,
+				fargs.ncValid, cSwitch, &emax)
 
 		u = cfunctions.utility(fargs.riskAver, cSwitch)
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax
@@ -312,11 +326,11 @@ cdef class CModel:
 
 		# Force switching if current consumption level might imply
 		# that borrowing constraint is invalidated next period
-		for ix in range(self.p.nx):
-			for ic in range(self.p.nc):
-				sav_noswitch = self.xgrid_curr[ix] - self.grids.c_flat[ic]
-				if sav_noswitch < self.borrLimCurr:
-					self.valueNoSwitch[ix,ic,:,:] = -1e9
+		# for ix in range(self.p.nx):
+		# 	for ic in range(self.p.nc):
+		# 		sav_noswitch = self.xgrid_curr[ix] - self.grids.c_flat[ic]
+		# 		if sav_noswitch < self.borrLimCurr:
+		# 			self.valueNoSwitch[ix,ic,:,:] = -1e9
 
 	@cython.boundscheck(False)
 	def doComputations(self):
@@ -340,10 +354,16 @@ cdef class CModel:
 						self.inactionRegionLower[ix,iz,iyP] = np.nan
 						self.inactionRegionUpper[ix,iz,iyP] = np.nan
 
-		self.valueDiff = (np.asarray(self.valueSwitch) - np.asarray(self.valueNoSwitch)
-			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1))
+		# self.valueDiff = (np.asarray(self.valueSwitch) - np.asarray(self.valueNoSwitch)
+		# 	).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1))
 
-		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1))
+		self.valueDiff = np.where(self.mustSwitch,
+			np.nan,
+			np.asarray(self.valueSwitch) - np.asarray(self.valueNoSwitch)
+			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1), order='F')
+
+		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1),
+			order='F')
 
 	def resetParams(self, newParams):
 		self.p = newParams

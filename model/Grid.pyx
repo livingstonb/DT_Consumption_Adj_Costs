@@ -15,9 +15,6 @@ cdef class Grid:
 
 		self.createConsumptionGrid()
 
-		self.mustSwitch = np.asarray(self.c_matrix) > \
-			np.asarray(self.x_matrix)
-
 		self.create_zgrid()
 
 	def createCashGrid(self, income):
