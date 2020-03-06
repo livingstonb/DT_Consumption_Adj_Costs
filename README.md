@@ -40,8 +40,6 @@ and the compiler produces an unexpected error during an attempt to re-compile.
 
 The script *master_replication.py* is provided to solve for the calibrations
 presented in the paper and compute statistics.
-The income process used for these calibrations is contained in the MATLAB file
-*quarterly_b.mat*.
 
 ### The calibration
 

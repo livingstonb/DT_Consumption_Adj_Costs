@@ -15,20 +15,25 @@ cdef class Grid:
 
 		self.createConsumptionGrid()
 
-		self.mustSwitch = np.asarray(self.c_matrix) > np.asarray(self.x_matrix)
+		self.mustSwitch = np.asarray(self.c_matrix) > \
+			np.asarray(self.x_matrix)
 
 		self.create_zgrid()
 
 	def createCashGrid(self, income):
-		xmin = self.p.borrowLim + income.ymin \
-			+ self.p.govTransfer
+		xmin = self.p.borrowLim + self.p.cMin
 
-		xgrid = np.linspace(0,1,num=self.p.nx)
-		xgrid = xgrid.reshape((self.p.nx,1))
-		xgrid = xgrid ** (1.0 / self.p.xGridCurv)
-		xgrid = xmin \
-			+ (self.p.xMax - xmin) * xgrid
+		ymin = income.ymin + self.p.govTransfer
+		xgrid1 = np.linspace(xmin, xmin+ymin, num=11)
+		xgrid1 = xgrid1[0:10].reshape((10,1))
 
+		xgrid2 = np.linspace(0,1,num=self.p.nx-10)
+		xgrid2 = xgrid2.reshape((self.p.nx-10,1))
+		xgrid2 = xgrid2 ** (1.0 / self.p.xGridCurv)
+		xgrid2 = xmin+ymin \
+			+ (self.p.xMax - xmin-ymin) * xgrid2
+
+		xgrid = np.concatenate((xgrid1, xgrid2))
 		xgrid = self.enforceMinGridSpacing(xgrid)
 
 		self.x_flat = xgrid.flatten()

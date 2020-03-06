@@ -61,7 +61,7 @@ cdef class Params:
 		self.nc = 50
 		self.cMin = 1e-6
 		self.cMax = 5
-		self.cGridCurv = 0.13
+		self.cGridCurv = 0.2
 
 		# options
 		self.MPCsOutOfNews = False

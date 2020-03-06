@@ -19,3 +19,13 @@ def utilityMat(riskaver, con):
 				out[:,:,i,:] = np.power(con[:,:,i,:],1.0-riskaver[i]) / (1.0-riskaver[i])
 
 		return out
+
+def computeAdjBorrLims(nextShock, ymin, borrowLim, R, nlags):
+	borrLims = [borrowLim]
+	nextLim = borrowLim - nextShock
+	for ii in range(nlags):
+		nextLim = (nextLim - ymin) / R
+		borrLims.append(nextLim)
+
+	borrLims = [max(blim, borrowLim) for blim in borrLims]
+	return borrLims

@@ -176,7 +176,7 @@ cdef long cargmax(double *vals, int nVals) nogil:
 
 	currentMax = vals[0]
 
-	for i in range(1,nVals):
+	for i in range(1, nVals):
 		currentVal = vals[i]
 		if currentVal > currentMax:
 			currentMax = currentVal

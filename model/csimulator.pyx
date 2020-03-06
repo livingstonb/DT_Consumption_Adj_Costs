@@ -11,7 +11,7 @@ from misc cimport spline
 from Params cimport Params
 from Income cimport Income
 
-from libc.math cimport log, fabs
+from libc.math cimport log, fabs, fmin, fmax
 from libc.stdlib cimport malloc, free
 
 cdef class CSimulator:
@@ -38,7 +38,9 @@ cdef class CSimulator:
 		public bint initialized, news
 		public long[:,:] switched
 		public long[:] yPind, zind
-		public double[:,:] ysim, csim, xsim, asim
+		public double[:,:] ysim, csim, csim_adj, xsim, asim
+		public list xgridCurr
+		public list borrowLims, borrowLimsCurr
 
 	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods):
 		self.p = params
@@ -50,7 +52,7 @@ cdef class CSimulator:
 
 		self.nCols = valueDiffs.shape[4]
 
-		self.periodsBeforeRedraw = np.minimum(simPeriods,10)
+		self.periodsBeforeRedraw = np.minimum(simPeriods, 10)
 
 		self.nSim = params.nSim
 		self.T = simPeriods
@@ -75,14 +77,13 @@ cdef class CSimulator:
 			double[:] xgrid
 			double[:] discount_factor_grid
 			double[:] risk_aver_grid
-			double deathProb, adjustCost
+			double deathProb, adjustCost, blim
 			long modelNum
 
 		conIndices = np.zeros((self.nSim))
 			
 		cgrid = self.grids.c_flat
 		nc = self.p.nc
-		xgrid = self.grids.x_flat
 		nx = self.p.nx
 		discount_factor_grid = self.p.discount_factor_grid
 		deathProb = self.p.deathProb
@@ -90,6 +91,8 @@ cdef class CSimulator:
 		risk_aver_grid = self.p.risk_aver_grid
 
 		for col in range(self.nCols):
+			xgrid = np.asarray(self.xgridCurr[col])
+			blim = self.borrowLimsCurr[col]
 			if self.news:
 				modelNum = col
 			else:
@@ -98,15 +101,13 @@ cdef class CSimulator:
 			for i in prange(self.nSim, schedule='static', nogil=True):
 				self.findIndividualPolicy(i, col, &cgrid[0], nc, &xgrid[0], nx,
 					modelNum, &discount_factor_grid[0], deathProb, adjustCost,
-					&risk_aver_grid[0])
-
-		self.csim = np.minimum(self.csim,self.xsim)
+					&risk_aver_grid[0], blim)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void findIndividualPolicy(self, long i, long col, double *cgrid, 
 		long nc, double *xgrid, long nx, long modelNum, double *discount_factor_grid,
-		double deathProb, double adjustCost, double *risk_aver_grid) nogil:
+		double deathProb, double adjustCost, double *risk_aver_grid, double blim) nogil:
 		cdef: 
 			long iyP, iz
 			double xWeights[2]
@@ -114,7 +115,7 @@ cdef class CSimulator:
 			long xIndices[2]
 			long conIndices[2]
 			bint switch
-			double consumption, cash, myValueDiff
+			double consumption, cash, myValueDiff, copt
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -124,7 +125,7 @@ cdef class CSimulator:
 		
 		cfunctions.getInterpolationWeights(xgrid, cash, nx, &xIndices[0], &xWeights[0])
 
-		if consumption > cash:
+		if cash - consumption < blim:
 			# forced to switch consumption
 			switch = True
 		else:
@@ -139,8 +140,19 @@ cdef class CSimulator:
 			switch = (myValueDiff > 0)
 
 		if switch:
-			self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
+			if cash < blim:
+				self.csim_adj[i,col] = \
+					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
+					-(xgrid[0] - cash)
+				self.csim[i,col] = self.cSwitchingPolicy[0,0,iz,iyP,modelNum]
+				self.xsim[i,col] = xgrid[0]
+			else:
+				copt = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
 					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
+				self.csim[i,col] = copt
+				self.csim_adj[i,col] = copt
+
 			self.switched[i,col] = 1
 		else:
+			self.csim_adj[i,col] = consumption
 			self.switched[i,col] = 0

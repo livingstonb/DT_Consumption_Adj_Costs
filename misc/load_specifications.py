@@ -68,6 +68,11 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
 	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
+
+	paramsDicts[ii]['nx'] = 45
+	paramsDicts[ii]['nc'] = 45
+	paramsDicts[ii]['nSim'] = 1e5
+	paramsDicts[ii]['minGridSpacing'] = 0
 	ii += 1
 
 
@@ -378,17 +383,19 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = 'custom'
-	paramsDicts[ii]['adjustCost'] = 0.01
+	paramsDicts[ii]['adjustCost'] = 0.002
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
-	paramsDicts[ii]['nx'] = 120
-	paramsDicts[ii]['nc'] = 120
-	paramsDicts[ii]['nSim'] = 1e5
+	paramsDicts[ii]['nx'] = 50
+	paramsDicts[ii]['nc'] = 50
+	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.9
+	paramsDicts[ii]['timeDiscount'] = 0.986045
 	paramsDicts[ii]['r'] = 0.02
-	paramsDicts[ii]['wealthTarget'] = 0.5
+	paramsDicts[ii]['wealthTarget'] = 3.5
+	paramsDicts[ii]['minGridSpacing'] = 0
+	paramsDicts[ii]['tSim'] = 100
 	ii += 1
 
 	#-----------------------------------------------------#

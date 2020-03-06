@@ -15,14 +15,17 @@ class Model(CModel):
 
 	def initialize(self):
 		self.nextMPCShock = 0 # no shock next period
+		self.next_grid_provided = False
+
+		self.borrLimCurr = self.p.borrowLim
+		self.borrLimNext = self.p.borrowLim
 
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 
 		# make initial guess for value function
 		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
-		if np.abs(denom) < 1e-3:
-			denom = 1e-3
+		denom = (denom < 1e-4) * 1e-3 + (denom >= 1e-4) * denom
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
 			self.grids.x_matrix) / denom
 
@@ -65,7 +68,7 @@ class Model(CModel):
 			self.iteration += 1
 
 		# compute c-policy function conditional on switching
-		self.maximizeValueFromSwitching(findPolicy=True)
+		# self.maximizeValueFromSwitching(findPolicy=True)
 
 		print(f'Value function converged after {self.iteration} iterations.')
 
@@ -96,10 +99,20 @@ class ModelWithNews(Model):
 	used to compute EMAX should come from the solution to a model in which an
 	there is an immediate shock or if a future shock is expected.
 	"""
-	def __init__(self, params, income, grids, valueNext, EMAXnext, nextMPCShock):
-		self.nextMPCShock = nextMPCShock
+	def __init__(self, params, income, grids, valueNext, EMAXnext,
+		shock, periodsUntilShock):
+
+		self.nextMPCShock = (periodsUntilShock == 1) * shock
+
 		self.valueFunction = valueNext
 		self.EMAXnext = EMAXnext
+
+		ymin = income.ymin + params.govTransfer
+		borrowLims = functions.computeAdjBorrLims(shock,
+			ymin, params.borrowLim, params.R, periodsUntilShock)
+
+		self.borrLimCurr = borrowLims.pop()
+		self.borrLimNext = borrowLims.pop()
 
 		super().__init__(params, income, grids)
 

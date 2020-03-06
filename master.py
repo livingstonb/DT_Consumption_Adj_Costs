@@ -33,17 +33,17 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = ''
+name = 'custom'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = True
+IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 SimulateMPCs = True
 
 basedir = os.getcwd()
-outdir = os.path.join(basedir,'output')
+outdir = os.path.join(basedir, 'output')
 if not os.path.exists(outdir):
 	os.mkdir(outdir)
 
@@ -98,50 +98,66 @@ if IterateBeta:
 	Simulate = True
 	print('\nBeginning iteration over the discount factor\n')
 	
-	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(0.7,0.995),
+	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(0.995, 0.998),
 		method='brentq', xtol=1e-7, rtol=1e-9, maxiter=params.wealthIters).root
 	params.resetDiscountRate(betaOpt)
 
-# #-----------------------------------------------------------#
-# #      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
-# #-----------------------------------------------------------#
-# def calibrator(variables):
-# 	params.resetDiscountRate(np.abs(variables[0])/(1+np.abs(variables[0]))-0.02)
-# 	params.resetAdjustCost(np.abs(variables[1])+0.0001)
+#-----------------------------------------------------------#
+#      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
+#-----------------------------------------------------------#
+def calibrator(variables):
+	# params.resetDiscountRate(np.abs(variables[0])/(1+np.abs(variables[0]))-0.02)
+	# params.resetAdjustCost(np.abs(variables[1])+0.0001)
 
-# 	print(params.timeDiscount)
-# 	print(params.adjustCost)
+	params.resetDiscountRate(variables[0])
+	params.resetAdjustCost(variables[1])
 
-# 	model.solve()
+	print(f'timeDiscount reset to {params.timeDiscount}')
+	print(f'adjustCost reset to {params.adjustCost}')
 
-# 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-# 		model.cSwitchingPolicy, model.valueDiff)
-# 	eqSimulator.simulate()
+	model.solve()
 
-# 	shockIndices = [3]
-# 	mpcSimulator = simulator.MPCSimulator(
-# 		params, income, grids,
-# 		model.cSwitchingPolicy,
-# 		model.valueDiff,
-# 		shockIndices,
-# 		eqSimulator.finalStates)
-# 	mpcSimulator.simulate()
+	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
+		model.cSwitchingPolicy, model.valueDiff)
+	eqSimulator.simulate()
 
-# 	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
+	shockIndices = [3]
+	mpcSimulator = simulator.MPCSimulator(
+		params, income, grids,
+		model.cSwitchingPolicy,
+		model.valueDiff,
+		shockIndices,
+		eqSimulator.finalStates)
+	mpcSimulator.simulate()
 
-# 	targets = np.array([
-# 		eqSimulator.results['Wealth <= $1000'] - 0.23,
-# 		mpcSimulator.results[rowname] - 0.2
-# 		])
+	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
 
-# 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
-# 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
+	targets = np.array([
+		eqSimulator.results['Wealth <= $1000'] - 0.23,
+		mpcSimulator.results[rowname] - 0.2
+		])
 
-# 	return targets
+	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
+	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
 
-# # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
+	return np.linalg.norm(targets)
+
+# for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
 # x0 = np.array([69, 0.005559])
 # opt_results = optimize.root(calibrator, x0, method='krylov').x
+
+x0 = np.array([0.97, 0.01])
+# xbounds = ([0.9, 0.002], [0.995, 0.5])
+# newDiff = 1e-5
+# opt_results = optimize.least_squares(calibrator, x0, bounds=xbounds,
+# 	diff_step=newDiff, method='dogbox', verbose=1)
+# print(opt_results.status)
+
+# xbounds = ([0.9, 0.995], [0.001, 1])
+# opts = {'eps': 1e-5}
+# opt_results = optimize.minimize(calibrator, x0, bounds=xbounds,
+# 	method='SLSQP', options=opts).x
+# import pdb; pdb.set_trace()
 
 #-----------------------------------------------------------#
 #      SOLVE MODEL ONCE                                     #
@@ -170,6 +186,10 @@ mpcSimulator = simulator.MPCSimulator(
 if Simulate and SimulateMPCs:
 	mpcSimulator.simulate()
 
+# # print(eqSimulator.results.dropna().to_string())
+# print(mpcSimulator.results.dropna().to_string())
+# exit()
+
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
@@ -191,7 +211,8 @@ for ishock in shockIndices_shockNextPeriod:
 		params, income, grids,
 		valueBaseline,
 		emaxBaseline,
-		params.MPCshocks[ishock])
+		params.MPCshocks[ishock],
+		1)
 
 	if SimulateMPCs:
 		print(f'Solving for shock of {params.MPCshocks[ishock]} next period')
@@ -214,25 +235,26 @@ for ishock in shockIndices_shockNextPeriod:
 cSwitch_loan = np.zeros((params.nx,1,params.nz,params.nyP,2))
 valueDiffs_loan = np.zeros((params.nx,params.nc,params.nz,params.nyP,2))
 
-ishock = 0
+shock = params.MPCshocks[0]
 # start with last quarter
 model_loan = ModelWithNews(
 	params, income, grids,
 	valueBaseline,
 	emaxBaseline,
-	params.MPCshocks[ishock])
+	shock,
+	1)
 
 if SimulateMPCs:
 	print(f'Solving for one year loan')
 	model_loan.solve()
 
-	for period in range(3):
-		shock = 0.0
+	for period in range(2, 5):
 		model_loan = ModelWithNews(
 			params, income, grids,
 			model_loan.valueFunction,
 			model_loan.EMAX,
-			shock)
+			shock,
+			period)
 		model_loan.solve()
 
 	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
@@ -248,22 +270,25 @@ cSwitch_shock2Years = np.zeros((params.nx,1,params.nz,params.nyP,2))
 valueDiffs_shock2Years = np.zeros((params.nx,params.nc,params.nz,params.nyP,2))
 
 ishock = 2
+shock = params.MPCshocks[ishock]
 model_shock2Years = ModelWithNews(
 	params, income, grids,
 	valueBaseline,
 	emaxBaseline,
-	params.MPCshocks[ishock])
+	shock,
+	1)
 
 if SimulateMPCs:
 	model_shock2Years.solve()
 
-	for period in range(7):
+	for period in range(2, 9):
 		shock = 0.0
 		model_shock2Years = ModelWithNews(
 			params, income, grids,
 			model_shock2Years.valueFunction,
 			model_shock2Years.EMAX,
-			shock)
+			shock,
+			period)
 		model_shock2Years.solve()
 
 	cSwitch_shock2Years[:,:,:,:,0] = model_shock2Years.cSwitchingPolicy[:,:,:,:,0]
@@ -277,7 +302,7 @@ if SimulateMPCs:
 #-----------------------------------------------------------#
 currentShockIndices = [6] * len(shockIndices_shockNextPeriod)
 mpcNewsSimulator_shockNextPeriod = simulator.MPCSimulatorNews(
-	params, income, grids, 
+	params, income, grids,
 	cSwitch_shockNextPeriod, valueDiffs_shockNextPeriod,
 	shockIndices_shockNextPeriod, currentShockIndices,
 	finalSimStates, periodsUntilShock=1)
@@ -398,6 +423,10 @@ if Simulate:
 
 	print('\nMPCS out of news:\n')
 	print(mpcNewsSimulator_shockNextPeriod.results.dropna().to_string())
+
+	print('\nMPCS out of future loss:\n')
+	print(mpcNewsSimulator_shock2Years.results.dropna().to_string())
+	print(mpcNewsSimulator_loan.results.dropna().to_string())
 
 	name_series = pd.Series({'Experiment':params.name})
 	index_series = pd.Series({'Index':params.index})
