@@ -72,6 +72,7 @@ cdef class Params:
 
 		# death probability (annual)
 		self.deathProb = 1.0/50.0
+
 		self.Bequests = True
 
 		# preferences

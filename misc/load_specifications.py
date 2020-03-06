@@ -55,6 +55,31 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	ii += 1
 
 	###########################################################
+	##### ASSETS 3.5 NO ADJ COSTS BASELINE ####################
+	###########################################################
+	paramsDicts.append({})
+	paramsDicts[ii]['name'] = f'baseline_Q'
+	paramsDicts[ii]['index'] = ii
+	paramsDicts[ii]['riskAver'] = 1
+	paramsDicts[ii]['nx'] = 250
+	paramsDicts[ii]['nc'] = 300
+	paramsDicts[ii]['cMax'] = 15
+	paramsDicts[ii]['xMax'] = 40
+	paramsDicts[ii]['nSim'] = 5e5
+	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	paramsDicts[ii]['adjustCost'] = 0.00002
+	paramsDicts[ii]['timeDiscount'] = 0.995939 ** 4
+	paramsDicts[ii]['cGridCurv'] = 0.2
+	paramsDicts[ii]['govTransfer'] = 0
+	paramsDicts[ii]['MPCshocks'] = [-0.1, -0.01, -1e-5, 1e-5, 0.01, 0.1, 0]
+
+	# paramsDicts[ii]['nx'] = 45
+	# paramsDicts[ii]['nc'] = 45
+	# paramsDicts[ii]['nSim'] = 1e5
+	paramsDicts[ii]['minGridSpacing'] = 0
+	ii += 1
+
+	###########################################################
 	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2 ###########
 	###########################################################
 	paramsDicts.append({})
@@ -62,8 +87,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 280
-	paramsDicts[ii]['nc'] = 380
+	paramsDicts[ii]['nx'] = 80
+	paramsDicts[ii]['nc'] = 80
 	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4

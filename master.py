@@ -35,7 +35,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'target P(assets<1000) and P(MPC>0) = 0.2'
+name = 'baseline_Q'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -54,7 +54,7 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 
 locIncomeProcess = os.path.join(
-	basedir,'input','income_quarterly_b.mat')
+	basedir,'input','income_quarterly_b_fixed.mat')
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
@@ -67,7 +67,7 @@ else:
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
 #---------------------------------------------------------------#
-income = Income.Income(params)
+income = Income.Income(params, False)
 params.addIncomeParameters(income)
 
 #---------------------------------------------------------------#
