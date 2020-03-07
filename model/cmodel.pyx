@@ -350,7 +350,7 @@ cdef class CModel:
 		# that borrowing constraint is invalidated next period
 		for ix in range(self.p.nx):
 			nvalid = self.validConsumptionPts[ix]
-			for ic in range(nvalid):
+			for ic in range(nvalid, self.p.nc):
 				self.valueNoSwitch[ix,ic,:,:] = np.nan
 
 	@cython.boundscheck(False)

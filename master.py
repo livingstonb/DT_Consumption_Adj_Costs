@@ -35,7 +35,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'baseline_Q'
+name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -142,24 +142,27 @@ def calibrator(variables):
 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
 
-	return targets
+	return np.abs(targets)
 
 # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
 # x0 = np.array([69, 0.005559])
 # opt_results = optimize.root(calibrator, x0, method='krylov').x
 
-x0 = np.array([0.993336677, 0.07387772])
+# x0 = np.array([0.993336677, 0.07387772])
 # xbounds = ([0.9, 0.001], [0.996, 1])
 # newDiff = 1e-5
 # opt_results = optimize.least_squares(calibrator, x0, bounds=xbounds,
 # 	diff_step=newDiff, method='dogbox', verbose=1)
 # print(opt_results.status)
 
-# xbounds = ([0.9, 0.985], [0.0005, 1])
+xbounds = ([0.94, 0.996], [0.0001, 20])
 # opts = {'eps': 1e-5}
 # opt_results = optimize.minimize(calibrator, x0, bounds=xbounds,
 # 	method='SLSQP', options=opts).x
 # import pdb; pdb.set_trace()
+
+# opt_results = optimize.differential_evolution(calibrator, bounds=xbounds)
+# set_trace()
 
 #-----------------------------------------------------------#
 #      SOLVE MODEL ONCE                                     #

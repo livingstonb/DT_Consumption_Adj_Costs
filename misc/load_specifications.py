@@ -87,8 +87,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 80
-	paramsDicts[ii]['nc'] = 80
+	paramsDicts[ii]['nx'] = 120
+	paramsDicts[ii]['nc'] = 120
 	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
