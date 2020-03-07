@@ -464,8 +464,7 @@ icvals = [0,params.nc//6,params.nc//5,params.nc//4,params.nc//3,params.nc//2,par
 cvals = np.array([grids.c_flat[i] for i in icvals])
 
 def plot_policies():
-	cSwitch = np.asarray(model.valueFunction) == np.asarray(model.valueSwitch)
-	cPolicy = cSwitch * np.asarray(model.cSwitchingPolicy[:,:,:,:,0]) + (~cSwitch) * np.asarray(grids.c_matrix)
+	cPolicy = model.cChosen
 
 	print(xvals)
 

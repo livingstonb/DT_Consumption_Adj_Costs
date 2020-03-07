@@ -4,6 +4,7 @@ cimport numpy as np
 
 cimport cython
 from cython.parallel cimport prange
+from cython.operator cimport dereference
 
 from misc import functions
 from misc cimport cfunctions
@@ -22,9 +23,6 @@ from libc.math cimport fmin, fmax
 cdef enum:
 	# number of sections to try in golden section search
 	NSECTIONS = 20
-
-	# number of sections + boundaries
-	NVALUES = NSECTIONS + 2
 
 cdef class CModel:
 	"""
@@ -55,12 +53,15 @@ cdef class CModel:
 		# inaction regions
 		public double[:,:,:] inactionRegionLower, inactionRegionUpper
 
+		# Number of valid consumption points at each x
+		long[:] validConsumptionPts
+
 		# variables for construction of interpMat
 		long [:] I, J
 		double [:] V
 
 		# excess value from switching
-		public object valueDiff
+		public object valueDiff, willSwitch, cChosen
 
 		# policy function for c, conditional on switching
 		public object cSwitchingPolicy
@@ -89,19 +90,9 @@ cdef class CModel:
 		the expectation on the right is a flattened vector.
 		"""
 		cdef:
-			double[:] xgrid
-			long ix
+			long ix, length
 
-		self.xgrid_curr = np.asarray(self.grids.x_flat) \
-			+ (self.borrLimCurr - self.p.borrowLim)
-
-		self.xgrid_next = np.asarray(self.grids.x_flat) \
-			+ (self.borrLimNext - self.p.borrowLim)
-
-		xgrid_mat = np.asarray(self.grids.x_wide) \
-			+ (self.borrLimCurr - self.p.borrowLim)
-		self.mustSwitch = xgrid_mat - self.grids.c_wide \
-			< self.borrLimCurr
+		self.preliminaryComputations()
 
 		# (I,J) indicate the (row,column) for the value in V
 		entries = self.p.nx*self.p.nc*self.p.nz*self.p.nyP*self.p.nyP*self.p.nyT*2
@@ -118,6 +109,31 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
+	def preliminaryComputations(self):
+		cdef:
+			long ix
+			double xval
+			object validCs
+
+		self.xgrid_curr = np.asarray(self.grids.x_flat) \
+			+ (self.borrLimCurr - self.p.borrowLim)
+
+		self.xgrid_next = np.asarray(self.grids.x_flat) \
+			+ (self.borrLimNext - self.p.borrowLim)
+
+		self.mustSwitch = np.asarray(self.xgrid_curr)[:,None,None,None] \
+			- np.asarray(self.grids.c_wide) \
+			< self.borrLimCurr
+
+		self.validConsumptionPts = np.zeros(self.p.nx, dtype=int)
+		cgrid_np = np.asarray(self.grids.c_flat);
+		for ix in range(self.p.nx):
+			xval = self.xgrid_curr[ix];
+			validCs = cgrid_np <= xval - self.borrLimCurr
+			self.validConsumptionPts[ix] = np.sum(validCs).astype(int)
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cdef void findInterpMatOneX(self, long ix) nogil:
 		"""
 		Constructs the rows of the interpolant matrix
@@ -128,6 +144,7 @@ cdef class CModel:
 			double xWeights[2]
 			long xIndices[2]
 			double xval, assets, cash, Pytrans, yP2, sav
+			long nEntries_yP1, nEntries_yP2
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
 		xval = self.xgrid_curr[ix]
@@ -143,12 +160,15 @@ cdef class CModel:
 			assets = self.p.R * sav + self.nextMPCShock + self.p.govTransfer
 
 			for iz in range(self.p.nz):
-
 				for iyP1 in range(self.p.nyP):
-
+					nEntries_yP1 = self.p.nx * ic + self.p.nx * self.p.nc * iz \
+						+ self.p.nx * self.p.nc * self.p.nz * iyP1
 					for iyP2 in range(self.p.nyP):
 						Pytrans = self.income.yPtrans[iyP1, iyP2]
 						yP2 = self.income.yPgrid[iyP2]
+
+						nEntries_yP2 = self.p.nx * ic + self.p.nx * self.p.nc * iz \
+								+ self.p.nx * self.p.nc * self.p.nz * iyP2
 
 						for iyT in range(self.p.nyT):
 
@@ -158,23 +178,21 @@ cdef class CModel:
 							cfunctions.getInterpolationWeights(&self.xgrid_next[0],
 								cash, self.p.nx, &xIndices[0], &xWeights[0])
 
-							row = ix + self.p.nx*ic + self.p.nx*self.p.nc*iz + self.p.nx*self.p.nc*self.p.nz*iyP1
-
+							row = ix + nEntries_yP1
 							self.I[ii] = row
 							self.I[ii2] = row
 
-							self.J[ii] = xIndices[0] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
-							self.J[ii2] = xIndices[1] + self.p.nx * ic + self.p.nx * self.p.nc * iz + self.p.nx * self.p.nc * self.p.nz * iyP2
+							self.J[ii] = xIndices[0] + nEntries_yP2
+							self.J[ii2] = xIndices[1] + nEntries_yP2
 
 							self.V[ii] = Pytrans * self.income.yTdist[iyT] * xWeights[0]
 							self.V[ii2] = Pytrans * self.income.yTdist[iyT] * xWeights[1]
-
 							ii += 2
 							ii2 += 2
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	def maximizeValueFromSwitching(self, bint findPolicy=False):
+	def maximizeValueFromSwitching(self):
 		"""
 		Updates valueSwitch via a maximization over u(c) + beta * EMAX(c)
 		at each point in the (x,z,yP)-space by computing u(c) and interpolating 
@@ -188,10 +206,10 @@ cdef class CModel:
 			double[:] sections
 			double bounds[NSECTIONS][2]
 			double gssResults[2]
-			double cVals[NVALUES]
-			double funVals[NVALUES]
+			double cVals[NSECTIONS+2]
+			double funVals[NSECTIONS+2]
 			double cOptimal, vOptimal
-			long hetType, iOptimal
+			long iOptimal
 			FnArgs fargs
 			objectiveFn iteratorFn
 
@@ -200,15 +218,13 @@ cdef class CModel:
 		fargs.nc = self.p.nc
 
 		if self.p.risk_aver_grid.size > 1:
-			hetType = 1
+			fargs.hetType = 1
 			fargs.timeDiscount = self.p.timeDiscount
-			risk_aver_grid = self.p.risk_aver_grid
 		elif self.p.discount_factor_grid.size > 1:
-			hetType = 2
+			fargs.hetType = 2
 			fargs.riskAver = self.p.riskAver
-			discount_factor_grid = self.p.discount_factor_grid
 		else:
-			hetType = 0
+			fargs.hetType = 0
 			fargs.timeDiscount = self.p.timeDiscount
 			fargs.riskAver = self.p.riskAver
 
@@ -229,39 +245,30 @@ cdef class CModel:
 
 		for iyP in range(self.p.nyP):
 			for ix in range(self.p.nx-1, -1, -1):
-				xval = self.xgrid_curr[ix]
-				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
-				dst = maxAdmissibleC - self.p.cMin
+				fargs.ncValid = self.validConsumptionPts[ix]
+				if ix == 0:
+					for iz in range(self.p.nz):
+						self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+							ix, iz, fargs.yderivs)
 
-				for ii in range(NSECTIONS):
-					bounds[ii][0] = self.p.cMin + dst * sections[ii]
-					bounds[ii][1] = self.p.cMin + dst * sections[ii+1]
-
-				for iz in range(self.p.nz):
-					if hetType == 1:
-						fargs.riskAver = risk_aver_grid[iz]
-					elif hetType == 2:
-						fargs.timeDiscount = discount_factor_grid[iz]
-
-					fargs.ncValid = 0
-					for ic in range(self.p.nc):
-						emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
-						
-						if xval - self.grids.c_flat[ic] >= self.borrLimCurr:
-							fargs.ncValid += 1
-
-					if fargs.ncValid >= 4:
-						spline.spline(&self.grids.c_flat[0], &emaxVec[0], fargs.ncValid,
-							1.0e30, 1.0e30, &yderivs[0])
-
-					if ix == 0:
 						cSwitch = self.cSwitchingPolicy[1,0,iz,iyP] \
 							-(self.xgrid_curr[1] - self.xgrid_curr[0])
 						cSwitch = fmax(cSwitch, self.p.cMin)
 						self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
 						self.valueSwitch[ix,0,iz,iyP] = \
 							self.findValueFromSwitching(cSwitch, fargs) - self.p.adjustCost
-						continue
+					break
+				
+				xval = self.xgrid_curr[ix]
+				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
+				dst = maxAdmissibleC - self.p.cMin
+				for ii in range(NSECTIONS):
+					bounds[ii][0] = self.p.cMin + dst * sections[ii]
+					bounds[ii][1] = self.p.cMin + dst * sections[ii+1]
+
+				for iz in range(self.p.nz):
+					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+							ix, iz, fargs.yderivs)
 
 					for ii in range(NSECTIONS):
 						cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
@@ -269,23 +276,38 @@ cdef class CModel:
 						funVals[ii] = gssResults[0]
 						cVals[ii] = gssResults[1]
 
-					ii = NSECTIONS
+					# Try consuming cmin
+					cVals[NSECTIONS] = self.p.cMin
+					funVals[NSECTIONS] = self.findValueFromSwitching(self.p.cMin, fargs)
 
-					# try consuming cmin
-					cVals[ii] = self.p.cMin
-					funVals[ii] = self.findValueFromSwitching(self.p.cMin, fargs)
-					ii += 1
+					# Try consuming max amount
+					cVals[NSECTIONS+1] = maxAdmissibleC
+					funVals[NSECTIONS+1] = self.findValueFromSwitching(maxAdmissibleC, fargs)
 
-					# try consuming xval (or cmax)
-					cVals[ii] = maxAdmissibleC
-					funVals[ii] = self.findValueFromSwitching(maxAdmissibleC, fargs)
+					iOptimal = cfunctions.cargmax(funVals, NSECTIONS+2)
 
-					iOptimal = cfunctions.cargmax(funVals, NVALUES)
-					cOptimal = cVals[iOptimal]
-					vOptimal = funVals[iOptimal] - self.p.adjustCost
+					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[iOptimal]
+					self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
+						- self.p.adjustCost
 
-					self.cSwitchingPolicy[ix,0,iz,iyP] = cOptimal
-					self.valueSwitch[ix,0,iz,iyP] = vOptimal
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void setFnArgs(self, FnArgs *fargs, double *emaxvec, long iyP,
+		long ix, long iz, double *yderivs):
+		cdef:
+			long ic
+
+		if fargs.hetType == 1:
+			dereference(fargs).riskAver = self.p.risk_aver_grid[iz]
+		elif fargs.hetType == 2:
+			dereference(fargs).timeDiscount = self.p.discount_factor_grid[iz]
+
+		for ic in range(dereference(fargs).ncValid):
+			emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
+
+		if dereference(fargs).ncValid >= 4:
+			spline.spline(&self.grids.c_flat[0], emaxvec, dereference(fargs).ncValid,
+				1.0e30, 1.0e30, yderivs)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -318,7 +340,7 @@ cdef class CModel:
 		"""
 		Updates valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
 		"""
-		cdef long ix, ic
+		cdef long ix, ic, nvalid
 
 		self.valueNoSwitch = functions.utilityMat(self.p.risk_aver_grid, self.grids.c_matrix) \
 			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
@@ -326,19 +348,20 @@ cdef class CModel:
 
 		# Force switching if current consumption level might imply
 		# that borrowing constraint is invalidated next period
-		# for ix in range(self.p.nx):
-		# 	for ic in range(self.p.nc):
-		# 		sav_noswitch = self.xgrid_curr[ix] - self.grids.c_flat[ic]
-		# 		if sav_noswitch < self.borrLimCurr:
-		# 			self.valueNoSwitch[ix,ic,:,:] = -1e9
+		for ix in range(self.p.nx):
+			nvalid = self.validConsumptionPts[ix]
+			for ic in range(nvalid):
+				self.valueNoSwitch[ix,ic,:,:] = np.nan
 
 	@cython.boundscheck(False)
 	def doComputations(self):
-		cdef np.ndarray[np.uint8_t, ndim=4, cast=True] cSwitch
 		cdef np.ndarray[np.int64_t, ndim=1] inactionRegion
 		cdef long ix, iz, ic, iyP
 
-		cSwitch = np.asarray(self.valueSwitch) > np.asarray(self.valueNoSwitch)
+		correctedValNoSwitch = functions.replaceNumpyNan(self.valueNoSwitch, -1e9)
+		self.willSwitch = np.asarray(self.valueSwitch) > correctedValNoSwitch
+		self.cChosen = self.willSwitch * self.cSwitchingPolicy + \
+			(~self.willSwitch) * self.grids.c_wide
 
 		self.inactionRegionLower = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
 		self.inactionRegionUpper = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
@@ -346,7 +369,7 @@ cdef class CModel:
 		for ix in range(self.p.nx):
 			for iz in range(self.p.nz):
 				for iyP in range(self.p.nyP):
-					inactionRegion = np.flatnonzero(~cSwitch[ix,:,iz,iyP])
+					inactionRegion = np.flatnonzero(~self.willSwitch[ix,:,iz,iyP])
 					if inactionRegion.size > 0:
 						self.inactionRegionLower[ix,iz,iyP] = self.grids.c_flat[inactionRegion[0]]
 						self.inactionRegionUpper[ix,iz,iyP] = self.grids.c_flat[inactionRegion[-1]]
@@ -359,7 +382,7 @@ cdef class CModel:
 
 		self.valueDiff = np.where(self.mustSwitch,
 			np.nan,
-			np.asarray(self.valueSwitch) - np.asarray(self.valueNoSwitch)
+			np.asarray(self.valueSwitch) - correctedValNoSwitch
 			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1), order='F')
 
 		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1),

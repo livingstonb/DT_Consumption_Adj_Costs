@@ -29,3 +29,8 @@ def computeAdjBorrLims(nextShock, ymin, borrowLim, R, nlags):
 
 	borrLims = [max(blim, borrowLim) for blim in borrLims]
 	return borrLims
+
+def replaceNumpyNan(arr, val):
+	arr_out = np.where(np.isnan(arr), val,
+		arr)
+	return arr_out

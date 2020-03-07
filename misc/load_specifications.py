@@ -61,8 +61,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['name'] = f'baseline_Q'
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 250
-	paramsDicts[ii]['nc'] = 300
+	paramsDicts[ii]['nx'] = 50
+	paramsDicts[ii]['nc'] = 80
 	paramsDicts[ii]['cMax'] = 15
 	paramsDicts[ii]['xMax'] = 40
 	paramsDicts[ii]['nSim'] = 5e5

@@ -12,6 +12,7 @@ cdef struct FnArgs:
 	double timeDiscount
 	double deathProb
 	long nc
+	long hetType
 
 # function pointer for golden section search
 ctypedef double (*objectiveFn)(double x, FnArgs fargs) nogil

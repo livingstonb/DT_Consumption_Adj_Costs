@@ -82,9 +82,10 @@ class Model(CModel):
 		This method updates valueFunction by finding max(valueSwitch-adjustCost,valueNoSwitch),
 		where valueSwitch is used wherever c > x in the state space.
 		"""
+		correctedValNoSwitch = functions.replaceNumpyNan(self.valueNoSwitch, -1e9)
 		self.valueFunction = np.where(self.mustSwitch,
 			np.asarray(self.valueSwitch),
-			np.maximum(self.valueNoSwitch, np.asarray(self.valueSwitch))
+			np.maximum(self.valueSwitch, correctedValNoSwitch)
 			)
 
 	def updateEMAX(self):
