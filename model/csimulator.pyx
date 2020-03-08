@@ -31,7 +31,7 @@ cdef class CSimulator:
 		readonly Params p
 		readonly Income income
 		readonly object grids
-		readonly double[:,:,:,:,:] valueDiff, cSwitchingPolicy
+		readonly double[:,:,:,:,:] inactionRegion, cSwitchingPolicy
 		public int nCols
 		readonly int periodsBeforeRedraw
 		public int nSim, t, T, randIndex
@@ -42,15 +42,15 @@ cdef class CSimulator:
 		public list xgridCurr
 		public list borrowLims, borrowLimsCurr
 
-	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods):
+	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
 
 		self.cSwitchingPolicy = cSwitchingPolicies
-		self.valueDiff = valueDiffs
+		self.inactionRegion = inactionRegions
 
-		self.nCols = valueDiffs.shape[4]
+		self.nCols = inactionRegions.shape[4]
 
 		self.periodsBeforeRedraw = np.minimum(simPeriods, 10)
 
@@ -61,7 +61,7 @@ cdef class CSimulator:
 
 		self.initialized = False
 
-		if valueDiffs.shape[4] > 1:
+		if inactionRegions.shape[4] > 1:
 			self.news = True
 		else:
 			self.news = False
@@ -111,11 +111,10 @@ cdef class CSimulator:
 		cdef: 
 			long iyP, iz
 			double xWeights[2]
-			double conWeights[2]
+			double conInaction[2]
 			long xIndices[2]
-			long conIndices[2]
 			bint switch
-			double consumption, cash, myValueDiff, copt
+			double consumption, cash, copt
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -129,15 +128,15 @@ cdef class CSimulator:
 			# forced to switch consumption
 			switch = True
 		else:
-			# check if switching is optimal
-			cfunctions.getInterpolationWeights(cgrid, consumption, nc, &conIndices[0], &conWeights[0])
+			conInaction[0] = xWeights[0] * self.inactionRegion[xIndices[0],0,iz,iyP,modelNum] \
+				+ xWeights[1] * self.inactionRegion[xIndices[1],0,iz,iyP,modelNum]
+			conInaction[1] = xWeights[0] * self.inactionRegion[xIndices[0],1,iz,iyP,modelNum] \
+				+ xWeights[1] * self.inactionRegion[xIndices[1],1,iz,iyP,modelNum] \
 
-			myValueDiff = xWeights[0] * conWeights[0] * self.valueDiff[xIndices[0],conIndices[0],iz,iyP,modelNum] \
-				+ xWeights[1] * conWeights[0] * self.valueDiff[xIndices[1],conIndices[0],iz,iyP,modelNum] \
-				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP,modelNum] \
-				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP,modelNum]
-
-			switch = (myValueDiff >= 0)
+			if (consumption < conInaction[0]) or (consumption > conInaction[1]):
+				switch = True
+			else:
+				switch = False
 
 		if switch:
 			if cash < blim:

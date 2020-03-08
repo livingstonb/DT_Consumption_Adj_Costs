@@ -99,7 +99,7 @@ class Calibrator:
 
 		eqSimulator = simulator.EquilibriumSimulator(
 			params, income, grids, model.cSwitchingPolicy,
-			model.valueDiff)
+			model.inactionRegion)
 		eqSimulator.simulate()
 
 		yvals = np.zeros(self.nvars)

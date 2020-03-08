@@ -91,7 +91,7 @@ if IterateBeta:
 		model.solve()
 
 		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
-			model.cSwitchingPolicy, model.valueDiff)
+			model.cSwitchingPolicy, model.inactionRegion)
 		eqSimulator.simulate()
 
 		assets = eqSimulator.results['Mean wealth']
@@ -120,14 +120,14 @@ def calibrator(variables):
 	model.solve()
 
 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-		model.cSwitchingPolicy, model.valueDiff)
+		model.cSwitchingPolicy, model.inactionRegion)
 	eqSimulator.simulate()
 
 	shockIndices = [3]
 	mpcSimulator = simulator.MPCSimulator(
 		params, income, grids,
 		model.cSwitchingPolicy,
-		model.valueDiff,
+		model.inactionRegion,
 		shockIndices,
 		eqSimulator.finalStates)
 	mpcSimulator.simulate()
@@ -154,7 +154,7 @@ def calibrator(variable):
 	model.solve()
 
 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-		model.cSwitchingPolicy, model.valueDiff)
+		model.cSwitchingPolicy, model.inactionRegion)
 	eqSimulator.simulate()
 
 	target = np.array([
@@ -169,7 +169,7 @@ def calibrator(variable):
 x0 = [params.timeDiscount]
 xbounds = [0.962, 0.969]
 # opt_results = optimize.root(calibrator, x0).x
-opt_results = optimize.minimize_scalar(calibrator, x0, bounds=xbounds, method='bounded').x
+# opt_results = optimize.minimize_scalar(calibrator, x0, bounds=xbounds, method='bounded').x
 
 # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
 # x0 = np.array([69, 0.005559])
@@ -198,7 +198,7 @@ opt_results = optimize.minimize_scalar(calibrator, x0, bounds=xbounds, method='b
 model.solve()
 
 eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
-	model.cSwitchingPolicy, model.valueDiff)
+	model.cSwitchingPolicy, model.inactionRegion)
 if Simulate:
 	eqSimulator.simulate()
 	finalSimStates = eqSimulator.finalStates
@@ -213,7 +213,7 @@ shockIndices = [0,1,2,3,4,5]
 mpcSimulator = simulator.MPCSimulator(
 	params, income, grids, 
 	model.cSwitchingPolicy,
-	model.valueDiff, 
+	model.inactionRegion, 
 	shockIndices, finalSimStates)
 
 if Simulate and SimulateMPCs:
@@ -230,10 +230,10 @@ shockIndices_shockNextPeriod = [2,3,4,5]
 currentShockIndices = [6] * len(shockIndices_shockNextPeriod) # 6 is shock of 0
 
 cSwitch_shockNextPeriod = np.zeros((params.nx,1,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
-valueDiffs_shockNextPeriod = np.zeros((params.nx,params.nc,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
+inactionRegions_shockNextPeriod = np.zeros((params.nx,2,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
 
 cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-valueDiffs_shockNextPeriod[:,:,:,:,-1] = model.valueDiff[:,:,:,:,0]
+inactionRegions_shockNextPeriod[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 valueBaseline = model.valueFunction
 emaxBaseline = model.EMAX
 model.interpMat = []
@@ -251,7 +251,7 @@ for ishock in shockIndices_shockNextPeriod:
 		print(f'Solving for shock of {params.MPCshocks[ishock]} next period')
 		model_shockNextPeriod.solve()
 		cSwitch_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.cSwitchingPolicy[:,:,:,:,0]
-		valueDiffs_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.valueDiff[:,:,:,:,0]
+		inactionRegions_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.inactionRegion[:,:,:,:,0]
 
 	del model_shockNextPeriod
 	i += 1
@@ -266,7 +266,7 @@ for ishock in shockIndices_shockNextPeriod:
 #      SOLVE FOR 1-YEAR LOAN                                #
 #-----------------------------------------------------------#
 cSwitch_loan = np.zeros((params.nx,1,params.nz,params.nyP,2))
-valueDiffs_loan = np.zeros((params.nx,params.nc,params.nz,params.nyP,2))
+inactionRegions_loan = np.zeros((params.nx,2,params.nz,params.nyP,2))
 
 shock = params.MPCshocks[0]
 # start with last quarter
@@ -292,15 +292,15 @@ if SimulateMPCs:
 
 	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
 	cSwitch_loan[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
-	valueDiffs_loan[:,:,:,:,0] = model_loan.valueDiff[:,:,:,:,0]
-	valueDiffs_loan[:,:,:,:,1] = model.valueDiff[:,:,:,:,0]
+	inactionRegions_loan[:,:,:,:,0] = model_loan.inactionRegion[:,:,:,:,0]
+	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
 	del model_loan
 
 #-----------------------------------------------------------#
 #      SHOCK OF -$500 IN 2 YEARS                            #
 #-----------------------------------------------------------#
 cSwitch_shock2Years = np.zeros((params.nx,1,params.nz,params.nyP,2))
-valueDiffs_shock2Years = np.zeros((params.nx,params.nc,params.nz,params.nyP,2))
+inactionRegions_shock2Years = np.zeros((params.nx,2,params.nz,params.nyP,2))
 
 ishock = 2
 shock = params.MPCshocks[ishock]
@@ -326,8 +326,8 @@ if SimulateMPCs:
 
 	cSwitch_shock2Years[:,:,:,:,0] = model_shock2Years.cSwitchingPolicy[:,:,:,:,0]
 	cSwitch_shock2Years[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
-	valueDiffs_shock2Years[:,:,:,:,0] = model_shock2Years.valueDiff[:,:,:,:,0]
-	valueDiffs_shock2Years[:,:,:,:,1] = model.valueDiff[:,:,:,:,0]
+	inactionRegions_shock2Years[:,:,:,:,0] = model_shock2Years.inactionRegion[:,:,:,:,0]
+	inactionRegions_shock2Years[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
 	del model_shock2Years
 
 #-----------------------------------------------------------#
@@ -336,7 +336,7 @@ if SimulateMPCs:
 currentShockIndices = [6] * len(shockIndices_shockNextPeriod)
 mpcNewsSimulator_shockNextPeriod = simulator.MPCSimulatorNews(
 	params, income, grids,
-	cSwitch_shockNextPeriod, valueDiffs_shockNextPeriod,
+	cSwitch_shockNextPeriod, inactionRegions_shockNextPeriod,
 	shockIndices_shockNextPeriod, currentShockIndices,
 	finalSimStates, periodsUntilShock=1)
 
@@ -344,7 +344,7 @@ shockIndices_shock2Years = [2]
 currentShockIndices = [6]
 mpcNewsSimulator_shock2Years = simulator.MPCSimulatorNews(
 	params, income, grids,
-	cSwitch_shock2Years, valueDiffs_shock2Years,
+	cSwitch_shock2Years, inactionRegions_shock2Years,
 	shockIndices_shock2Years, currentShockIndices,
 	finalSimStates, periodsUntilShock=8)
 
@@ -352,7 +352,7 @@ shockIndices_loan = [0]
 currentShockIndices = [5]
 mpcNewsSimulator_loan = simulator.MPCSimulatorNews_Loan(
 	params, income, grids,
-	cSwitch_loan, valueDiffs_loan,
+	cSwitch_loan, inactionRegions_loan,
 	shockIndices_loan, currentShockIndices,
 	finalSimStates, periodsUntilShock=4)
 
@@ -573,14 +573,14 @@ def plot_policies():
 
 	fig = plt.figure()
 	ax = fig.add_subplot(1, 1, 1)
-	ax.scatter(grids.x_flat,model.inactionRegionLower[:,0,iyP])
-	ax.scatter(grids.x_flat,model.cSwitchingPolicy[:,0,0,iyP])
-	ax.scatter(grids.x_flat,model.inactionRegionUpper[:,0,iyP])
+	ax.scatter(grids.x_flat, model.inactionRegion[:,0,0,iyP])
+	ax.scatter(grids.x_flat, model.cSwitchingPolicy[:,0,0,iyP])
+	ax.scatter(grids.x_flat, model.inactionRegion[:,1,0,iyP])
 
 	ax.set_title('Inaction region for consumption')
 	ax.set_xlabel('cash-on-hand, x')
 	ax.set_ylabel('consumption')
-	ax.legend(['Lower bound of inaction region', 'Desired c without adj cost', 
+	ax.legend(['Lower bound of inaction region', 'Desired c if switching', 
 		'Upper bound of inaction region'])
 
 	plt.show()

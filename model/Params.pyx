@@ -55,7 +55,7 @@ cdef class Params:
 		self.nx = 40
 		self.xGridCurv = 0.3
 		self.borrowLim = 0
-		self.minGridSpacing = 0.0005
+		self.minGridSpacing = 0
 
 		# consumption grid
 		self.nc = 50

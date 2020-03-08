@@ -6,6 +6,7 @@ cimport numpy as np
 cdef struct FnArgs:
 	double *cgrid
 	double *emaxVec
+	double *vNoSwitchVec
 	double *yderivs
 	long ncValid
 	double riskAver

@@ -32,7 +32,7 @@ class Model(CModel):
 
 		self.valueFunction = valueGuess
 
-	def solve(self):
+	def solve(self, oneIter=False):
 		print('\nBeginning value function iteration...')
 		distance = 1e5
 		self.iteration = 0
@@ -70,12 +70,15 @@ class Model(CModel):
 
 			self.iteration += 1
 
-		# compute c-policy function conditional on switching
-		# self.maximizeValueFromSwitching(findPolicy=True)
-
-		print(f'Value function converged after {self.iteration} iterations.')
+			if oneIter:
+				break
 
 		self.doComputations()
+
+		# compute c-policy function conditional on switching
+		self.maximizeValueFromSwitching(final=True)
+
+		print(f'Value function converged after {self.iteration} iterations.')
 
 	def updateValueFunction(self):
 		"""
@@ -124,7 +127,7 @@ class ModelWithNews(Model):
 		print('\nConstructing interpolant array for EMAX')
 		self.constructInterpolantForEMAX()
 		super().updateEMAX()
-		super().solve()
+		super().solve(True)
 
 	def updateEMAX(self):
 		# EMAX has already been found, based on next period's

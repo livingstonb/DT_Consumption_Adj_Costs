@@ -10,8 +10,8 @@ class Simulator(CSimulator):
 	"""
 	Base class for simulations
 	"""
-	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods):
-		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, simPeriods)
+	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, simPeriods):
+		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, simPeriods)
 
 		self.borrowLimsCurr = [params.borrowLim] * self.nCols
 		self.xgridCurr = [grids.x_flat] * self.nCols
@@ -55,8 +55,8 @@ class EquilibriumSimulator(Simulator):
 	"""
 	This class is used to simulate statistics for the solved model.
 	"""
-	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs):
-		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, params.tSim)
+	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions):
+		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, params.tSim)
 
 		self.initialize()
 
@@ -233,8 +233,8 @@ class MPCSimulator(Simulator):
 	finalStates contains the stationary distribution from simulating
 	the original solved model.
 	"""
-	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, shockIndices, finalStates):
-		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, 4)
+	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, shockIndices, finalStates):
+		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, 4)
 		self.nCols = len(shockIndices) + 1
 		self.shockIndices = shockIndices
 		self.mpcs = pd.Series()
@@ -381,11 +381,11 @@ class MPCSimulator(Simulator):
 			ii += 1
 
 class MPCSimulatorNews(MPCSimulator):
-	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, futureShockIndices, 
+	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, futureShockIndices, 
 		currentShockIndices, finalStates, periodsUntilShock=1):
 		self.futureShockIndices = futureShockIndices
-		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, currentShockIndices, finalStates)
-		self.nCols = valueDiffs.shape[4]
+		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, currentShockIndices, finalStates)
+		self.nCols = inactionRegions.shape[4]
 		self.periodsUntilShock = periodsUntilShock
 
 		ymin = income.ymin + params.govTransfer
@@ -472,11 +472,11 @@ class MPCSimulatorNews(MPCSimulator):
 			ii += 1
 
 class MPCSimulatorNews_Loan(MPCSimulator):
-	def __init__(self, params, income, grids, cSwitchingPolicies, valueDiffs, futureShockIndices, 
+	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, futureShockIndices, 
 		currentShockIndices, finalStates, periodsUntilShock=1):
 		self.futureShockIndices = futureShockIndices
-		super().__init__(params, income, grids, cSwitchingPolicies, valueDiffs, currentShockIndices, finalStates)
-		self.nCols = valueDiffs.shape[4]
+		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, currentShockIndices, finalStates)
+		self.nCols = inactionRegions.shape[4]
 		self.periodsUntilShock = periodsUntilShock
 
 		ymin = income.ymin + params.govTransfer

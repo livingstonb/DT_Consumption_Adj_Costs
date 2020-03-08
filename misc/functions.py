@@ -34,3 +34,12 @@ def replaceNumpyNan(arr, val):
 	arr_out = np.where(np.isnan(arr), val,
 		arr)
 	return arr_out
+
+def constructCurvedGrid(lbound, ubound, curv, n):
+	grid_out = np.linspace(0, 1, num=n)
+	grid_out = grid_out.reshape((n, 1))
+	grid_out = grid_out ** (1 / curv)
+	grid_out = lbound \
+		+ (ubound - lbound) * grid_out
+
+	return grid_out
