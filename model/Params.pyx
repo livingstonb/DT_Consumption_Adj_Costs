@@ -53,7 +53,7 @@ cdef class Params:
 		# cash-on-hand / savings grid parameters
 		self.xMax = 25 # max of saving grid
 		self.nx = 40
-		self.xGridCurv = 0.2
+		self.xGridCurv = 0.3
 		self.borrowLim = 0
 		self.minGridSpacing = 0.0005
 
@@ -61,7 +61,7 @@ cdef class Params:
 		self.nc = 50
 		self.cMin = 1e-6
 		self.cMax = 5
-		self.cGridCurv = 0.2
+		self.cGridCurv = 0.3
 
 		# options
 		self.MPCsOutOfNews = False
@@ -91,8 +91,8 @@ cdef class Params:
 
 		if params_dict:
 			for parameter, value in params_dict.items():
-				if hasattr(self,parameter):
-					setattr(self,parameter,value)
+				if hasattr(self, parameter):
+					setattr(self, parameter, value)
 				else:
 					raise Exception(f'"{parameter}" is not a valid parameter')
 
@@ -176,6 +176,18 @@ cdef class Params:
 	def resetAdjustCost(self, newAdjustCost):
 		self.adjustCost = newAdjustCost
 		self.series['Adjustment cost'] = newAdjustCost
+
+	def setParam(self, name, value):
+		if hasattr(self, name):
+			setattr(self, name, value)
+		else:
+			raise Exception(f'"{name}" is not a valid parameter')
+
+	def getParam(self, name):
+		if hasattr(self, name):
+			getattr(self, name)
+		else:
+			raise Exception(f'"{name}" is not a valid parameter')
 
 	def reportFinalParameters(self):
 		index = [	'r',

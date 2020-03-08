@@ -35,7 +35,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'target P(assets<1000) and P(MPC>0) = 0.2'
+name = 'P(a < 1000) = 0.23, no adj costs'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -54,7 +54,7 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 
 locIncomeProcess = os.path.join(
-	basedir,'input','income_quarterly_b_fixed.mat')
+	basedir,'input', 'income_quarterly_b_fixed.mat')
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
@@ -144,6 +144,33 @@ def calibrator(variables):
 
 	return np.abs(targets)
 
+#-----------------------------------------------------------#
+#      CALIBRATING TO P(a < 1000)                           #
+#-----------------------------------------------------------#
+def calibrator(variable):
+	params.resetDiscountRate(variable)
+
+	print(f'timeDiscount reset to {params.timeDiscount}')
+	model.solve()
+
+	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
+		model.cSwitchingPolicy, model.valueDiff)
+	eqSimulator.simulate()
+
+	target = np.array([
+		eqSimulator.results['Wealth <= $1000'] - 0.23,
+		])
+
+	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
+
+	return target ** 2
+
+# for P(a<$1000) = 0.23
+x0 = [params.timeDiscount]
+xbounds = [0.962, 0.969]
+# opt_results = optimize.root(calibrator, x0).x
+opt_results = optimize.minimize_scalar(calibrator, x0, bounds=xbounds, method='bounded').x
+
 # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
 # x0 = np.array([69, 0.005559])
 # opt_results = optimize.root(calibrator, x0, method='krylov').x
@@ -155,12 +182,13 @@ def calibrator(variables):
 # 	diff_step=newDiff, method='dogbox', verbose=1)
 # print(opt_results.status)
 
-xbounds = ([0.94, 0.996], [0.0001, 20])
+# xbounds = ([0.94, 0.996], [0.0001, 2])
 # opts = {'eps': 1e-5}
 # opt_results = optimize.minimize(calibrator, x0, bounds=xbounds,
 # 	method='SLSQP', options=opts).x
 # import pdb; pdb.set_trace()
 
+# xbounds = optimize.Bounds([0.94, 0.0001], [0.996, 2], keep_feasible=True)
 # opt_results = optimize.differential_evolution(calibrator, bounds=xbounds)
 # set_trace()
 

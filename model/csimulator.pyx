@@ -137,7 +137,7 @@ cdef class CSimulator:
 				+ xWeights[0] * conWeights[1] * self.valueDiff[xIndices[0],conIndices[1],iz,iyP,modelNum] \
 				+ xWeights[1] * conWeights[1] * self.valueDiff[xIndices[1],conIndices[1],iz,iyP,modelNum]
 
-			switch = (myValueDiff > 0)
+			switch = (myValueDiff >= 0)
 
 		if switch:
 			if cash < blim:

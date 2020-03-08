@@ -69,7 +69,7 @@ class EquilibriumSimulator(Simulator):
 
 		while self.t <= self.T:
 
-			if np.mod(self.t,25) == 0:
+			if np.mod(self.t, 25) == 0:
 				print(f'    Simulating period {self.t}')
 
 			if self.t > 1:
@@ -455,11 +455,9 @@ class MPCSimulatorNews(MPCSimulator):
 			self.results[rowQuarterlyCondMedian] = np.median(allMPCS[allMPCS>0]);
 
 			# fraction of respondents in this quarter
-			respondentsQ = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
-				) / self.p.MPCshocks[ishock] > 0
-			respondentsQ_neg = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
-				) / self.p.MPCshocks[ishock] < 0
-			nonRespondents = (csimQuarter == np.asarray(self.csim_adj[:,self.nCols-1]))
+			respondentsQ = allMPCS > 0
+			respondentsQ_neg = allMPCS < 0
+			nonRespondents = allMPCS == 0
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
 				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
