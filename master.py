@@ -35,7 +35,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'P(a < 1000) = 0.23, no adj costs'
+name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -107,42 +107,39 @@ if IterateBeta:
 #-----------------------------------------------------------#
 #      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
 #-----------------------------------------------------------#
-def calibrator(variables):
-	# params.resetDiscountRate(np.abs(variables[0])/(1+np.abs(variables[0]))-0.02)
-	# params.resetAdjustCost(np.abs(variables[1])+0.0001)
+# def calibrator(variables):
+# 	params.resetDiscountRate(variables[0])
+# 	params.resetAdjustCost(variables[1])
 
-	params.resetDiscountRate(variables[0])
-	params.resetAdjustCost(variables[1])
+# 	print(f'timeDiscount reset to {params.timeDiscount}')
+# 	print(f'adjustCost reset to {params.adjustCost}')
 
-	print(f'timeDiscount reset to {params.timeDiscount}')
-	print(f'adjustCost reset to {params.adjustCost}')
+# 	model.solve()
 
-	model.solve()
+# 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
+# 		model.cSwitchingPolicy, model.inactionRegion)
+# 	eqSimulator.simulate()
 
-	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-		model.cSwitchingPolicy, model.inactionRegion)
-	eqSimulator.simulate()
+# 	shockIndices = [3]
+# 	mpcSimulator = simulator.MPCSimulator(
+# 		params, income, grids,
+# 		model.cSwitchingPolicy,
+# 		model.inactionRegion,
+# 		shockIndices,
+# 		eqSimulator.finalStates)
+# 	mpcSimulator.simulate()
 
-	shockIndices = [3]
-	mpcSimulator = simulator.MPCSimulator(
-		params, income, grids,
-		model.cSwitchingPolicy,
-		model.inactionRegion,
-		shockIndices,
-		eqSimulator.finalStates)
-	mpcSimulator.simulate()
+# 	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
 
-	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
+# 	targets = np.array([
+# 		eqSimulator.results['Wealth <= $1000'] - 0.23,
+# 		mpcSimulator.results[rowname] - 0.2
+# 		])
 
-	targets = np.array([
-		eqSimulator.results['Wealth <= $1000'] - 0.23,
-		mpcSimulator.results[rowname] - 0.2
-		])
+# 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
+# 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
 
-	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
-	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
-
-	return np.abs(targets)
+# 	return targets
 
 #-----------------------------------------------------------#
 #      CALIBRATING TO P(a < 1000)                           #
@@ -158,35 +155,37 @@ def calibrator(variable):
 	eqSimulator.simulate()
 
 	target = np.array([
-		eqSimulator.results['Wealth <= $1000'] - 0.23,
+		eqSimulator.results['Wealth <= $1000'] - 0.210464, # 0.23
 		])
 
 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
 
-	return target ** 2
+	return np.abs(target)
 
 # for P(a<$1000) = 0.23
-x0 = [params.timeDiscount]
-xbounds = [0.962, 0.969]
+x0 = [0.9674]
+xbounds = [0.96, 0.968]
 # opt_results = optimize.root(calibrator, x0).x
 # opt_results = optimize.minimize_scalar(calibrator, x0, bounds=xbounds, method='bounded').x
 
-# for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
-# x0 = np.array([69, 0.005559])
-# opt_results = optimize.root(calibrator, x0, method='krylov').x
+# # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
+# x0 = np.array([0.968])
+# opt_results = optimize.root(calibrator, x0).x
 
 # x0 = np.array([0.993336677, 0.07387772])
-# xbounds = ([0.9, 0.001], [0.996, 1])
-# newDiff = 1e-5
-# opt_results = optimize.least_squares(calibrator, x0, bounds=xbounds,
-# 	diff_step=newDiff, method='dogbox', verbose=1)
-# print(opt_results.status)
+# x0 = [params.timeDiscount, params.adjustCost]
+	# x0 = [0.96720261095397028, 0.0005312273140694344]
+	# xbounds = ([0.965, 0.0001], [0.969, 0.003])
+	# newDiff = 1e-6
+	# opt_results = optimize.least_squares(calibrator, x0, bounds=xbounds,
+	# 	diff_step=newDiff, verbose=1)
+	# print(opt_results.status)
 
-# xbounds = ([0.94, 0.996], [0.0001, 2])
+# x0 = [params.timeDiscount, params.adjustCost]
+# xbounds = ([0.94, 0.996], [0.0001, 1])
 # opts = {'eps': 1e-5}
 # opt_results = optimize.minimize(calibrator, x0, bounds=xbounds,
 # 	method='SLSQP', options=opts).x
-# import pdb; pdb.set_trace()
 
 # xbounds = optimize.Bounds([0.94, 0.0001], [0.996, 2], keep_feasible=True)
 # opt_results = optimize.differential_evolution(calibrator, bounds=xbounds)
@@ -475,6 +474,9 @@ if Simulate:
 
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
 	results.to_pickle(savepath)
+
+	savepath = os.path.join(outdir,f'run{paramIndex}_statistics.csv')
+	results.to_csv(savepath, index_label=params.name)
 
 	mpcs_table = mpcsTable.create(params, mpcSimulator, 
 		mpcNewsSimulator_shockNextPeriod,

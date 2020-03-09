@@ -86,13 +86,16 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['name'] = f'P(a < 1000) = 0.23, no adj costs'
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 100
-	paramsDicts[ii]['nc'] = 100
+	paramsDicts[ii]['nx'] = 150
+	paramsDicts[ii]['nc'] = 150
 	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['adjustCost'] = 0
-	paramsDicts[ii]['timeDiscount'] = 0.8742
-	paramsDicts[ii]['cGridCurv'] = 0.2
+	paramsDicts[ii]['timeDiscount'] = 0.875890
+	paramsDicts[ii]['cGridCurv'] = 0.3
+	paramsDicts[ii]['xGridCurv'] = 0.3
+	paramsDicts[ii]['xMax'] = 20
+	paramsDicts[ii]['cMax'] = 3
 	ii += 1
 
 	###########################################################
@@ -101,20 +104,18 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts.append({})
 	paramsDicts[ii]['name'] = f'target P(assets<1000) and P(MPC>0) = 0.2'
 	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 120
-	paramsDicts[ii]['nc'] = 120
+	paramsDicts[ii]['nx'] = 150
+	paramsDicts[ii]['nc'] = 150
 	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
-	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
-	paramsDicts[ii]['cGridCurv'] = 0.2
+	paramsDicts[ii]['adjustCost'] = 0.000534422607915929 * 4
+	paramsDicts[ii]['timeDiscount'] = 0.9672018212270825** 4
+	paramsDicts[ii]['cGridCurv'] = 0.3
+	paramsDicts[ii]['xGridCurv'] = 0.3
+	paramsDicts[ii]['xMax'] = 20
+	paramsDicts[ii]['cMax'] = 3
 
-	# paramsDicts[ii]['nx'] = 45
-	# paramsDicts[ii]['nc'] = 45
-	# paramsDicts[ii]['nSim'] = 1e5
-	# paramsDicts[ii]['minGridSpacing'] = 0
 	ii += 1
 
 

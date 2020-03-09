@@ -296,7 +296,7 @@ class MPCSimulator(Simulator):
 
 		self.makeRandomDraws()
 
-		self.responded = np.zeros((self.nSim,len(self.shockIndices)),dtype=bool)
+		self.cumResponse = np.zeros((self.nSim,len(self.shockIndices)))
 
 	def initialize_results(self):
 		# statistics to compute very period
@@ -316,6 +316,7 @@ class MPCSimulator(Simulator):
 			rows.append(f'P(Q1 MPC < 0) for shock of {self.p.MPCshocks[ishock]}')
 			rows.append(f'P(Q1 MPC = 0) for shock of {self.p.MPCshocks[ishock]}')
 			rows.append(f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
+			rows.append(f'P(Annual MPC < 0) for shock of {self.p.MPCshocks[ishock]}')
 			rows.append(f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}')
 
 		for row in rows:
@@ -343,6 +344,9 @@ class MPCSimulator(Simulator):
 			allMPCS = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
 					) / self.p.MPCshocks[ishock]
 
+
+			self.cumResponse[:,ii] += allMPCS
+
 			if self.t == 1:
 				self.mpcs[ishock] = allMPCS
 
@@ -361,7 +365,7 @@ class MPCSimulator(Simulator):
 			# fraction of respondents in this quarter
 			respondentsQ = allMPCS > 0
 			respondentsQ_neg = allMPCS < 0
-			nonRespondents = allMPCS
+			nonRespondents = (allMPCS == 0)
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for shock of {self.p.MPCshocks[ishock]}'
 				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
@@ -369,14 +373,17 @@ class MPCSimulator(Simulator):
 				self.results[rowRespondentsQuarterly] =  nonRespondents.mean()
 				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
 				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
-				
-			# update if some households responded this period but not previous periods
-			self.responded[:,ii] = np.logical_or(self.responded[:,ii], respondentsQ)
 
-			# fraction of respondents (annual)
+			# Fraction of respondents (annual)
 			if self.t == 4:
 				rowRespondentsAnnual = f'P(Annual MPC > 0) for shock of {self.p.MPCshocks[ishock]}'
-				self.results[rowRespondentsAnnual] = self.responded[:,ii].mean()
+				rowNegRespondentsAnnual = f'P(Annual MPC < 0) for shock of {self.p.MPCshocks[ishock]}'
+				respondentsA = (self.cumResponse[:,ii] > 0)
+				respondentsA_neg = (self.cumResponse[:,ii] < 0)
+				self.results[rowRespondentsAnnual] = respondentsA.mean()
+				self.results[rowNegRespondentsAnnual] = respondentsA_neg.mean()
+				self.results[rowAnnualCond] = self.cumResponse[respondentsA,ii].mean()
+				self.results[rowAnnualCondMedian] = np.median(self.cumResponse[respondentsA,ii])
 		
 			ii += 1
 
@@ -457,7 +464,7 @@ class MPCSimulatorNews(MPCSimulator):
 			# fraction of respondents in this quarter
 			respondentsQ = allMPCS > 0
 			respondentsQ_neg = allMPCS < 0
-			nonRespondents = allMPCS == 0
+			nonRespondents = (allMPCS == 0)
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
 				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
@@ -465,9 +472,6 @@ class MPCSimulatorNews(MPCSimulator):
 				self.results[rowRespondentsQuarterly] =  nonRespondents.mean()
 				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
 				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
-				
-			# update if some households responded this period but not previous periods
-			self.responded[:,ii] = np.logical_or(self.responded[:,ii],respondentsQ)
 		
 			ii += 1
 
@@ -546,11 +550,9 @@ class MPCSimulatorNews_Loan(MPCSimulator):
 			self.results[rowQuarterlyCondMedian] = np.median(allMPCS[allMPCS>0]);
 
 			# fraction of respondents in this quarter
-			respondentsQ = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
-				) / loanSize > 0
-			respondentsQ_neg = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
-				) / loanSize < 0
-			nonRespondents = (csimQuarter == np.asarray(self.csim_adj[:,self.nCols-1]))
+			respondentsQ = allMPCS > 0
+			respondentsQ_neg = allMPCS < 0
+			nonRespondents = allMPCS == 0
 			if self.t == 1:
 				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for {loanSize} loan for {self.periodsUntilShock} quarter(s)'
 				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
@@ -558,8 +560,5 @@ class MPCSimulatorNews_Loan(MPCSimulator):
 				self.results[rowRespondentsQuarterly] =  nonRespondents.mean()
 				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for {loanSize} loan for {self.periodsUntilShock} quarter(s)'
 				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
-				
-			# update if some households responded this period but not previous periods
-			self.responded[:,ii] = np.logical_or(self.responded[:,ii],respondentsQ)
-		
+
 			ii += 1
