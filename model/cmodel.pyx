@@ -423,23 +423,5 @@ cdef class CModel:
 			for ic in range(nvalid, self.p.nc):
 				self.valueNoSwitch[ix,ic,:,:] = np.nan
 
-	@cython.boundscheck(False)
-	def doComputations(self):
-		cdef long ix, iz, ic, iyP
-
-		correctedValNoSwitch = functions.replaceNumpyNan(self.valueNoSwitch, -1e9)
-		self.willSwitch = np.asarray(self.valueSwitch) >= correctedValNoSwitch
-		self.cChosen = self.willSwitch * self.cSwitchingPolicy + \
-			(~self.willSwitch) * self.grids.c_wide
-
-		self.valueDiff = np.where(self.mustSwitch,
-			np.nan,
-			np.asarray(self.valueSwitch) - correctedValNoSwitch
-			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1), order='F')
-
-		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1),
-			order='F')
-		
-
 	def resetParams(self, newParams):
 		self.p = newParams

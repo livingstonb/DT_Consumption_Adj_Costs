@@ -100,6 +100,20 @@ class Model(CModel):
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
 			).reshape(self.grids.matrixDim, order='F')
 
+	def doComputations(self):
+		correctedValNoSwitch = functions.replaceNumpyNan(self.valueNoSwitch, -1e9)
+		self.willSwitch = np.asarray(self.valueSwitch) >= correctedValNoSwitch
+		self.cChosen = self.willSwitch * self.cSwitchingPolicy + \
+			(~self.willSwitch) * self.grids.c_wide
+
+		self.valueDiff = np.where(self.mustSwitch,
+			np.nan,
+			np.asarray(self.valueSwitch) - correctedValNoSwitch
+			).reshape((self.p.nx,self.p.nc,self.p.nz,self.p.nyP,1), order='F')
+
+		self.cSwitchingPolicy = self.cSwitchingPolicy.reshape((self.p.nx,1,self.p.nz,self.p.nyP,1),
+			order='F')
+
 class ModelWithNews(Model):
 	"""
 	This class solves the model when a future shock is expected. The value function
