@@ -106,13 +106,12 @@ class ModelWithNews(Model):
 	used to compute EMAX should come from the solution to a model in which an
 	there is an immediate shock or if a future shock is expected.
 	"""
-	def __init__(self, params, income, grids, valueNext, EMAXnext,
+	def __init__(self, params, income, grids, valueNext,
 		shock, periodsUntilShock):
 
 		self.nextMPCShock = (periodsUntilShock == 1) * shock
 
 		self.valueFunction = valueNext
-		self.EMAXnext = EMAXnext
 
 		ymin = income.ymin + params.govTransfer
 		borrowLims = functions.computeAdjBorrLims(shock,

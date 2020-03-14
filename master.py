@@ -2,9 +2,6 @@ import sys
 import os
 from matplotlib import pyplot as plt
 import numpy as np
-from itertools import combinations
-
-from scipy import optimize
 
 import pandas as pd
 
@@ -138,7 +135,6 @@ inactionRegions_shockNextPeriod = np.zeros((params.nx,2,params.nz,params.nyP,len
 cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 inactionRegions_shockNextPeriod[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 valueBaseline = model.valueFunction
-emaxBaseline = model.EMAX
 model.interpMat = []
 
 i = 0
@@ -146,7 +142,6 @@ for ishock in shockIndices_shockNextPeriod:
 	model_shockNextPeriod = ModelWithNews(
 		params, income, grids,
 		valueBaseline,
-		emaxBaseline,
 		params.MPCshocks[ishock],
 		1)
 
@@ -170,7 +165,6 @@ shock = params.MPCshocks[0]
 model_loan = ModelWithNews(
 	params, income, grids,
 	valueBaseline,
-	emaxBaseline,
 	shock,
 	1)
 
@@ -182,7 +176,6 @@ if SimulateMPCs:
 		model_loan = ModelWithNews(
 			params, income, grids,
 			model_loan.valueFunction,
-			model_loan.EMAX,
 			shock,
 			period)
 		model_loan.solve()
@@ -204,7 +197,6 @@ shock = params.MPCshocks[ishock]
 model_shock2Years = ModelWithNews(
 	params, income, grids,
 	valueBaseline,
-	emaxBaseline,
 	shock,
 	1)
 
@@ -216,7 +208,6 @@ if SimulateMPCs:
 		model_shock2Years = ModelWithNews(
 			params, income, grids,
 			model_shock2Years.valueFunction,
-			model_shock2Years.EMAX,
 			shock,
 			period)
 		model_shock2Years.solve()

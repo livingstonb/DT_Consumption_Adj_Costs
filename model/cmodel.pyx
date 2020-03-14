@@ -237,7 +237,7 @@ cdef class CModel:
 		fargs.vNoSwitchVec = &vNoSwitchVec[0]
 		fargs.yderivs = &yderivs[0]
 
-		iteratorFn = <objectiveFn> self.findValueFromSwitching
+		iteratorFn = <objectiveFn> self.findValueAtState
 
 		if not final:
 			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
@@ -265,7 +265,7 @@ cdef class CModel:
 							cSwitch = fmax(cSwitch, self.p.cMin)
 							self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
 							self.valueSwitch[ix,0,iz,iyP] = \
-								self.findValueFromSwitching(cSwitch, fargs) - self.p.adjustCost
+								self.findValueAtState(cSwitch, fargs) - self.p.adjustCost
 					break
 				
 				xval = self.xgrid_curr[ix]
@@ -281,20 +281,7 @@ cdef class CModel:
 					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
 							ix, iz, fargs.yderivs)
 
-					if final:
-						vNoSwitchValid = True
-						for ic in range(fargs.ncValid):
-							fargs.vNoSwitchVec[ic] = self.valueNoSwitch[ix,ic,iz,iyP]
-
-							if np.isnan(fargs.vNoSwitchVec[ic]):
-								vNoSwitchValid = False
-								break
-
 					if not final:
-						if fargs.ncValid >= 4:
-							spline.spline(&self.grids.c_flat[0], fargs.emaxVec, fargs.ncValid,
-								1.0e30, 1.0e30, &yderivs[0])
-
 						for ii in range(NSECTIONS):
 							cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
 								bounds[ii][1], 1e-8, &gssResults[0], fargs)
@@ -303,11 +290,11 @@ cdef class CModel:
 
 						# Try consuming cmin
 						cVals[NSECTIONS] = self.p.cMin
-						funVals[NSECTIONS] = self.findValueFromSwitching(self.p.cMin, fargs)
+						funVals[NSECTIONS] = self.findValueAtState(self.p.cMin, fargs)
 
 						# Try consuming max amount
 						cVals[NSECTIONS+1] = maxAdmissibleC
-						funVals[NSECTIONS+1] = self.findValueFromSwitching(maxAdmissibleC, fargs)
+						funVals[NSECTIONS+1] = self.findValueAtState(maxAdmissibleC, fargs)
 
 						iOptimal = cfunctions.cargmax(funVals, NSECTIONS+2)
 
@@ -315,15 +302,6 @@ cdef class CModel:
 						self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
 							- self.p.adjustCost
 					else:
-						if fargs.ncValid >= 4:
-							spline.spline(&self.grids.c_flat[0], fargs.vNoSwitchVec,
-								fargs.ncValid, 1.0e30, 1.0e30, &yderivs[0])
-
-						if not vNoSwitchValid:
-							self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-							self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-							continue
-
 						vSwitch = self.valueSwitch[ix,0,iz,iyP]
 
 						# Look for lowest point of inaction
@@ -338,10 +316,11 @@ cdef class CModel:
 							self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 							continue
 
+						# Try to find a lower point of inaction
 						self.inactionRegion[ix,0,iz,iyP] = \
 							self.findExtremeNoSwitchPoint(
-								lowInaction, False, ix, iz, iyP,
-								self.p.cMin, vSwitch, fargs)
+								lowInaction, self.p.cMin,
+								vSwitch, fargs)
 
 						highInaction = -1.0
 						for ic in range(fargs.ncValid-1, -1, -1):
@@ -351,8 +330,8 @@ cdef class CModel:
 
 						self.inactionRegion[ix,1,iz,iyP] = \
 							self.findExtremeNoSwitchPoint(
-								highInaction, True, ix, iz, iyP,
-								maxAdmissibleC, vSwitch, fargs)
+								highInaction, maxAdmissibleC,
+								vSwitch, fargs)
 		if final:
 			self.inactionRegion = self.inactionRegion.reshape(
 				(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
@@ -377,7 +356,7 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef double findValueFromSwitching(self, double cSwitch, FnArgs fargs) nogil:
+	cdef double findValueAtState(self, double cSwitch, FnArgs fargs) nogil:
 		"""
 		Outputs the value u(cSwitch) + beta * EMAX(cSwitch) for a given cSwitch.
 		"""
@@ -402,14 +381,12 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef double findExtremeNoSwitchPoint(self, double x0, bint above, long ix,
-		long iz, long iyP, double bound, double vSwitch, FnArgs fargs):
+	cdef double findExtremeNoSwitchPoint(self, double x0,
+		double bound, double vSwitch, FnArgs fargs):
 
 		cdef:
-			double tol = 1e-9
-			double xb, xg, xm, fmNoSwitch = 0
-			long indices[2]
-			double weights[2]
+			double vNoSwitch, tol = 1e-9
+			double xb, xg, xm
 			long maxIters = long(1e5)
 			long it = 0
 
@@ -418,20 +395,7 @@ cdef class CModel:
 		
 		while (fabs(xb - xg) > tol) and (it < maxIters):
 			xm = (xb + xg) / 2.0
-
-			if fargs.ncValid == 1:
-				fmNoSwitch = fargs.vNoSwitchVec[0]
-			elif fargs.ncValid  < 4:
-				cfunctions.getInterpolationWeights(fargs.cgrid, xm,
-					fargs.ncValid, &indices[0], &weights[0])
-				fmNoSwitch = weights[0] * fargs.vNoSwitchVec[indices[0]] \
-					+ weights[1] * fargs.vNoSwitchVec[indices[1]]
-			else:
-				spline.splint(fargs.cgrid, fargs.vNoSwitchVec, fargs.yderivs,
-					fargs.ncValid, xm, &fmNoSwitch)
-
-
-			if fmNoSwitch >= vSwitch:
+			if self.findValueAtState(xm, fargs) >= vSwitch:
 				xb = xm
 			else:
 				xg = xm
