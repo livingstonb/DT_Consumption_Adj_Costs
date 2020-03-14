@@ -10,7 +10,7 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
-from misc import mpcsTable
+from misc import mpcsTable, functions
 from model.model import Model, ModelWithNews
 from model import simulator
 
@@ -35,7 +35,7 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'P(a < 1000) = 0.23, no adj costs'
+name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
@@ -43,6 +43,7 @@ name = 'P(a < 1000) = 0.23, no adj costs'
 IterateBeta = False
 Simulate = True # relevant if IterateBeta is False
 SimulateMPCs = True
+PrintGrids = False
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir, 'output')
@@ -54,7 +55,7 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 
 locIncomeProcess = os.path.join(
-	basedir,'input', 'income_quarterly_b_fixed.mat')
+	basedir,'input', 'income_quarterly_b.mat')
 
 #---------------------------------------------------------------#
 #      LOAD PARAMETERS                                          #
@@ -67,13 +68,20 @@ else:
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
 #---------------------------------------------------------------#
-income = Income.Income(params, False)
+income = Income.Income(params)
 params.addIncomeParameters(income)
 
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
-grids = Grid.Grid(params, income)
+if PrintGrids:
+	grids = Grid.Grid(params, income)
+	print('Cash grid:')
+	functions.printVector(grids.x_flat)
+
+	print('Consumption grid:')
+	functions.printVector(grids.c_flat)
+	quit()
 
 #---------------------------------------------------------------#
 #      CREATE MODEL                                             #

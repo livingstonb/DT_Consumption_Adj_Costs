@@ -99,22 +99,12 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2 ###########
 	###########################################################
 	paramsDicts.append({})
-	paramsDicts[ii]['name'] = f'target P(assets<1000) and P(MPC>0) = 0.2'
+	paramsDicts[ii]['name'] = 'target P(assets<1000) and P(MPC>0) = 0.2'
 	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 120
-	paramsDicts[ii]['nc'] = 120
-	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
 	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
-	paramsDicts[ii]['cGridCurv'] = 0.2
-
-	# paramsDicts[ii]['nx'] = 45
-	# paramsDicts[ii]['nc'] = 45
-	# paramsDicts[ii]['nSim'] = 1e5
-	# paramsDicts[ii]['minGridSpacing'] = 0
 	ii += 1
 
 

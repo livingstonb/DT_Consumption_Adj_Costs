@@ -24,10 +24,12 @@ cdef class Params:
 		public bint cubicEMAXInterp, cubicValueInterp
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
-		public int xMax, nx
-		public double xGridCurv, borrowLim, minGridSpacing
+		public int xMax, nx, nxLow
+		public double xGridTerm1Wt, xGridTerm1Curv
+		public double xGridCurv, borrowLim
 		public int nc, nshocks
 		public double cMin, cMax, cGridCurv
+		public double cGridTerm1Wt, cGridTerm1Curv
 		public double r, R, deathProb, govTransfer
 		public double riskAver, adjustCost, timeDiscount
 		public object risk_aver_grid, discount_factor_grid

@@ -23,13 +23,18 @@ cdef class Grid:
 		xmin = self.p.borrowLim + self.p.cMin
 
 		ymin = income.ymin + self.p.govTransfer
-		xgrid1 = np.linspace(xmin, xmin+ymin, num=11)
-		xgrid1 = xgrid1[0:10].reshape((10,1))
-		xgrid2 = constructCurvedGrid(xmin + ymin,
-			self.p.xMax, self.p.xGridCurv, self.p.nx-10)
+		# xgrid1 = np.linspace(xmin, xmin + ymin,
+		# 	num=self.p.nxLow+1)
+		# xgrid1 = xgrid1[0:self.p.nxLow].reshape((-1,1))
+		# xgrid2 = constructCurvedGrid(xmin + ymin,
+		# 	self.p.xMax, self.p.xGridCurv, self.p.nx-self.p.nxLow,
+		# 	self.p.xGridTerm1Wt, self.p.xGridTerm1Curv)
 
-		xgrid = np.concatenate((xgrid1, xgrid2), axis=0)
-		xgrid = self.enforceMinGridSpacing(xgrid)
+		# xgrid = np.concatenate((xgrid1, xgrid2), axis=0)
+
+		xgrid = constructCurvedGrid(xmin,
+			self.p.xMax, self.p.xGridCurv, self.p.nx,
+			self.p.xGridTerm1Wt, self.p.xGridTerm1Curv)
 
 		self.x_flat = xgrid.flatten()
 		self.x_vec = xgrid
@@ -39,17 +44,14 @@ cdef class Grid:
 
 	def createConsumptionGrid(self):
 		cgrid = constructCurvedGrid(self.p.cMin,
-			self.p.cMax, self.p.cGridCurv, self.p.nc)
-		cgrid = self.enforceMinGridSpacing(cgrid)
+			self.p.cMax, self.p.cGridCurv, self.p.nc,
+			self.p.cGridTerm1Wt, self.p.cGridTerm1Curv)
 
 		self.c_flat = cgrid.flatten()
 		self.c_vec = cgrid
 		self.c_wide = cgrid.reshape((1,self.p.nc,1,1))
 		self.c_matrix = np.tile(self.c_wide,
 			(self.p.nx,1,self.p.nz,self.p.nyP))
-
-	# def getFineConsumptionGrid(self, curv, npts):
-
 
 	def create_zgrid(self):
 		zgrid = np.arange(self.p.nz).reshape((-1,1))
@@ -58,12 +60,3 @@ cdef class Grid:
 		self.z_wide = zgrid.reshape((1,1,self.p.nz,1))
 		self.z_matrix = np.tile(self.z_wide,
 			(self.p.nx,self.p.nc,1,self.p.nyP))
-
-	def enforceMinGridSpacing(self, grid_in):
-		grid_adj = grid_in
-		for i in range(grid_in.size-1):
-			if grid_adj[i+1] - grid_adj[i] < self.p.minGridSpacing:
-				grid_adj[i+1] = grid_adj[i] + self.p.minGridSpacing
-
-		return grid_adj
-
