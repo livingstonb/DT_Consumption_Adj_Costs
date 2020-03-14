@@ -38,10 +38,10 @@ name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-Calibrate = False
+Calibrate = True
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
-Fast = True
+Fast = False
 PrintGrids = False
 
 basedir = os.getcwd()
@@ -367,28 +367,6 @@ def plot_policies():
 			ax[row,col].set_title(f'c = {cvals[i]}')
 			ax[row,col].set_xlabel('x, cash-on-hand')
 			ax[row,col].set_ylabel('actual consumption')
-			i += 1
-
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('ValueDiff vs. cash-on-hand')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].scatter(grids.x_flat,model.valueDiff[:,icvals[i],0,iyP])
-			ax[row,col].set_title(f'c = {cvals[i]}')
-			ax[row,col].set_xlabel('cash-on-hand, x')
-			ax[row,col].set_ylabel('ValueDiff')
-			i += 1
-
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('ValueDiff vs. consumption')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].scatter(grids.c_flat,model.valueDiff[ixvals[i],:,0,iyP])
-			ax[row,col].set_title(f'x = {xvals[i]}')
-			ax[row,col].set_xlabel('c, state')
-			ax[row,col].set_ylabel('ValueDiff')
 			i += 1
 
 	fig = plt.figure()

@@ -108,8 +108,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
-	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
+	paramsDicts[ii]['adjustCost'] = 0.001663097501924793 * 4
+	paramsDicts[ii]['timeDiscount'] = 0.9677141937933638 ** 4
 
 	targeted_shock = default_values.MPCshocks[3]
 

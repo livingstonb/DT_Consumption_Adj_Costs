@@ -35,7 +35,9 @@ cdef class Grid:
 			self.p.xGridTerm1Wt, self.p.xGridTerm1Curv)
 
 		self.x_flat = xgrid.flatten()
-		self.x_matrix = np.tile(self.x_flat,
+
+		xtmp = np.reshape(self.x_flat, (-1, 1, 1, 1))
+		self.x_matrix = np.tile(xtmp,
 			(1,self.p.nc,self.p.nz,self.p.nyP))
 
 	def createConsumptionGrid(self):

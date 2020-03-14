@@ -49,9 +49,9 @@ class Calibrator:
 			self.solver_kwargs['method'] = 'SLSQP'
 		elif self.solver == 'least_squares':
 			self.solver_kwargs['bounds'] = self.xbounds
-			self.solver_kwargs['method'] = 'dogbox'
+			# self.solver_kwargs['method'] = 'dogbox'
 			self.solver_kwargs['verbose'] = 1
-			self.solver_kwargs['diff_step'] = 1e-5
+			self.solver_kwargs['diff_step'] = 5e-5
 		elif self.solver == 'differential_evolution':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
 
@@ -104,7 +104,7 @@ class Calibrator:
 				elif vchange > 0:
 					print(f'{iterStr}, {var} was increased by {vchange}')
 				else:
-					print(f'{iterStr}, {var} was decreased by {vchange}')
+					print(f'{iterStr}, {var} was decreased by {np.abs(vchange)}')
 
 		if self.iteration == 0:
 			functions.printLine()
