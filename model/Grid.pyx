@@ -17,8 +17,6 @@ cdef class Grid:
 
 		self.createConsumptionGrid()
 
-		self.create_zgrid()
-
 	def createCashGrid(self, income):
 		xmin = self.p.borrowLim + self.p.cMin
 
@@ -37,9 +35,7 @@ cdef class Grid:
 			self.p.xGridTerm1Wt, self.p.xGridTerm1Curv)
 
 		self.x_flat = xgrid.flatten()
-		self.x_vec = xgrid
-		self.x_wide = xgrid.reshape((-1,1,1,1))
-		self.x_matrix = np.tile(self.x_wide,
+		self.x_matrix = np.tile(self.x_flat,
 			(1,self.p.nc,self.p.nz,self.p.nyP))
 
 	def createConsumptionGrid(self):
@@ -48,15 +44,4 @@ cdef class Grid:
 			self.p.cGridTerm1Wt, self.p.cGridTerm1Curv)
 
 		self.c_flat = cgrid.flatten()
-		self.c_vec = cgrid
 		self.c_wide = cgrid.reshape((1,self.p.nc,1,1))
-		self.c_matrix = np.tile(self.c_wide,
-			(self.p.nx,1,self.p.nz,self.p.nyP))
-
-	def create_zgrid(self):
-		zgrid = np.arange(self.p.nz).reshape((-1,1))
-		self.z_flat = zgrid.flatten()
-		self.z_vec = zgrid
-		self.z_wide = zgrid.reshape((1,1,self.p.nz,1))
-		self.z_matrix = np.tile(self.z_wide,
-			(self.p.nx,self.p.nc,1,self.p.nyP))
