@@ -8,6 +8,8 @@ cdef class Params:
 		#-----------------------------------#
 		#        SET DEFAULT VALUES         #
 		#-----------------------------------#
+		# use small grids for testing
+		self.fastSettings = False
 
 		# identifiers
 		self.name = 'Unnamed'
@@ -31,8 +33,8 @@ cdef class Params:
 		# computation
 		self.maxIters = long(2e4)
 		self.tol = 1e-7
-		self.nSim = long(5e5) # number of draws to sim distribution
-		self.tSim = 100 # number of periods to simulate
+		self.nSim = long(1e5) # number of draws to sim distribution
+		self.tSim = 80 # number of periods to simulate
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7
@@ -51,17 +53,21 @@ cdef class Params:
 		self.wealthPercentiles = [10,25,50,75,90,99,99.9]
 
 		# cash-on-hand / savings grid parameters
-		self.xMax = 25 # max of saving grid
-		self.nx = 40
-		self.xGridCurv = 0.3
+		self.xMax = 50 # max of saving grid
+		self.nx = 50
+		self.nxLow = 5
+		self.xGridTerm1Wt = 0.01
+		self.xGridTerm1Curv = 0.9
+		self.xGridCurv = 0.15
 		self.borrowLim = 0
-		self.minGridSpacing = 0
 
 		# consumption grid
-		self.nc = 50
+		self.nc = 75
 		self.cMin = 1e-6
 		self.cMax = 5
-		self.cGridCurv = 0.3
+		self.cGridTerm1Wt = 0.005
+		self.cGridTerm1Curv = 0.9
+		self.cGridCurv = 0.15
 
 		# options
 		self.MPCsOutOfNews = False
@@ -110,6 +116,9 @@ cdef class Params:
 
 		if self.freq == 4:
 			self.adjustToQuarterly()
+
+		if self.fastSettings:
+			self.useFastSettings()
 
 		self.discount_factor_grid += self.timeDiscount
 		self.risk_aver_grid += self.riskAver
@@ -160,6 +169,13 @@ cdef class Params:
 		self.adjustCost /= 4.0
 		self.govTransfer /= 4.0
 
+	def useFastSettings(self):
+		self.nx = 20
+		self.nc = 20
+		self.noPersIncome = True
+		self.nSim = long(1e4)
+		self.NsimMPC = long(1e4)
+
 	def addIncomeParameters(self, income):
 		self.nyP = income.nyP
 		self.nyT = income.nyT
@@ -177,15 +193,28 @@ cdef class Params:
 		self.adjustCost = newAdjustCost
 		self.series['Adjustment cost'] = newAdjustCost
 
-	def setParam(self, name, value):
+	def setParam(self, name, value, printReset=False):
+		if name == 'adjustCost':
+			self.series['Adjustment cost'] = value
+		elif name == 'timeDiscount':
+			self.discount_factor_grid = np.asarray(self.discount_factor_grid) \
+				+ value - self.timeDiscount
+			self.discount_factor_grid_wide = np.asarray(self.discount_factor_grid_wide) \
+				+ value - self.timeDiscount
+			self.series['Discount factor (annualized)'] = value ** self.freq
+			self.series['Discount factor (quarterly)'] = value ** (self.freq/4)
+
 		if hasattr(self, name):
 			setattr(self, name, value)
 		else:
 			raise Exception(f'"{name}" is not a valid parameter')
 
+		if printReset:
+			print(f"The parameter '{name}' was reset to {value}.")
+
 	def getParam(self, name):
 		if hasattr(self, name):
-			getattr(self, name)
+			return getattr(self, name)
 		else:
 			raise Exception(f'"{name}" is not a valid parameter')
 

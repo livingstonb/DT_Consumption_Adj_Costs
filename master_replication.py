@@ -10,8 +10,6 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
-from misc.optim_constraints import constraint_transform
-from misc.optim_constraints import constraint_transform_inv
 from misc import mpcsTable
 from model.model import Model, ModelWithNews
 from model import simulator

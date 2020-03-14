@@ -10,6 +10,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
+	default_values = Params()
+
 	# adjustCosts = [	0.004760897372858,
 	# 				0.004765897372858,
 	# 				0.004770897372858,
@@ -102,20 +104,33 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2 ###########
 	###########################################################
 	paramsDicts.append({})
-	paramsDicts[ii]['name'] = f'target P(assets<1000) and P(MPC>0) = 0.2'
+	paramsDicts[ii]['name'] = 'target P(assets<1000) and P(MPC>0) = 0.2'
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 150
-	paramsDicts[ii]['nc'] = 150
-	paramsDicts[ii]['nSim'] = 5e5
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0.000534422607915929 * 4
-	paramsDicts[ii]['timeDiscount'] = 0.9672018212270825** 4
-	paramsDicts[ii]['cGridCurv'] = 0.3
-	paramsDicts[ii]['xGridCurv'] = 0.3
-	paramsDicts[ii]['xMax'] = 20
-	paramsDicts[ii]['cMax'] = 3
+	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
+	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
 
+	targeted_shock = default_values.MPCshocks[3]
+
+	cal_options = dict()
+	cal_options['variables'] = [
+			'adjustCost',
+			'timeDiscount',
+		]
+	cal_options['bounds'] = [
+		[0.0001, 0.2],
+		[0.94, 0.999],
+	]
+	cal_options['target_names'] = [
+			'Wealth <= $1000',
+			f'P(Q1 MPC > 0) for shock of {targeted_shock}',
+		]
+	cal_options['target_types'] = ['Equilibrium', 'MPC']
+	cal_options['target_values'] = [0.23, 0.2]
+	cal_options['solver'] = 'least_squares'
+
+	paramsDicts[ii]['cal_options'] = cal_options
 	ii += 1
 
 
@@ -455,4 +470,4 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 				chosenParameters = paramsDicts[ii]
 				print(f'Selected parameterization {ii}')
 
-	return Params(chosenParameters)
+	return chosenParameters

@@ -10,7 +10,8 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
-from misc import mpcsTable
+from misc import mpcsTable, functions, otherStatistics
+from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
 from model import simulator
 
@@ -40,9 +41,11 @@ name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
-Simulate = True # relevant if IterateBeta is False
+Calibrate = False
+Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
+Fast = True
+PrintGrids = False
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir, 'output')
@@ -52,7 +55,6 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 #      LOCATION OF INCOME PROCESS                               #
 #---------------------------------------------------------------#
-
 locIncomeProcess = os.path.join(
 	basedir,'input', 'income_quarterly_b_fixed.mat')
 
@@ -60,9 +62,12 @@ locIncomeProcess = os.path.join(
 #      LOAD PARAMETERS                                          #
 #---------------------------------------------------------------#
 if name:
-	params = load_specifications(locIncomeProcess, name=name)
+	params_dict = load_specifications(locIncomeProcess, name=name)
 else:
-	params = load_specifications(locIncomeProcess, index=paramIndex)
+	params_dict = load_specifications(locIncomeProcess, index=paramIndex)
+
+params_dict['fastSettings'] = Fast
+params = Params.Params(params_dict)
 
 #---------------------------------------------------------------#
 #      LOAD INCOME PROCESS                                      #
@@ -75,126 +80,25 @@ params.addIncomeParameters(income)
 #---------------------------------------------------------------#
 grids = Grid.Grid(params, income)
 
+if PrintGrids:
+	print('Cash grid:')
+	functions.printVector(grids.x_flat)
+
+	print('Consumption grid:')
+	functions.printVector(grids.c_flat)
+	quit()
+
 #---------------------------------------------------------------#
-#      CREATE MODEL                                             #
+#      INITIALIZE AND SOLVE MODEL                                             #
 #---------------------------------------------------------------#
 model = Model(params, income, grids)
 model.initialize()
 
-if IterateBeta:
-	#-----------------------------------------------------------#
-	#      ITERATE OVER DISCOUNT RATE                           #
-	#-----------------------------------------------------------#
-	def iterateOverBeta(x):
-		print(f'-- Trying discount rate {x:.6f}')
-		params.resetDiscountRate(x)
-		model.solve()
-
-		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
-			model.cSwitchingPolicy, model.inactionRegion)
-		eqSimulator.simulate()
-
-		assets = eqSimulator.results['Mean wealth']
-		return assets - params.wealthTarget
-
-	Simulate = True
-	print('\nBeginning iteration over the discount factor\n')
-	
-	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(0.995, 0.998),
-		method='brentq', xtol=1e-7, rtol=1e-9, maxiter=params.wealthIters).root
-	params.resetDiscountRate(betaOpt)
-
-#-----------------------------------------------------------#
-#      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
-#-----------------------------------------------------------#
-# def calibrator(variables):
-# 	params.resetDiscountRate(variables[0])
-# 	params.resetAdjustCost(variables[1])
-
-# 	print(f'timeDiscount reset to {params.timeDiscount}')
-# 	print(f'adjustCost reset to {params.adjustCost}')
-
-# 	model.solve()
-
-# 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-# 		model.cSwitchingPolicy, model.inactionRegion)
-# 	eqSimulator.simulate()
-
-# 	shockIndices = [3]
-# 	mpcSimulator = simulator.MPCSimulator(
-# 		params, income, grids,
-# 		model.cSwitchingPolicy,
-# 		model.inactionRegion,
-# 		shockIndices,
-# 		eqSimulator.finalStates)
-# 	mpcSimulator.simulate()
-
-# 	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
-
-# 	targets = np.array([
-# 		eqSimulator.results['Wealth <= $1000'] - 0.23,
-# 		mpcSimulator.results[rowname] - 0.2
-# 		])
-
-# 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
-# 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
-
-# 	return targets
-
-#-----------------------------------------------------------#
-#      CALIBRATING TO P(a < 1000)                           #
-#-----------------------------------------------------------#
-def calibrator(variable):
-	params.resetDiscountRate(variable)
-
-	print(f'timeDiscount reset to {params.timeDiscount}')
+if Calibrate:
+	calibrator = Calibrator(params.cal_options)
+	calibrator.calibrate(params, model, income, grids)
+else:
 	model.solve()
-
-	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-		model.cSwitchingPolicy, model.inactionRegion)
-	eqSimulator.simulate()
-
-	target = np.array([
-		eqSimulator.results['Wealth <= $1000'] - 0.210464, # 0.23
-		])
-
-	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
-
-	return np.abs(target)
-
-# for P(a<$1000) = 0.23
-x0 = [0.9674]
-xbounds = [0.96, 0.968]
-# opt_results = optimize.root(calibrator, x0).x
-# opt_results = optimize.minimize_scalar(calibrator, x0, bounds=xbounds, method='bounded').x
-
-# # for P(a<$1000) = 0.23, P(MPC>0) = 0.18, use 25.9, 0.002479
-# x0 = np.array([0.968])
-# opt_results = optimize.root(calibrator, x0).x
-
-# x0 = np.array([0.993336677, 0.07387772])
-# x0 = [params.timeDiscount, params.adjustCost]
-	# x0 = [0.96720261095397028, 0.0005312273140694344]
-	# xbounds = ([0.965, 0.0001], [0.969, 0.003])
-	# newDiff = 1e-6
-	# opt_results = optimize.least_squares(calibrator, x0, bounds=xbounds,
-	# 	diff_step=newDiff, verbose=1)
-	# print(opt_results.status)
-
-# x0 = [params.timeDiscount, params.adjustCost]
-# xbounds = ([0.94, 0.996], [0.0001, 1])
-# opts = {'eps': 1e-5}
-# opt_results = optimize.minimize(calibrator, x0, bounds=xbounds,
-# 	method='SLSQP', options=opts).x
-
-# xbounds = optimize.Bounds([0.94, 0.0001], [0.996, 2], keep_feasible=True)
-# opt_results = optimize.differential_evolution(calibrator, bounds=xbounds)
-# set_trace()
-
-#-----------------------------------------------------------#
-#      SOLVE MODEL ONCE                                     #
-#-----------------------------------------------------------#
-model.solve()
 
 eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
 	model.cSwitchingPolicy, model.inactionRegion)
@@ -254,12 +158,6 @@ for ishock in shockIndices_shockNextPeriod:
 
 	del model_shockNextPeriod
 	i += 1
-		# for period in range(1,4):
-		# 	# shock in two or more periods
-		# 	futureShockModels[period] = Model(
-		# 		params,income,grids,
-		# 		EMAX=futureShockModels[period-1].EMAX)
-		# 	futureShockModels[period].solve()
 
 #-----------------------------------------------------------#
 #      SOLVE FOR 1-YEAR LOAN                                #
@@ -366,81 +264,10 @@ if SimulateMPCs:
 # find fractions of households that respond to one, both, or neither of
 # two treatments
 if Simulate:
-	mpcs_over_states = dict()
-	mpcs_over_states['$500 GAIN'] = mpcSimulator.mpcs[3]
-	mpcs_over_states['$2500 GAIN'] = mpcSimulator.mpcs[4]
-	mpcs_over_states['$5000 GAIN'] = mpcSimulator.mpcs[5]
-	mpcs_over_states['$500 LOSS'] = mpcSimulator.mpcs[2]
-	mpcs_over_states['$500 NEWS-GAIN'] = mpcNewsSimulator_shockNextPeriod.mpcs[3]
-	mpcs_over_states['$5000 NEWS-GAIN'] = mpcNewsSimulator_shockNextPeriod.mpcs[5]
-	mpcs_over_states['$500 NEWS-LOSS'] = mpcNewsSimulator_shockNextPeriod.mpcs[2]
-	mpcs_over_states['$500 NEWS-LOSS IN 2 YEARS'] = mpcNewsSimulator_shock2Years.mpcs[2]
-	mpcs_over_states['$5000 LOAN'] = mpcNewsSimulator_loan.mpcs[0]
-
-	index = []
-	treatmentResponses = pd.DataFrame()
-	for pair in combinations(mpcs_over_states.keys(), 2):
-		key = pair[0] + ', ' + pair[1]
-		index.append(key)
-		thisTreatmentPair = {
-			'Response to 1 only' : ((mpcs_over_states[pair[0]] > 0)  & (mpcs_over_states[pair[1]] == 0) ).mean(),
-			'Response to 2 only' : ((mpcs_over_states[pair[0]] == 0)  & (mpcs_over_states[pair[1]] > 0) ).mean(),
-			'Response to both' : ((mpcs_over_states[pair[0]] > 0)  & (mpcs_over_states[pair[1]] > 0) ).mean(),
-			'Response to neither' : ((mpcs_over_states[pair[0]] == 0)  & (mpcs_over_states[pair[1]] == 0) ).mean(),
-		}
-		treatmentResponses = treatmentResponses.append(thisTreatmentPair, ignore_index=True)
-
-	
-	treatmentResponses.index = index
-	savepath = os.path.join(outdir, f'run{paramIndex}_treatment_responses.csv')
-	# treatmentResponses.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
-	treatmentResponses.to_csv(savepath, index_label=params.name)
-
-	# find fractions responding in certain wealth groups
-	group1 = np.asarray(finalSimStates['asim']) <= 0.081
-	group2 = (np.asarray(finalSimStates['asim']) > 0.081) & (np.asarray(finalSimStates['asim'])<= 0.486)
-	group3 = (np.asarray(finalSimStates['asim']) > 0.486) & (np.asarray(finalSimStates['asim']) <= 4.05)
-	group4 = (np.asarray(finalSimStates['asim']) > 4.05)
-
-	groups = [group1, group2, group3, group4]
-
-	groupLabels = [
-		'$0-$5000',
-		'$5000-$30,000',
-		'$30,000-$250,000',
-		'$250,000+',
-	]
-
-	treatments = [
-		('$500 GAIN', '$500 NEWS-GAIN'),
-		('$5000 GAIN', '$5000 NEWS-GAIN'),
-		('$500 GAIN', '$500 LOSS'),
-		('$500 LOSS', '$500 NEWS-LOSS'),	
-	]
-
-	# loop over income groups
-	for i in range(4):	
-		index = []
-		treatmentResults = []
-
-		for pair in treatments:
-			thisTreatmentPair = dict()
-			
-			index.append(pair[0] + ', ' + pair[1])
-
-			mpcs_treatment1 = mpcs_over_states[pair[0]][groups[i].flatten()]
-			mpcs_treatment2 = mpcs_over_states[pair[1]][groups[i].flatten()]
-			thisTreatmentPair['Response to 1 only'] =  ((mpcs_treatment1 > 0) & (mpcs_treatment2 == 0)).mean()
-			thisTreatmentPair['Response to 2 only'] =  ((mpcs_treatment1 == 0) & (mpcs_treatment2 > 0)).mean()
-			thisTreatmentPair['Response to both'] = ((mpcs_treatment1 > 0) & (mpcs_treatment2 > 0)).mean()
-			thisTreatmentPair['Response to neither'] = ((mpcs_treatment1 == 0) & (mpcs_treatment2 == 0)).mean()
-
-			treatmentResults.append(thisTreatmentPair)
-		
-		thisGroup = pd.DataFrame(data=treatmentResults, index=index)
-		savepath = os.path.join(outdir, f'run{paramIndex}_wealthgroup{i+1}_responses.csv')
-		# thisGroup.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
-		thisGroup.to_csv(savepath, index_label=params.name)
+	otherStatistics.saveWealthGroupStats(
+		mpcSimulator, mpcNewsSimulator_shockNextPeriod,
+		mpcNewsSimulator_shock2Years, mpcNewsSimulator_loan,
+		finalSimStates, outdir, paramIndex, params)
 
 	# parameters
 	print('\nSelected parameters:\n')
@@ -476,7 +303,7 @@ if Simulate:
 	results.to_pickle(savepath)
 
 	savepath = os.path.join(outdir,f'run{paramIndex}_statistics.csv')
-	results.to_csv(savepath, index_label=params.name)
+	results.to_csv(savepath, index_label=params.name, header=True)
 
 	mpcs_table = mpcsTable.create(params, mpcSimulator, 
 		mpcNewsSimulator_shockNextPeriod,
@@ -485,7 +312,7 @@ if Simulate:
 		)
 	savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.csv')
 	# mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
-	mpcs_table.to_csv(savepath, index_label=params.name)
+	mpcs_table.to_csv(savepath, index_label=params.name, header=True)
 
 #-----------------------------------------------------------#
 #      PLOTS                                                #
