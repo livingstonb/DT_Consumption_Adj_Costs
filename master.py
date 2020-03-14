@@ -72,6 +72,8 @@ params = Params.Params(params_dict)
 income = Income.Income(params, False)
 params.addIncomeParameters(income)
 
+set_trace()
+
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#

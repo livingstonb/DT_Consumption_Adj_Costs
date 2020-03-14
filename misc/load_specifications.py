@@ -129,6 +129,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	cal_options['target_types'] = ['Equilibrium', 'MPC']
 	cal_options['target_values'] = [0.23, 0.2]
 	cal_options['solver'] = 'least_squares'
+	cal_options['scale'] = [100, 1]
 
 	paramsDicts[ii]['cal_options'] = cal_options
 	ii += 1

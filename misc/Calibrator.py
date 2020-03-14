@@ -12,6 +12,7 @@ class Calibrator:
 		self.target_values = cal_options['target_values']
 		self.target_types = cal_options['target_types']
 		self.solver = cal_options['solver']
+		self.scale = cal_options['scale']
 		self.nvars = len(self.variables)
 		self.iteration = 0
 
@@ -21,6 +22,20 @@ class Calibrator:
 		self.set_solver_options(cal_options)
 		self.set_target_transformation()
 
+	def scale_for_solver(self, x):
+		x_scaled = np.zeros(self.nvars)
+		for ivar in range(self.nvars):
+			x_scaled[ivar] = x[ivar] * self.scale[ivar]
+
+		return x_scaled
+
+	def unscale(self, x_scaled):
+		x = np.zeros(self.nvars)
+		for ivar in range(self.nvars):
+			x[ivar] = x_scaled[ivar] / self.scale[ivar]
+
+		return x
+
 	def set_bounds(self, cal_options):
 		lbounds = []
 		ubounds = []
@@ -28,6 +43,9 @@ class Calibrator:
 			bound = cal_options['bounds'][ivar]
 			lbounds.append(bound[0])
 			ubounds.append(bound[1])
+
+		lbounds = self.scale_for_solver(lbounds)
+		ubounds = self.scale_for_solver(ubounds)
 
 		self.xbounds_BoundsObj = optimize.Bounds(
 			lbounds, ubounds, keep_feasible=True)
@@ -49,9 +67,10 @@ class Calibrator:
 			self.solver_kwargs['method'] = 'SLSQP'
 		elif self.solver == 'least_squares':
 			self.solver_kwargs['bounds'] = self.xbounds
-			# self.solver_kwargs['method'] = 'dogbox'
+			self.solver_kwargs['method'] = 'dogbox'
 			self.solver_kwargs['verbose'] = 1
-			self.solver_kwargs['diff_step'] = 5e-5
+			self.solver_kwargs['diff_step'] = 1e-5
+			self.solver_kwargs['gtol'] = None
 		elif self.solver == 'differential_evolution':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
 
@@ -73,6 +92,7 @@ class Calibrator:
 				var = self.variables[ivar]
 				x0[ivar] = p.getParam(var)
 
+			x0 = self.scale_for_solver(x0)
 			solver_args.append(x0)
 
 		if self.solver == 'root_scalar':
@@ -91,7 +111,8 @@ class Calibrator:
 
 		return opt_results
 
-	def optim_handle(self, x):
+	def optim_handle(self, x_scaled):
+		x = self.unscale(x_scaled)
 		for ivar in range(self.nvars):
 			var = self.variables[ivar]
 			vchange = self.p.getParam(var) - x[ivar]
