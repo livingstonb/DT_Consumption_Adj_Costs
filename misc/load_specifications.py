@@ -10,6 +10,8 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	if (index is None) and (name is None):
 		raise Exception ('At least one specification must be chosen')
 
+	default_values = Params()
+
 	# adjustCosts = [	0.004760897372858,
 	# 				0.004765897372858,
 	# 				0.004770897372858,
@@ -105,6 +107,32 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
 	paramsDicts[ii]['adjustCost'] = 0.005663097501924793 * 4
 	paramsDicts[ii]['timeDiscount'] = 0.9657141937933638 ** 4
+
+	paramsDicts[ii]['nx'] = 25
+	paramsDicts[ii]['nc'] = 25
+	paramsDicts[ii]['nSim'] = 1e4
+
+	targeted_shock = default_values.MPCshocks[3]
+
+	cal_options = dict()
+	cal_options['variables'] = [
+			'adjustCost',
+			'timeDiscount',
+		]
+	cal_options['bounds'] = [
+		[0.0001, 0.2],
+		[0.94, 0.999],
+	]
+	cal_options['target_names'] = [
+			'Wealth <= $1000',
+			f'P(Q1 MPC > 0) for shock of {targeted_shock}',
+		]
+	cal_options['target_types'] = ['Equilibrium', 'MPC']
+	cal_options['target_values'] = [0.23, 0.2]
+	cal_options['solver'] = 'least_squares'
+
+	paramsDicts[ii]['cal_options'] = cal_options
+
 	ii += 1
 
 

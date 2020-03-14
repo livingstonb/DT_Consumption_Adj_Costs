@@ -31,8 +31,8 @@ cdef class Params:
 		# computation
 		self.maxIters = long(2e4)
 		self.tol = 1e-7
-		self.nSim = long(5e5) # number of draws to sim distribution
-		self.tSim = 100 # number of periods to simulate
+		self.nSim = long(1e5) # number of draws to sim distribution
+		self.tSim = 80 # number of periods to simulate
 
 		# beta iteration
 		self.tolWealthTarget = 1e-7
@@ -52,7 +52,7 @@ cdef class Params:
 
 		# cash-on-hand / savings grid parameters
 		self.xMax = 50 # max of saving grid
-		self.nx = 75
+		self.nx = 50
 		self.nxLow = 5
 		self.xGridTerm1Wt = 0.01
 		self.xGridTerm1Curv = 0.9
@@ -60,7 +60,7 @@ cdef class Params:
 		self.borrowLim = 0
 
 		# consumption grid
-		self.nc = 100
+		self.nc = 75
 		self.cMin = 1e-6
 		self.cMax = 5
 		self.cGridTerm1Wt = 0.005
@@ -181,15 +181,28 @@ cdef class Params:
 		self.adjustCost = newAdjustCost
 		self.series['Adjustment cost'] = newAdjustCost
 
-	def setParam(self, name, value):
+	def setParam(self, name, value, printReset=False):
+		if name == 'adjustCost':
+			self.series['Adjustment cost'] = value
+		elif name == 'timeDiscount':
+			self.discount_factor_grid = np.asarray(self.discount_factor_grid) \
+				+ value - self.timeDiscount
+			self.discount_factor_grid_wide = np.asarray(self.discount_factor_grid_wide) \
+				+ value - self.timeDiscount
+			self.series['Discount factor (annualized)'] = value ** self.freq
+			self.series['Discount factor (quarterly)'] = value ** (self.freq/4)
+
 		if hasattr(self, name):
 			setattr(self, name, value)
 		else:
 			raise Exception(f'"{name}" is not a valid parameter')
 
+		if printReset:
+			print(f"The parameter '{name}' was reset to {value}.")
+
 	def getParam(self, name):
 		if hasattr(self, name):
-			getattr(self, name)
+			return getattr(self, name)
 		else:
 			raise Exception(f'"{name}" is not a valid parameter')
 

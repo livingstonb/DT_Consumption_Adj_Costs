@@ -11,6 +11,7 @@ import pandas as pd
 from model import Params, Income, Grid
 from misc.load_specifications import load_specifications
 from misc import mpcsTable, functions
+from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
 from model import simulator
 
@@ -40,8 +41,8 @@ name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-IterateBeta = False
-Simulate = True # relevant if IterateBeta is False
+Calibrate = True
+Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
 PrintGrids = False
 
@@ -53,7 +54,6 @@ if not os.path.exists(outdir):
 #---------------------------------------------------------------#
 #      LOCATION OF INCOME PROCESS                               #
 #---------------------------------------------------------------#
-
 locIncomeProcess = os.path.join(
 	basedir,'input', 'income_quarterly_b.mat')
 
@@ -74,8 +74,9 @@ params.addIncomeParameters(income)
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
 #---------------------------------------------------------------#
+grids = Grid.Grid(params, income)
+
 if PrintGrids:
-	grids = Grid.Grid(params, income)
 	print('Cash grid:')
 	functions.printVector(grids.x_flat)
 
@@ -89,68 +90,68 @@ if PrintGrids:
 model = Model(params, income, grids)
 model.initialize()
 
-if IterateBeta:
-	#-----------------------------------------------------------#
-	#      ITERATE OVER DISCOUNT RATE                           #
-	#-----------------------------------------------------------#
-	def iterateOverBeta(x):
-		print(f'-- Trying discount rate {x:.6f}')
-		params.resetDiscountRate(x)
-		model.solve()
+# if Calibrate:
+# 	#-----------------------------------------------------------#
+# 	#      ITERATE OVER DISCOUNT RATE                           #
+# 	#-----------------------------------------------------------#
+# 	def iterateOverBeta(x):
+# 		print(f'-- Trying discount rate {x:.6f}')
+# 		params.resetDiscountRate(x)
+# 		model.solve()
 
-		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
-			model.cSwitchingPolicy, model.inactionRegion)
-		eqSimulator.simulate()
+# 		eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
+# 			model.cSwitchingPolicy, model.inactionRegion)
+# 		eqSimulator.simulate()
 
-		assets = eqSimulator.results['Mean wealth']
-		return assets - params.wealthTarget
+# 		assets = eqSimulator.results['Mean wealth']
+# 		return assets - params.wealthTarget
 
-	Simulate = True
-	print('\nBeginning iteration over the discount factor\n')
+# 	Simulate = True
+# 	print('\nBeginning iteration over the discount factor\n')
 	
-	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(0.995, 0.998),
-		method='brentq', xtol=1e-7, rtol=1e-9, maxiter=params.wealthIters).root
-	params.resetDiscountRate(betaOpt)
+# 	betaOpt = optimize.root_scalar(iterateOverBeta, bracket=(0.995, 0.998),
+# 		method='brentq', xtol=1e-7, rtol=1e-9, maxiter=params.wealthIters).root
+# 	params.resetDiscountRate(betaOpt)
 
-#-----------------------------------------------------------#
-#      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
-#-----------------------------------------------------------#
-def calibrator(variables):
-	# params.resetDiscountRate(np.abs(variables[0])/(1+np.abs(variables[0]))-0.02)
-	# params.resetAdjustCost(np.abs(variables[1])+0.0001)
+# #-----------------------------------------------------------#
+# #      CALIBRATING TO A VARIABLE OTHER THAN MEAN WEALTH     #
+# #-----------------------------------------------------------#
+# def calibrator(variables):
+# 	# params.resetDiscountRate(np.abs(variables[0])/(1+np.abs(variables[0]))-0.02)
+# 	# params.resetAdjustCost(np.abs(variables[1])+0.0001)
 
-	params.resetDiscountRate(variables[0])
-	params.resetAdjustCost(variables[1])
+# 	params.resetDiscountRate(variables[0])
+# 	params.resetAdjustCost(variables[1])
 
-	print(f'timeDiscount reset to {params.timeDiscount}')
-	print(f'adjustCost reset to {params.adjustCost}')
+# 	print(f'timeDiscount reset to {params.timeDiscount}')
+# 	print(f'adjustCost reset to {params.adjustCost}')
 
-	model.solve()
+# 	model.solve()
 
-	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
-		model.cSwitchingPolicy, model.inactionRegion)
-	eqSimulator.simulate()
+# 	eqSimulator = simulator.EquilibriumSimulator(params, income, grids,
+# 		model.cSwitchingPolicy, model.inactionRegion)
+# 	eqSimulator.simulate()
 
-	shockIndices = [3]
-	mpcSimulator = simulator.MPCSimulator(
-		params, income, grids,
-		model.cSwitchingPolicy,
-		model.inactionRegion,
-		shockIndices,
-		eqSimulator.finalStates)
-	mpcSimulator.simulate()
+# 	shockIndices = [3]
+# 	mpcSimulator = simulator.MPCSimulator(
+# 		params, income, grids,
+# 		model.cSwitchingPolicy,
+# 		model.inactionRegion,
+# 		shockIndices,
+# 		eqSimulator.finalStates)
+# 	mpcSimulator.simulate()
 
-	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
+# 	rowname = f'P(Q1 MPC > 0) for shock of {params.MPCshocks[3]}'
 
-	targets = np.array([
-		eqSimulator.results['Wealth <= $1000'] - 0.23,
-		mpcSimulator.results[rowname] - 0.2
-		])
+# 	targets = np.array([
+# 		eqSimulator.results['Wealth <= $1000'] - 0.23,
+# 		mpcSimulator.results[rowname] - 0.2
+# 		])
 
-	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
-	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
+# 	print(f"\n\n --- P(a < $1000) = {eqSimulator.results['Wealth <= $1000']} ---\n")
+# 	print(f" --- P(MPC > 0) = {mpcSimulator.results[rowname]} ---\n\n")
 
-	return np.abs(targets)
+# 	return np.abs(targets)
 
 #-----------------------------------------------------------#
 #      CALIBRATING TO P(a < 1000)                           #
@@ -199,6 +200,10 @@ xbounds = [0.962, 0.969]
 # xbounds = optimize.Bounds([0.94, 0.0001], [0.996, 2], keep_feasible=True)
 # opt_results = optimize.differential_evolution(calibrator, bounds=xbounds)
 # set_trace()
+
+if Calibrate:
+	calibrator = Calibrator(params.cal_options)
+	calibrator.calibrate(params, model, income, grids)
 
 #-----------------------------------------------------------#
 #      SOLVE MODEL ONCE                                     #

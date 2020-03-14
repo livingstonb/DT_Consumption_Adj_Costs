@@ -1,3 +1,4 @@
+
 cdef class Params:
 	"""
 	This class stores the parameters of the model.
@@ -34,4 +35,4 @@ cdef class Params:
 		public double riskAver, adjustCost, timeDiscount
 		public object risk_aver_grid, discount_factor_grid
 		public double[:,:,:,:] discount_factor_grid_wide
-		public object series
+		public object series, cal_options

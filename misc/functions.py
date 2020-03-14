@@ -4,6 +4,12 @@ def printVector(vec):
 	for value in vec:
 		print(f'\t{value}')
 
+def printLine(newLines=[1, 1]):
+	preNL = '\n' * newLines[0]
+	postNL = '\n' * newLines[1]
+	lines = '-' * 50
+	print(preNL + lines + postNL)
+
 def utilityMat(riskaver, con):
 	"""
 	Utility function for a 4D array.
