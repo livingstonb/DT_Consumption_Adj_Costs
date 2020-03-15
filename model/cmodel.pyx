@@ -198,17 +198,18 @@ cdef class CModel:
 		cdef:
 			long iyP, ix, ii, iz, ic
 			double xval, maxAdmissibleC, tmp, cSwitch, dst
-			double[:] emaxVec, yderivs, vNoSwitchVec
+			double[:] emaxVec, yderivs
 			double[:] risk_aver_grid, discount_factor_grid
 			double[:] sections
 			double bounds[NSECTIONS][2]
 			double gssResults[2]
 			double cVals[NSECTIONS+2]
 			double funVals[NSECTIONS+2],
-			double cOptimal, vOptimal, lowInaction, highInaction
+			double cOptimal, vOptimal
 			long iOptimal
-			bint noInaction, vNoSwitchValid
-			double vSwitch
+			bint inactionFound
+			double inactionPoints[2]
+			double vSwitch, bestInactionPoint
 			FnArgs fargs
 			objectiveFn iteratorFn
 
@@ -230,11 +231,9 @@ cdef class CModel:
 		sections = np.linspace(0, 1, num=NSECTIONS+1)
 
 		emaxVec = np.zeros(self.p.nc)
-		vNoSwitchVec = np.zeros(self.p.nc)
 		yderivs = np.zeros(self.p.nc)
 
 		fargs.emaxVec = &emaxVec[0]
-		fargs.vNoSwitchVec = &vNoSwitchVec[0]
 		fargs.yderivs = &yderivs[0]
 
 		iteratorFn = <objectiveFn> self.findValueAtState
@@ -302,36 +301,21 @@ cdef class CModel:
 						self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
 							- self.p.adjustCost
 					else:
-						vSwitch = self.valueSwitch[ix,0,iz,iyP]
+						inactionFound = self.lookForInactionPoints(ix, iz, iyP,
+							inactionPoints, fargs)
+						if inactionFound:
+							# Look for lowest inaction point
+							self.inactionRegion[ix,0,iz,iyP] = self.findExtremeNoSwitchPoint(
+								inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP],
+								fargs)
 
-						# Look for lowest point of inaction
-						lowInaction = -1.0
-						for ic in range(fargs.ncValid):
-							if not self.willSwitch[ix,ic,iz,iyP]:
-								lowInaction = self.grids.c_flat[ic]
-								break
-
-						if lowInaction < 0:
+							# Highest inaction point
+							self.inactionRegion[ix,1,iz,iyP] = self.findExtremeNoSwitchPoint(
+								inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP],
+								fargs)
+						else:
 							self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 							self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-							continue
-
-						# Try to find a lower point of inaction
-						self.inactionRegion[ix,0,iz,iyP] = \
-							self.findExtremeNoSwitchPoint(
-								lowInaction, self.p.cMin,
-								vSwitch, fargs)
-
-						highInaction = -1.0
-						for ic in range(fargs.ncValid-1, -1, -1):
-							if not self.willSwitch[ix,ic,iz,iyP]:
-								highInaction = self.grids.c_flat[ic]
-								break
-
-						self.inactionRegion[ix,1,iz,iyP] = \
-							self.findExtremeNoSwitchPoint(
-								highInaction, maxAdmissibleC,
-								vSwitch, fargs)
 		if final:
 			self.inactionRegion = self.inactionRegion.reshape(
 				(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
@@ -381,6 +365,62 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
+	cdef bint lookForInactionPoints(self, long ix, long iz, long iyP,
+		double *inactionPoints, FnArgs fargs):
+
+		cdef:
+			double[:] vNoSwitchCheck
+			double cCheck[2]
+			double gssResults[2]
+			double vSwitch
+			bint inactionFound = False
+			objectiveFn iteratorFn
+
+		vSwitch = self.valueSwitch[ix,0,iz,iyP]
+
+		# Look for lowest point of inaction
+		for ic in range(fargs.ncValid):
+			if not self.willSwitch[ix,ic,iz,iyP]:
+				inactionPoints[0] = self.grids.c_flat[ic]
+				inactionFound = True
+				break
+
+		if inactionFound:
+			# Look for high inaction point
+			for ic in range(fargs.ncValid-1, -1, -1):
+				if not self.willSwitch[ix,ic,iz,iyP]:
+					inactionPoints[1] = self.grids.c_flat[ic]
+					return True
+
+			inactionPoints[1] = inactionPoints[0]
+			return True
+		else:
+			# Look between most promising two consumption values
+			vNoSwitchCheck = np.zeros(fargs.ncValid)
+			for ic in range(fargs.ncValid):
+				vNoSwitchCheck[ic] = self.valueNoSwitch[ix,ic,iz,iyP]
+
+			i1 = np.argmax(vNoSwitchCheck)
+			vNoSwitchCheck[i1] = -1e9
+			i2 = np.argmax(vNoSwitchCheck)
+			
+			cCheck[0] = fmin(self.grids.c_flat[i1], self.grids.c_flat[i2])
+			cCheck[1] = fmax(self.grids.c_flat[i1], self.grids.c_flat[i2])
+
+			# Look between these points for a no-switching point
+			iteratorFn = <objectiveFn> self.findValueAtState
+			cfunctions.goldenSectionSearch(iteratorFn, cCheck[0],
+				cCheck[1], 1e-8, &gssResults[0], fargs)
+
+			if gssResults[0] >= vSwitch:
+				inactionPoints[0] = gssResults[1]
+				inactionPoints[1] = gssResults[1]
+				return True
+			else:
+				return False
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cdef double findExtremeNoSwitchPoint(self, double x0,
 		double bound, double vSwitch, FnArgs fargs):
 
@@ -402,7 +442,10 @@ cdef class CModel:
 
 			it += 1
 
-		return xb
+		if self.findValueAtState(xb, fargs) >= vSwitch:
+			return xb
+		else:
+			return -1
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)

@@ -34,9 +34,6 @@ extensions = [
 
 				Extension("misc.spline",["misc/spline.pyx"]),
 
-				Extension("misc.tester",["misc/tester.pyx"],
-							include_dirs=[np.get_include()]),
-
 				Extension("model.csimulator",["model/csimulator.pyx"],
 							include_dirs=[np.get_include()],
 							extra_compile_args=compileArgs,

@@ -38,7 +38,7 @@ name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-Calibrate = True
+Calibrate = False
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
 Fast = False
@@ -71,8 +71,6 @@ params = Params.Params(params_dict)
 #---------------------------------------------------------------#
 income = Income.Income(params, False)
 params.addIncomeParameters(income)
-
-set_trace()
 
 #---------------------------------------------------------------#
 #      CREATE GRIDS                                             #
