@@ -20,10 +20,6 @@ from scipy import sparse
 
 from libc.math cimport fmin, fmax, fabs
 
-cdef enum:
-	# number of sections to try in golden section search
-	NSECTIONS = 20
-
 cdef class CModel:
 	"""
 	Base class which serves as the workhorse of the model.
@@ -197,19 +193,14 @@ cdef class CModel:
 		"""
 		cdef:
 			long iyP, ix, ii, iz, ic
-			double xval, maxAdmissibleC, tmp, cSwitch, dst
+			double xval, maxAdmissibleC, cSwitch, dst
 			double[:] emaxVec, yderivs
-			double[:] risk_aver_grid, discount_factor_grid
-			double[:] sections
-			double bounds[NSECTIONS][2]
+			double[:] cVals, funVals, bounds
 			double gssResults[2]
-			double cVals[NSECTIONS+2]
-			double funVals[NSECTIONS+2],
 			double cOptimal, vOptimal
 			long iOptimal
 			bint inactionFound
 			double inactionPoints[2]
-			double vSwitch, bestInactionPoint
 			FnArgs fargs
 			objectiveFn iteratorFn
 
@@ -228,10 +219,11 @@ cdef class CModel:
 			fargs.timeDiscount = self.p.timeDiscount
 			fargs.riskAver = self.p.riskAver
 
-		sections = np.linspace(0, 1, num=NSECTIONS+1)
-
 		emaxVec = np.zeros(self.p.nc)
 		yderivs = np.zeros(self.p.nc)
+		bounds = np.zeros(self.p.nSectionsGSS+1)
+		cVals = np.zeros(self.p.nSectionsGSS+2)
+		funVals = np.zeros(self.p.nSectionsGSS+2)
 
 		fargs.emaxVec = &emaxVec[0]
 		fargs.yderivs = &yderivs[0]
@@ -272,30 +264,29 @@ cdef class CModel:
 				dst = maxAdmissibleC - self.p.cMin
 
 				if not final:
-					for ii in range(NSECTIONS):
-						bounds[ii][0] = self.p.cMin + dst * sections[ii]
-						bounds[ii][1] = self.p.cMin + dst * sections[ii+1]
+					cfunctions.linspace(self.p.cMin, maxAdmissibleC,
+						self.p.nSectionsGSS+1, bounds)
 
 				for iz in range(self.p.nz):
 					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
 							ix, iz, fargs.yderivs)
 
 					if not final:
-						for ii in range(NSECTIONS):
-							cfunctions.goldenSectionSearch(iteratorFn, bounds[ii][0],
-								bounds[ii][1], 1e-8, &gssResults[0], fargs)
+						for ii in range(self.p.nSectionsGSS):
+							cfunctions.goldenSectionSearch(iteratorFn, bounds[ii],
+								bounds[ii+1], 1e-8, &gssResults[0], fargs)
 							funVals[ii] = gssResults[0]
 							cVals[ii] = gssResults[1]
 
 						# Try consuming cmin
-						cVals[NSECTIONS] = self.p.cMin
-						funVals[NSECTIONS] = self.findValueAtState(self.p.cMin, fargs)
+						cVals[self.p.nSectionsGSS] = self.p.cMin
+						funVals[self.p.nSectionsGSS] = self.findValueAtState(self.p.cMin, fargs)
 
 						# Try consuming max amount
-						cVals[NSECTIONS+1] = maxAdmissibleC
-						funVals[NSECTIONS+1] = self.findValueAtState(maxAdmissibleC, fargs)
+						cVals[self.p.nSectionsGSS+1] = maxAdmissibleC
+						funVals[self.p.nSectionsGSS+1] = self.findValueAtState(maxAdmissibleC, fargs)
 
-						iOptimal = cfunctions.cargmax(funVals, NSECTIONS+2)
+						iOptimal = cfunctions.cargmax(funVals, self.p.nSectionsGSS+2)
 
 						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[iOptimal]
 						self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \

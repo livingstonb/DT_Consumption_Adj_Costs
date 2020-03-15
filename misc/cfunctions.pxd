@@ -31,6 +31,8 @@ cdef double cmax(double *vals, int nVals) nogil
 
 cdef double cmin(double *vals, int nVals) nogil
 
-cdef long cargmax(double *vals, int nVals) nogil
+cdef long cargmax(double[:] vals, int nVals) nogil
 
 cpdef double gini(double[:] vals)
+
+cpdef void linspace(double lb, double ub, int num, double[:] out)

@@ -21,7 +21,7 @@ cdef class Params:
 		public bint noTransIncome, noPersIncome
 		public long NsimMPC
 		public list MPCshocks, wealthConstraints, wealthPercentiles
-		public int xMax, nx
+		public int xMax, nx, nSectionsGSS
 		public double xGridTerm1Wt, xGridTerm1Curv
 		public double xGridCurv, borrowLim
 		public int nc, nshocks, n_discountFactor, n_riskAver

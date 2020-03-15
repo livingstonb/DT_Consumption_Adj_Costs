@@ -166,7 +166,7 @@ cdef double cmin(double *vals, int nVals) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef long cargmax(double *vals, int nVals) nogil:
+cdef long cargmax(double[:] vals, int nVals) nogil:
 	"""
 	Finds the argmax of 'vals'. Length of input
 	must be supplied.
@@ -200,3 +200,14 @@ cpdef double gini(double[:] vals):
 	temp = <double> n - (numerator/denom)
 
 	return 1.0 - (2.0/(<double>n-1.0)) * temp
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef void linspace(double lb, double ub, int num, double[:] out):
+	cdef:
+		int i
+		double spacing
+
+	spacing = (ub - lb) / (num - 1)
+	for i in range(num):
+		out[i] = lb + spacing * i

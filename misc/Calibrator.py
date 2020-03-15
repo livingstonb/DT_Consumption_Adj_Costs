@@ -72,7 +72,7 @@ class Calibrator:
 			self.solver_kwargs['verbose'] = 1
 			self.solver_kwargs['diff_step'] = 8e-7
 			self.solver_kwargs['gtol'] = None
-			# self.solver_kwargs['loss'] = 'soft_l1'
+			self.solver_kwargs['loss'] = 'soft_l1'
 		elif self.solver == 'differential_evolution':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
 
@@ -164,10 +164,6 @@ class Calibrator:
 				values[ivar] = mpcSimulator.results[target]
 
 			yvals[ivar] = self.weights[ivar] * (values[ivar] - self.target_values[ivar])
-
-			if (ivar == 1) and (yvals[ivar] < 0):
-				yvals[ivar] = 2 * (yvals[ivar] - yvals[ivar]) ** 2.0
-
 
 			# if it == 1:
 			# 	yvals[ivar+1] = yvals[ivar] / (1 + yvals[ivar] * x[ivar])

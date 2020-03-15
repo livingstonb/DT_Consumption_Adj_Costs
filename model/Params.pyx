@@ -35,6 +35,7 @@ cdef class Params:
 		self.tol = 1e-7
 		self.nSim = long(2e5) # number of draws to sim distribution
 		self.tSim = 100 # number of periods to simulate
+		self.nSectionsGSS = 20
 
 		# mpc options
 		self.NsimMPC = long(2e5) # number of draws to sim MPCs
