@@ -13,6 +13,7 @@ class Calibrator:
 		self.target_types = cal_options['target_types']
 		self.solver = cal_options['solver']
 		self.scale = cal_options['scale']
+		self.weights = cal_options['weights']
 		self.nvars = len(self.variables)
 		self.iteration = 0
 
@@ -67,10 +68,11 @@ class Calibrator:
 			self.solver_kwargs['method'] = 'SLSQP'
 		elif self.solver == 'least_squares':
 			self.solver_kwargs['bounds'] = self.xbounds
-			self.solver_kwargs['method'] = 'dogbox'
+			# self.solver_kwargs['method'] = 'dogbox'
 			self.solver_kwargs['verbose'] = 1
-			self.solver_kwargs['diff_step'] = 1e-5
+			self.solver_kwargs['diff_step'] = 8e-7
 			self.solver_kwargs['gtol'] = None
+			# self.solver_kwargs['loss'] = 'soft_l1'
 		elif self.solver == 'differential_evolution':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
 
@@ -115,7 +117,7 @@ class Calibrator:
 		x = self.unscale(x_scaled)
 		for ivar in range(self.nvars):
 			var = self.variables[ivar]
-			vchange = self.p.getParam(var) - x[ivar]
+			vchange = x[ivar] - self.p.getParam(var)
 			self.p.setParam(var, x[ivar])
 
 			if self.iteration > 0:
@@ -153,15 +155,22 @@ class Calibrator:
 
 		yvals = np.zeros(self.nvars)
 		values = [None] * self.nvars
-		for it in range(self.nvars):
-			target = self.target_names[it]
+		for ivar in range(self.nvars):
+			target = self.target_names[ivar]
 
-			if self.target_types[it] == 'Equilibrium':
-				values[it] = eqSimulator.results[target]
-			elif self.target_types[it] == 'MPC':
-				values[it] = mpcSimulator.results[target]
+			if self.target_types[ivar] == 'Equilibrium':
+				values[ivar] = eqSimulator.results[target]
+			elif self.target_types[ivar] == 'MPC':
+				values[ivar] = mpcSimulator.results[target]
 
-			yvals[ivar] = values[it] - self.target_values[it]
+			yvals[ivar] = self.weights[ivar] * (values[ivar] - self.target_values[ivar])
+
+			if (ivar == 1) and (yvals[ivar] < 0):
+				yvals[ivar] = 2 * (yvals[ivar] - yvals[ivar]) ** 2.0
+
+
+			# if it == 1:
+			# 	yvals[ivar+1] = yvals[ivar] / (1 + yvals[ivar] * x[ivar])
 
 		self.printIterationResults(x, values)
 		self.iteration += 1
@@ -199,6 +208,6 @@ class Calibrator:
 		if self.solver in leave_unchanged:
 			self.transform_y = lambda x: x
 		elif self.solver in take_norm:
-			self.transform_y = lambda x: np.norm(x)
+			self.transform_y = lambda x: np.linalg.norm(x)
 		elif self.solver in take_abs:
 			self.transform_y = lambda x: np.abs(x)

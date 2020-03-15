@@ -455,9 +455,12 @@ cdef class CModel:
 		"""
 		cdef long ix, ic, nvalid
 
-		self.valueNoSwitch = functions.utilityMat(self.p.risk_aver_grid, self.grids.c_wide) \
-			+ np.asarray(self.p.discount_factor_grid_wide) * (1 - self.p.deathProb) \
-			* np.asarray(self.EMAX)
+		discountFactor_broadcast = np.reshape(self.p.discount_factor_grid,
+			(1, 1, self.p.n_discountFactor, 1))
+		riskAver_broadcast = np.reshape(self.p.risk_aver_grid,
+			(1, 1, self.p.n_riskAver, 1))
+		self.valueNoSwitch = functions.utilityMat(riskAver_broadcast, self.grids.c_wide) \
+			+ discountFactor_broadcast * (1 - self.p.deathProb) * np.asarray(self.EMAX)
 
 		# Force switching if current consumption level might imply
 		# that borrowing constraint is invalidated next period

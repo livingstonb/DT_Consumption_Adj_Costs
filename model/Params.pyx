@@ -36,11 +36,6 @@ cdef class Params:
 		self.nSim = long(2e5) # number of draws to sim distribution
 		self.tSim = 100 # number of periods to simulate
 
-		# beta iteration
-		self.tolWealthTarget = 1e-7
-		self.wealthTarget = 3.5
-		self.wealthIters = 200;
-
 		# mpc options
 		self.NsimMPC = long(2e5) # number of draws to sim MPCs
 		self.MPCshocks = [-0.081, -0.0405, -0.0081, 0.0081, 0.0405, 0.081, 0]
@@ -53,9 +48,8 @@ cdef class Params:
 		self.wealthPercentiles = [10,25,50,75,90,99,99.9]
 
 		# cash-on-hand / savings grid parameters
-		self.xMax = 50 # max of saving grid
+		self.xMax = 25 # max of saving grid
 		self.nx = 50
-		self.nxLow = 5
 		self.xGridTerm1Wt = 0.01
 		self.xGridTerm1Curv = 0.9
 		self.xGridCurv = 0.15
@@ -120,15 +114,10 @@ cdef class Params:
 		if self.fastSettings:
 			self.useFastSettings()
 
+		self.n_discountFactor = self.discount_factor_grid.size
+		self.n_riskAver = self.risk_aver_grid.size
 		self.discount_factor_grid += self.timeDiscount
 		self.risk_aver_grid += self.riskAver
-
-		#-----------------------------------#
-		#     CREATE USEFUL OBJECTS         #
-		#-----------------------------------#
-		self.discount_factor_grid_wide = \
-			self.discount_factor_grid.reshape(
-				(1,1,self.discount_factor_grid.size,1))
 
 		#-----------------------------------#
 		#     SERIES FOR OUTPUT TABLE       #
@@ -186,10 +175,11 @@ cdef class Params:
 		elif name == 'timeDiscount':
 			self.discount_factor_grid = np.asarray(self.discount_factor_grid) \
 				+ value - self.timeDiscount
-			self.discount_factor_grid_wide = np.asarray(self.discount_factor_grid_wide) \
-				+ value - self.timeDiscount
 			self.series['Discount factor (annualized)'] = value ** self.freq
 			self.series['Discount factor (quarterly)'] = value ** (self.freq/4)
+		elif name == 'riskAver':
+			self.risk_aver_grid = np.asarray(self.risk_aver_grid) \
+				+ value - self.riskAver
 
 		if hasattr(self, name):
 			setattr(self, name, value)

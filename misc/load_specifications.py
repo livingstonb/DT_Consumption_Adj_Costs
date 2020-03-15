@@ -47,7 +47,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['noPersIncome'] = False
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
-	paramsDicts[ii]['wealthTarget'] = 3.2
 	paramsDicts[ii]['nx'] = 120
 	paramsDicts[ii]['nc'] = 120
 	paramsDicts[ii]['nSim'] = 1e5
@@ -108,8 +107,12 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['index'] = ii
 	paramsDicts[ii]['riskAver'] = 1
 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0.001663097501924793 * 4
-	paramsDicts[ii]['timeDiscount'] = 0.9677141937933638 ** 4
+	paramsDicts[ii]['adjustCost'] = 0.0002741891560590794 * 4
+	paramsDicts[ii]['timeDiscount'] = 0.9691084533866571 ** 4
+
+	paramsDicts[ii]['xMax'] = 25
+	paramsDicts[ii]['nx'] = 75
+	paramsDicts[ii]['nc'] = 100
 
 	targeted_shock = default_values.MPCshocks[3]
 
@@ -119,17 +122,18 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 			'timeDiscount',
 		]
 	cal_options['bounds'] = [
-		[0.0001, 0.2],
+		[0.00001, 0.001],
 		[0.94, 0.999],
-	]
-	cal_options['target_names'] = [
-			'Wealth <= $1000',
-			f'P(Q1 MPC > 0) for shock of {targeted_shock}',
 		]
-	cal_options['target_types'] = ['Equilibrium', 'MPC']
-	cal_options['target_values'] = [0.23, 0.2]
+	cal_options['target_names'] = [
+			f'P(Q1 MPC > 0) for shock of {targeted_shock}',
+			'Wealth <= $1000',
+		]
+	cal_options['target_types'] = ['MPC', 'Equilibrium']
+	cal_options['target_values'] = [0.2, 0.23]
 	cal_options['solver'] = 'least_squares'
-	cal_options['scale'] = [100, 1]
+	cal_options['scale'] = [1, 1]
+	cal_options['weights'] = [1, 1]
 
 	paramsDicts[ii]['cal_options'] = cal_options
 	ii += 1

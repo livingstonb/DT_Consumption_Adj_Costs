@@ -19,17 +19,6 @@ cdef class Grid:
 
 	def createCashGrid(self, income):
 		xmin = self.p.borrowLim + self.p.cMin
-
-		ymin = income.ymin + self.p.govTransfer
-		# xgrid1 = np.linspace(xmin, xmin + ymin,
-		# 	num=self.p.nxLow+1)
-		# xgrid1 = xgrid1[0:self.p.nxLow].reshape((-1,1))
-		# xgrid2 = constructCurvedGrid(xmin + ymin,
-		# 	self.p.xMax, self.p.xGridCurv, self.p.nx-self.p.nxLow,
-		# 	self.p.xGridTerm1Wt, self.p.xGridTerm1Curv)
-
-		# xgrid = np.concatenate((xgrid1, xgrid2), axis=0)
-
 		xgrid = constructCurvedGrid(xmin,
 			self.p.xMax, self.p.xGridCurv, self.p.nx,
 			self.p.xGridTerm1Wt, self.p.xGridTerm1Curv)

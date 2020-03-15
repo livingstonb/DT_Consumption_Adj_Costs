@@ -38,7 +38,7 @@ name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-Calibrate = False
+Calibrate = True
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
 Fast = False

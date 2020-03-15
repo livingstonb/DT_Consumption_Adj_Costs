@@ -64,6 +64,7 @@ class EquilibriumSimulator(Simulator):
 		self.results = pd.Series()
 
 	def simulate(self):
+		np.random.seed(1991)
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
 
@@ -97,7 +98,7 @@ class EquilibriumSimulator(Simulator):
 	def initialize(self):
 		self.makeRandomDraws()
 
-		self.asim = self.p.wealthTarget * np.ones((self.nSim,self.nCols))
+		self.asim = 0.5 * np.ones((self.nSim,self.nCols))
 		self.csim = np.ones((self.nSim,self.nCols))
 		self.csim_adj = np.ones((self.nSim,self.nCols))
 
