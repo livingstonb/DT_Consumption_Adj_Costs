@@ -1,6 +1,8 @@
 from model.Params import Params
 import numpy as np
 
+from misc import Calibrator
+
 from IPython.core.debugger import set_trace
 
 def load_specifications(locIncomeProcess, index=None, name=None):
@@ -26,13 +28,13 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		index_beta_het = index // 4
 		index_adj = index % 4
 
-	w = beta_spacings[index_beta_het]
-	if w == 0:
+	beta_w = beta_spacings[index_beta_het]
+	if beta_w == 0:
 		discount_factor_grid = np.array([0.0])
 	else:
-		discount_factor_grid = np.array([-w, 0.0, w])
+		discount_factor_grid = np.array([-beta_w, 0.0, beta_w])
 
-	print(f'Selected discount factor spacing = {w}')
+	print(f'Selected discount factor spacing = {beta_w}')
 
 	# ###########################################################
 	# ##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2, w/HET ####
@@ -88,24 +90,27 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	wealthConstrainedTarget = dict()
 	wealthConstrainedTarget['riskAver'] = 1
 	wealthConstrainedTarget['locIncomeProcess'] = locIncomeProcess
-	wealthConstrainedTarget['timeDiscount'] = 0.96926309097 ** 4.0
+	wealthConstrainedTarget['timeDiscount'] = (0.96926309097 - beta_w) ** 4.0
 	wealthConstrainedTarget['discount_factor_grid'] = discount_factor_grid
+
+	timeDiscount_variable = Calibrator.OptimVariable(
+		'timeDiscount', [0.94 - beta_w, 0.99 - beta_w],
+		wealthConstrainedTarget['timeDiscount'] ** 0.25)
+	wealthConstrained_target = Calibrator.OptimTarget(
+		'Wealth <= $1000', 0.23, 'Equilibrium')
+	solver_opts = Calibrator.SolverOptions(
+		'minimize')
 
 	# Without adjustment costs
 	paramsDicts.append({})
 	paramsDicts[ii] = wealthConstrainedTarget.copy()
 	paramsDicts[ii]['name'] = 'Wealth constrained target w/o adj costs'
 	paramsDicts[ii]['adjustCost'] = 0
-	paramsDicts[ii]['cal_options'] = {
-		'variables': ['timeDiscount'],
-		'bounds': [[0.94, 0.99]],
-		'target_names': ['Wealth <= $1000'],
-		'target_values': [0.23],
-		'target_types': ['Equilibrium'],
-		'solver': 'minimize',
-		'scale': [1],
-		'weights': [1],
-	}
+	paramsDicts[ii]['cal_options'] = [
+		[timeDiscount_variable],
+		[wealthConstrained_target],
+		solver_opts,
+	]
 	ii += 1
 
 	# With adjustment costs
@@ -113,16 +118,18 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii] = wealthConstrainedTarget.copy()
 	paramsDicts[ii]['name'] = 'Wealth constrained target w/adj costs'
 	paramsDicts[ii]['adjustCost'] = 4 * 0.000274119156
-	paramsDicts[ii]['cal_options'] = {
-		'variables': ['adjustCost', 'timeDiscount'],
-		'bounds': [[0.000002, 0.005], [0.94, 0.99]],
-		'target_names': [targeted_stat, 'Wealth <= $1000'],
-		'target_values': [0.2, 0.23],
-		'target_types': ['MPC', 'Equilibrium'],
-		'solver': 'minimize',
-		'scale': [1, 1],
-		'weights': [1, 1],
-	}
+
+	adjustCost_variable = Calibrator.OptimVariable(
+		'adjustCost', [0.000002, 0.001],
+		paramsDicts[ii]['adjustCost'] / 4.0)
+	mpc_target = Calibrator.OptimTarget(
+		targeted_stat, 0.2, 'MPC')
+
+	paramsDicts[ii]['cal_options'] = [
+		[adjustCost_variable, timeDiscount_variable],
+		[mpc_target, wealthConstrained_target],
+		solver_opts,
+	]
 	ii += 1
 
 	###########################################################
@@ -135,7 +142,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	meanWealthTarget = dict()
 	meanWealthTarget['riskAver'] = 1
 	meanWealthTarget['locIncomeProcess'] = locIncomeProcess
-	meanWealthTarget['timeDiscount'] = 0.996263091 ** 4.0
+	meanWealthTarget['timeDiscount'] = (0.996263091 - beta_w) ** 4.0
 	meanWealthTarget['xMax'] = 50
 	meanWealthTarget['discount_factor_grid'] = discount_factor_grid
 
@@ -149,22 +156,25 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	meanWealthTarget['cGridTerm1Wt'] = 0.05
 	meanWealthTarget['cGridTerm1Curv'] = 0.9
 	meanWealthTarget['cGridCurv'] = 0.15
+
+	timeDiscount_variable = Calibrator.OptimVariable(
+		'timeDiscount', [0.97 - beta_w, 0.9995 - beta_w],
+		meanWealthTarget['timeDiscount'] ** 0.25)
+	meanWealth_target = Calibrator.OptimTarget(
+		'Mean wealth', 3.2, 'Equilibrium')
+	solver_opts = Calibrator.SolverOptions(
+		'minimize')
 	
 	# Without adjustment costs
 	paramsDicts.append({})
 	paramsDicts[ii] = meanWealthTarget.copy()
 	paramsDicts[ii]['name'] = 'Mean wealth target w/o adj costs'
 	paramsDicts[ii]['adjustCost'] = 0
-	paramsDicts[ii]['cal_options'] = {
-		'variables': ['timeDiscount'],
-		'bounds': [[0.97, 0.9995]],
-		'target_names': ['Mean wealth'],
-		'target_values': [3.2],
-		'target_types': ['Equilibrium'],
-		'solver': 'minimize',
-		'scale': [1],
-		'weights': [1],
-	}
+	paramsDicts[ii]['cal_options'] = [
+		[timeDiscount_variable],
+		[meanWealth_target],
+		solver_opts,
+	]
 	ii += 1
 
 	# With adjustment costs
@@ -172,16 +182,18 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii] = meanWealthTarget.copy()
 	paramsDicts[ii]['name'] = 'Mean wealth target w/adj costs'
 	paramsDicts[ii]['adjustCost'] = 4.0 * 1.19049306771e-05
-	paramsDicts[ii]['cal_options'] = {
-		'variables': ['adjustCost', 'timeDiscount'],
-		'bounds': [[0.000002, 0.001], [0.97, 0.9995]],
-		'target_names': [targeted_stat, 'Mean wealth'],
-		'target_values': [0.2, 3.2],
-		'target_types': ['MPC', 'Equilibrium'],
-		'solver': 'minimize',
-		'scale': [1, 1],
-		'weights': [1, 1],
-	}
+
+	adjustCost_variable = Calibrator.OptimVariable(
+		'adjustCost', [0.000002, 0.001],
+		paramsDicts[ii]['adjustCost'] / 4.0)
+	mpc_target = Calibrator.OptimTarget(
+		targeted_stat, 0.2, 'MPC')
+
+	paramsDicts[ii]['cal_options'] = [
+		[adjustCost_variable, timeDiscount_variable],
+		[mpc_target, meanWealth_target],
+		solver_opts,
+	]
 	ii += 1
 
 	# ###########################################################

@@ -100,7 +100,7 @@ model = Model(params, income, grids)
 model.initialize()
 
 if Calibrate:
-	calibrator = Calibrator(params.cal_options)
+	calibrator = Calibrator(*params.cal_options)
 	opt_results = calibrator.calibrate(params, model, income, grids)
 else:
 	model.solve()

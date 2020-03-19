@@ -5,90 +5,61 @@ from misc import functions
 from IPython.core.debugger import set_trace
 
 class Calibrator:
-	def __init__(self, cal_options):
+	def __init__(self, variables, targets, solverOpts):
 
-		self.variables = cal_options['variables']
-		self.target_names = cal_options['target_names']
-		self.target_values = cal_options['target_values']
-		self.target_types = cal_options['target_types']
-		self.solver = cal_options['solver']
-		self.scale = cal_options['scale']
-		self.weights = cal_options['weights']
-		self.nvars = len(self.variables)
+		self.nvars = len(variables)
+		self.variables = variables
+		self.targets = targets
+		self.target_types = [targets[i].type for i in range(self.nvars)]
+		self.solverOpts = solverOpts
+		self.scipy_kwargs = solverOpts.solver_kwargs
 		self.iteration = 0
 
-		self.solver_kwargs = dict()
+		self.set_x0()
+		self.set_bounds()
 
-		self.set_bounds(cal_options)
-		self.set_solver_options(cal_options)
-		self.set_target_transformation()
+	# 	self.constraints = []
+	# 	if 'sbounds' in cal_options:
+	# 		for ivar in range(self.nvars):
+	# 			sbounds = cal_options['sbounds'][ivar]
+	# 			hbounds = cal_options['bounds'][ivar]
+	# 			newConstraint = Constraint(sbounds, hbounds)
+	# 			self.constraints.append(newConstraint)
 
-	def scale_for_solver(self, x):
-		x_scaled = np.zeros(self.nvars)
-		for ivar in range(self.nvars):
-			x_scaled[ivar] = x[ivar] * self.scale[ivar]
+	# 	return x
 
-		return x_scaled
+	def set_x0(self):
+		if self.solverOpts.requiresInitialCond:
+			x0 = [self.variables[i].x0 for i in range(self.nvars)]
+			self.x0 = np.array(x0)
+		else:
+			self.x0 = None
 
-	def unscale(self, x_scaled):
-		x = np.zeros(self.nvars)
-		for ivar in range(self.nvars):
-			x[ivar] = x_scaled[ivar] / self.scale[ivar]
+	def set_bounds(self):
+		requiresBoundsObj = [
+			'minimize',
+			'differential_evolution',
+		]
 
-		return x
+		requiresPair = [
+			'least_squares',
+		]
 
-	def set_bounds(self, cal_options):
-		lbounds = []
-		ubounds = []
-		for ivar in range(self.nvars):
-			bound = cal_options['bounds'][ivar]
-			lbounds.append(bound[0])
-			ubounds.append(bound[1])
+		requiresBracket = [
+			'root_scalar',
+		]
 
-		lbounds = self.scale_for_solver(lbounds)
-		ubounds = self.scale_for_solver(ubounds)
+		lbounds = [self.variables[i].lb for i in range(self.nvars)]
+		ubounds = [self.variables[i].ub for i in range(self.nvars)]
 
-		self.xbounds_BoundsObj = optimize.Bounds(
-			lbounds, ubounds, keep_feasible=True)
-		self.xbounds = (lbounds, ubounds)
-
-		self.constraints = []
-		if 'sbounds' in cal_options:
-			for ivar in range(self.nvars):
-				sbounds = cal_options['sbounds'][ivar]
-				hbounds = cal_options['bounds'][ivar]
-				newConstraint = Constraint(sbounds, hbounds)
-				self.constraints.append(newConstraint)
-
-	def set_solver_options(self, cal_options):
-		bounds = cal_options['bounds']
-
-		if self.solver == 'root_scalar':
-			self.solver_kwargs['bracket'] = bounds[0]
-			self.solver_kwargs['method'] = 'brentq'
-			self.solver_kwargs['xtol'] = 1e-7
-			self.solver_kwargs['rtol'] = 1e-9
-		elif self.solver == 'minimize_scalar':
-			self.solver_kwargs['bounds'] = bounds[0]
-			self.solver_kwargs['method'] = 'bounded'
-		elif self.solver == 'minimize':
-			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
-			self.solver_kwargs['method'] = 'L-BFGS-B'
-			self.solver_kwargs['options'] = {
-				'gtol': 1.0e-4,
-				'ftol': 1.0e-7,
-			}
-		elif self.solver == 'least_squares':
-			self.solver_kwargs['bounds'] = self.xbounds
-			# self.solver_kwargs['method'] = 'dogbox'
-			self.solver_kwargs['verbose'] = 1
-			# self.solver_kwargs['diff_step'] = 1e-7
-			self.solver_kwargs['gtol'] = None
-			self.solver_kwargs['loss'] = 'soft_l1'
-		elif self.solver == 'differential_evolution':
-			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
-		elif self.solver == 'root':
-			pass
+		if self.solverOpts.solver in requiresBoundsObj:
+			self.scipy_kwargs['bounds'] = optimize.Bounds(
+				lbounds, ubounds, keep_feasible=True)
+		elif self.solverOpts.solver in requiresPair:
+			self.scipy_kwargs['bounds'] = (lbounds, ubounds)
+		elif self.solverOpts.solver in requiresBracket:
+			bracket = [self.variables[i].bracket for i in range(self.nvars)]
+			self.scipy_kwargs['bracket'] = bracket
 
 	def calibrate(self, p, model, income, grids):
 		self.p = p
@@ -96,49 +67,41 @@ class Calibrator:
 		self.income = income
 		self.grids = grids
 
-		requires_x0 = [
-			'minimize_scalar', 'least_squares',
-			'minimize', 'root',
-		]
+		scipy_args = [self.optim_handle]
+		if self.x0 is not None:
+			scipy_args.append(self.x0)
 
-		solver_args = [self.optim_handle]
-		if self.solver in requires_x0:
-			x0 = np.zeros(self.nvars)
-			for ivar in range(self.nvars):
-				var = self.variables[ivar]
-				x0[ivar] = p.getParam(var)
-
-			x0 = self.scale_for_solver(x0)
-			solver_args.append(x0)
-
-		if self.solver == 'root_scalar':
+		if self.solverOpts.solver == 'root_scalar':
 			scipy_solver = optimize.root_scalar
-		elif self.solver == 'minimize_scalar':
+		elif self.solverOpts.solver == 'minimize_scalar':
 			scipy_solver = optimize.minimize_scalar
-		elif self.solver == 'minimize':
+		elif self.solverOpts.solver == 'minimize':
 			scipy_solver = optimize.minimize
-		elif self.solver == 'least_squares':
+		elif self.solverOpts.solver == 'least_squares':
 			scipy_solver = optimize.least_squares
-		elif self.solver == 'differential_evolution':
+		elif self.solverOpts.solver == 'differential_evolution':
 			scipy_solver = optimize.differential_evolution
-		elif self.solver == 'root':
+		elif self.solverOpts.solver == 'root':
 			scipy_solver = optimize.root
 
-		opt_results = scipy_solver(*solver_args,
-			**self.solver_kwargs)
+		opt_results = scipy_solver(
+			*scipy_args,
+			**self.scipy_kwargs)
 
 		return opt_results
 
 	def optim_handle(self, x_scaled):
-		x = self.unscale(x_scaled)
+		x = np.copy(x_scaled)
+		for ivar in range(self.nvars):
+			x[ivar] = self.variables[ivar].unscale(x_scaled[ivar])
 
 		z = []
 		for ivar in range(self.nvars):
-			if self.solver == 'root':
-				x[ivar], tmp = self.constraints[ivar].check_value(x[ivar])
-				z.append(tmp)
+			# if self.solver == 'root':
+			# 	x[ivar], tmp = self.constraints[ivar].check_value(x[ivar])
+			# 	z.append(tmp)
 
-			var = self.variables[ivar]
+			var = self.variables[ivar].name
 			vchange = x[ivar] - self.p.getParam(var)
 			self.p.setParam(var, x[ivar])
 
@@ -178,14 +141,15 @@ class Calibrator:
 		yvals = np.zeros(self.nvars) # + len(z)
 		values = [None] * self.nvars
 		for ivar in range(self.nvars):
-			target = self.target_names[ivar]
+			target = self.targets[ivar].name
 
 			if self.target_types[ivar] == 'Equilibrium':
 				values[ivar] = eqSimulator.results[target]
 			elif self.target_types[ivar] == 'MPC':
 				values[ivar] = mpcSimulator.results[target]
 
-			yvals[ivar] = self.weights[ivar] * (values[ivar] - self.target_values[ivar])
+			dy = values[ivar] - self.targets[ivar].value
+			yvals[ivar] = dy * self.targets[ivar].weight
 
 		# ii = self.nvars
 		# for ivar in range(self.nvars):
@@ -195,44 +159,23 @@ class Calibrator:
 
 		self.printIterationResults(x, values)
 		self.iteration += 1
-		return self.transform_y(yvals)
+		return self.solverOpts.transform_y(yvals)
 
 	def printIterationResults(self, x, values):
 		functions.printLine()
 
 		print('\nAt this solver iteration, parameters were:')
 		for ivar in range(self.nvars):
-			var = self.variables[ivar]
+			var = self.variables[ivar].name
 			print(f'\t{var}\n\t\t= {x[ivar]}')
 
 		print('\nResults were:')
 		for ivar in range(self.nvars):
-			target = self.target_names[ivar]
-			target_val = self.target_values[ivar]
+			target = self.targets[ivar].name
+			target_val = self.targets[ivar].value
 			print(f'\t{target}\n\t\t= {values[ivar]} (desired = {target_val})')
 
 		functions.printLine()
-
-	def set_target_transformation(self):
-		leave_unchanged = [
-			'root_scalar', 'least_squares',
-			'root',
-		]
-
-		take_norm = [
-			'minimize_scalar', 'minimize',
-		]
-
-		take_abs = [
-			'differential_evoluation',
-		]
-
-		if self.solver in leave_unchanged:
-			self.transform_y = lambda x: x
-		elif self.solver in take_norm:
-			self.transform_y = lambda x: np.linalg.norm(x)
-		elif self.solver in take_abs:
-			self.transform_y = lambda x: np.abs(x)
 
 class Constraint:
 	def __init__(self, sbounds, hbounds):
@@ -262,19 +205,99 @@ class Constraint:
 
 		return (x_sc, z)
 
-# class Options:
-# 	def __init__(self):
-# 		self.name = name
-# 		self.bounds = bounds
-# 		self.lb = bounds[0]
-# 		self.ub = bounds[1]
-# 		self.v0 = v0
+class OptimVariable:
+	def __init__(self, name, bounds, x0, scale=1.0):
+		self.name = name
+		self.bounds = bounds
+		self.bracket = bounds
+		self.lb = bounds[0]
+		self.ub = bounds[1]
+		self.xscale = scale
+		self.x0 = self.scale(x0)
 
-# class OptimVariable:
-# 	def __init__(self, name, bounds, v0):
-# 		self.name = name
-# 		self.bounds = bounds
-# 		self.lb = bounds[0]
-# 		self.ub = bounds[1]
-# 		self.v0 = v0
+	def scale(self, x):
+		return x * self.xscale
 
+	def unscale(self, x_scaled):
+		return x_scaled / self.xscale
+
+class OptimTarget:
+	def __init__(self, name, value, target_type, weight=1.0):
+		self.name = name
+		self.value = value
+		self.type = target_type
+		self.weight = weight
+
+class SolverOptions:
+	def __init__(self, solver, solver_kwargs=None):
+		self.solver = solver
+
+		if solver_kwargs is None:
+			self.solver_kwargs = self.default_kwargs()
+		else:
+			self.solver_kwargs = solver_kwargs
+
+		self.requiresInitialCond = self.checkIfInitialCondNeeded()
+		self.set_target_transformation()
+
+	def default_kwargs(self):
+		solver_kwargs = dict()
+		solver_kwargs['options'] = {'disp': True}
+
+		if self.solver == 'root_scalar':
+			solver_kwargs['method'] = 'brentq'
+			solver_kwargs['xtol'] = 1e-7
+			solver_kwargs['rtol'] = 1e-9
+		elif self.solver == 'minimize_scalar':
+			solver_kwargs['method'] = 'bounded'
+		elif self.solver == 'minimize':
+			solver_kwargs['method'] = 'L-BFGS-B'
+			solver_kwargs['options'].update(
+				{
+				'eps': 2.0e-8,
+				'maxiter': 50,
+				# 'gtol': 2.0e-5,
+				# 'ftol': 1.0e-7,
+				}
+			)
+		elif self.solver == 'least_squares':
+			solver_kwargs['verbose'] = 1
+			solver_kwargs['gtol'] = None
+		elif self.solver == 'differential_evolution':
+			pass
+		elif self.solver == 'root':
+			pass
+
+		return solver_kwargs
+
+	def checkIfInitialCondNeeded(self):
+		requires_x0 = [
+			'minimize_scalar',
+			'least_squares',
+			'minimize',
+			'root',
+		]
+		return (self.solver in requires_x0)
+
+	def set_target_transformation(self):
+		leave_unchanged = [
+			'root_scalar',
+			'least_squares',
+			'root',
+		]
+
+		take_norm = [
+			'minimize_scalar',
+			'minimize',
+		]
+
+		take_abs = [
+			'differential_evoluation',
+		]
+
+		if self.solver in leave_unchanged:
+			self.transform_y = lambda x: x
+		elif self.solver in take_norm:
+			self.transform_y = lambda x: np.linalg.norm(x)
+		elif self.solver in take_abs:
+			self.transform_y = lambda x: np.abs(x)
