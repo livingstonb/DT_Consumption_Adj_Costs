@@ -1,6 +1,8 @@
 from model.Params import Params
 import numpy as np
 
+from IPython.core.debugger import set_trace
+
 def load_specifications(locIncomeProcess, index=None, name=None):
 	"""
 	This function defines the parameterizations and passes the
@@ -11,134 +13,175 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		raise Exception ('At least one specification must be chosen')
 
 	default_values = Params()
-
-	# adjustCosts = [	0.004760897372858,
-	# 				0.004765897372858,
-	# 				0.004770897372858,
-	# 				]
-
 	paramsDicts = []
 	ii = 0
 
-	# ii = 0
-	# for adjustCost in adjustCosts:
-	# 	paramsDicts.append({})
-	# 	paramsDicts[ii]['name'] = f'adjustCost = {adjustCost}'
-	# 	paramsDicts[ii]['index'] = ii
-	# 	paramsDicts[ii]['adjustCost'] = adjustCost
-	# 	paramsDicts[ii]['noPersIncome'] = False
-	# 	paramsDicts[ii]['riskAver'] = 1
-	# 	paramsDicts[ii]['wealthTarget'] = 3.2
-	# 	paramsDicts[ii]['nx'] = 120
-	# 	paramsDicts[ii]['nc'] = 120
-	# 	paramsDicts[ii]['nSim'] = 1e5
-	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	beta_spacings = [0, 0.005, 0.01, 0.02, 0.032]
 
-	# 	ii += 1
+	if index is None:
+		index_beta_het = 0
+		index_adj = None
+	else:
+		nb = len(beta_spacings)
+		index_beta_het = index // 4
+		index_adj = index % 4
 
-	###########################################################
-	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2, w/HET ####
-	###########################################################
-	w = 0.031928196837238
-	paramsDicts.append({})
-	paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
-	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['adjustCost'] = 0.01
-	paramsDicts[ii]['noPersIncome'] = False
-	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
-	paramsDicts[ii]['nx'] = 120
-	paramsDicts[ii]['nc'] = 120
-	paramsDicts[ii]['nSim'] = 1e5
-	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.875800159738212
+	w = beta_spacings[index_beta_het]
+	if w == 0:
+		discount_factor_grid = np.array([0.0])
+	else:
+		discount_factor_grid = np.array([-w, 0.0, w])
 
-	ii += 1
+	print(f'Selected discount factor spacing = {w}')
+
+	# ###########################################################
+	# ##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2, w/HET ####
+	# ###########################################################
+	# w = 0.031928196837238
+	# paramsDicts.append({})
+	# paramsDicts[ii]['name'] = f'3-pt discount factor w/width{w}'
+	# paramsDicts[ii]['index'] = ii
+	# paramsDicts[ii]['adjustCost'] = 0.01
+	# paramsDicts[ii]['noPersIncome'] = False
+	# paramsDicts[ii]['riskAver'] = 1
+	# paramsDicts[ii]['discount_factor_grid'] = np.array([-w, 0, w])
+	# paramsDicts[ii]['nx'] = 120
+	# paramsDicts[ii]['nc'] = 120
+	# paramsDicts[ii]['nSim'] = 1e5
+	# paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# paramsDicts[ii]['timeDiscount'] = 0.875800159738212
+
+	# ii += 1
 
 	###########################################################
 	##### ASSETS 3.5 NO ADJ COSTS BASELINE ####################
 	###########################################################
-	paramsDicts.append({})
-	paramsDicts[ii]['name'] = f'baseline_Q'
-	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 50
-	paramsDicts[ii]['nc'] = 80
-	paramsDicts[ii]['cMax'] = 15
-	paramsDicts[ii]['xMax'] = 40
-	paramsDicts[ii]['nSim'] = 5e5
-	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0.00002
-	paramsDicts[ii]['timeDiscount'] = 0.995939 ** 4
-	paramsDicts[ii]['cGridCurv'] = 0.2
-	paramsDicts[ii]['govTransfer'] = 0
-	paramsDicts[ii]['MPCshocks'] = [-0.1, -0.01, -1e-5, 1e-5, 0.01, 0.1, 0]
+	# paramsDicts.append({})
+	# paramsDicts[ii]['name'] = f'baseline_Q'
+	# paramsDicts[ii]['index'] = ii
+	# paramsDicts[ii]['riskAver'] = 1
+	# paramsDicts[ii]['nx'] = 50
+	# paramsDicts[ii]['nc'] = 80
+	# paramsDicts[ii]['cMax'] = 15
+	# paramsDicts[ii]['xMax'] = 40
+	# paramsDicts[ii]['nSim'] = 5e5
+	# paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# paramsDicts[ii]['adjustCost'] = 0.00002
+	# paramsDicts[ii]['timeDiscount'] = 0.995939 ** 4
+	# paramsDicts[ii]['cGridCurv'] = 0.2
+	# paramsDicts[ii]['govTransfer'] = 0
+	# paramsDicts[ii]['MPCshocks'] = [-0.1, -0.01, -1e-5, 1e-5, 0.01, 0.1, 0]
 
-	# paramsDicts[ii]['nx'] = 45
-	# paramsDicts[ii]['nc'] = 45
-	# paramsDicts[ii]['nSim'] = 1e5
-	paramsDicts[ii]['minGridSpacing'] = 0
-	ii += 1
-
-	###########################################################
-	##### TARGET P(assets<$1000), NO ADJ COSTS ################
-	###########################################################
-	paramsDicts.append({})
-	paramsDicts[ii]['name'] = f'P(a < 1000) = 0.23, no adj costs'
-	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['nx'] = 150
-	paramsDicts[ii]['nc'] = 150
-	paramsDicts[ii]['nSim'] = 5e5
-	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0
-	paramsDicts[ii]['timeDiscount'] = 0.875890
-	paramsDicts[ii]['cGridCurv'] = 0.3
-	paramsDicts[ii]['xGridCurv'] = 0.3
-	paramsDicts[ii]['xMax'] = 20
-	paramsDicts[ii]['cMax'] = 3
-	ii += 1
+	# # paramsDicts[ii]['nx'] = 45
+	# # paramsDicts[ii]['nc'] = 45
+	# # paramsDicts[ii]['nSim'] = 1e5
+	# paramsDicts[ii]['minGridSpacing'] = 0
+	# ii += 1
 
 	###########################################################
-	##### TARGET P(assets<$1000) AND P(MPC>0) = 0.2 ###########
+	##### TARGET WEALTH < $1000 ###############################
 	###########################################################
-	paramsDicts.append({})
-	paramsDicts[ii]['name'] = 'target P(assets<1000) and P(MPC>0) = 0.2'
-	paramsDicts[ii]['index'] = ii
-	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['adjustCost'] = 0.0002741191560590794 * 4
-	paramsDicts[ii]['timeDiscount'] = 0.9692725066805372 ** 4
-
-	paramsDicts[ii]['xMax'] = 20
-	paramsDicts[ii]['cMax'] = 4
-	paramsDicts[ii]['nx'] = 75
-	paramsDicts[ii]['nc'] = 100
-	paramsDicts[ii]['xGridTerm1Wt'] = 0.004
-	paramsDicts[ii]['xGridTerm1Curv'] = 0.9
-
 	targeted_shock = default_values.MPCshocks[3]
+	targeted_stat = f'P(Q1 MPC > 0) for shock of {targeted_shock}'
 
-	cal_options = dict()
-	cal_options['variables'] = [
-			'adjustCost',
-			'timeDiscount',
-		]
-	cal_options['bounds'] = [
-		[0.00001, 0.001],
-		[0.94, 0.999],
-		]
-	cal_options['target_names'] = [
-			f'P(Q1 MPC > 0) for shock of {targeted_shock}',
-			'Wealth <= $1000',
-		]
-	cal_options['target_types'] = ['MPC', 'Equilibrium']
-	cal_options['target_values'] = [0.2, 0.23]
-	cal_options['solver'] = 'least_squares'
-	cal_options['scale'] = [1, 1]
-	cal_options['weights'] = [1, 1]
+	# Set shared parameters
+	wealthConstrainedTarget = dict()
+	wealthConstrainedTarget['riskAver'] = 1
+	wealthConstrainedTarget['locIncomeProcess'] = locIncomeProcess
+	wealthConstrainedTarget['timeDiscount'] = 0.96926309097 ** 4.0
+	wealthConstrainedTarget['discount_factor_grid'] = discount_factor_grid
 
-	paramsDicts[ii]['cal_options'] = cal_options
+	# Without adjustment costs
+	paramsDicts.append({})
+	paramsDicts[ii] = wealthConstrainedTarget.copy()
+	paramsDicts[ii]['name'] = 'Wealth constrained target w/o adj costs'
+	paramsDicts[ii]['adjustCost'] = 0
+	paramsDicts[ii]['cal_options'] = {
+		'variables': ['timeDiscount'],
+		'bounds': [0.94, 0.99],
+		'target_names': ['Wealth <= $1000'],
+		'target_values': 0.23,
+		'target_types': ['Equilibrium'],
+		'solver': 'minimize',
+		'scale': [1],
+		'weights': [1],
+	}
+	ii += 1
+
+	# With adjustment costs
+	paramsDicts.append({})
+	paramsDicts[ii] = wealthConstrainedTarget.copy()
+	paramsDicts[ii]['name'] = 'Wealth constrained target w/adj costs'
+	paramsDicts[ii]['adjustCost'] = 4 * 0.000274119156
+	paramsDicts[ii]['cal_options'] = {
+		'variables': ['adjustCost', 'timeDiscount'],
+		'bounds': [[0.000002, 0.005], [0.94, 0.99]],
+		'target_names': [targeted_shock, 'Wealth <= $1000'],
+		'target_values': [0.2, 0.23],
+		'target_types': ['MPC', 'Equilibrium'],
+		'solver': 'minimize',
+		'scale': [1, 1],
+		'weights': [1, 1],
+	}
+	ii += 1
+
+	###########################################################
+	##### TARGET 3.2 MEAN WEALTH ##############################
+	###########################################################
+	targeted_shock = default_values.MPCshocks[3]
+	targeted_stat = f'P(Q1 MPC > 0) for shock of {targeted_shock}'
+
+	# Set shared parameters
+	meanWealthTarget = dict()
+	meanWealthTarget['riskAver'] = 1
+	meanWealthTarget['locIncomeProcess'] = locIncomeProcess
+	meanWealthTarget['timeDiscount'] = 0.996263091 ** 4.0
+	meanWealthTarget['xMax'] = 50
+	meanWealthTarget['discount_factor_grid'] = discount_factor_grid
+
+	meanWealthTarget['xGridTerm1Wt'] = 0.05
+	meanWealthTarget['xGridTerm1Curv'] = 0.8
+	meanWealthTarget['xGridCurv'] = 0.2
+	meanWealthTarget['borrowLim'] = 0
+
+	meanWealthTarget['cMin'] = 1e-6
+	meanWealthTarget['cMax'] = 5
+	meanWealthTarget['cGridTerm1Wt'] = 0.05
+	meanWealthTarget['cGridTerm1Curv'] = 0.9
+	meanWealthTarget['cGridCurv'] = 0.15
+	
+	# Without adjustment costs
+	paramsDicts.append({})
+	paramsDicts[ii] = meanWealthTarget.copy()
+	paramsDicts[ii]['name'] = 'Mean wealth target w/o adj costs'
+	paramsDicts[ii]['adjustCost'] = 0
+	paramsDicts[ii]['cal_options'] = {
+		'variables': ['timeDiscount'],
+		'bounds': [0.97, 0.9995],
+		'target_names': ['Mean wealth'],
+		'target_values': 3.2,
+		'target_types': ['Equilibrium'],
+		'solver': 'minimize',
+		'scale': [1],
+		'weights': [1],
+	}
+	ii += 1
+
+	# With adjustment costs
+	paramsDicts.append({})
+	paramsDicts[ii] = meanWealthTarget.copy()
+	paramsDicts[ii]['name'] = 'Mean wealth target w/adj costs'
+	paramsDicts[ii]['adjustCost'] = 4.0 * 1.19049306771e-05
+	paramsDicts[ii]['cal_options'] = {
+		'variables': ['adjustCost', 'timeDiscount'],
+		'bounds': [[0.000002, 0.001], [0.97, 0.9995]],
+		'target_names': [targeted_stat, 'Mean wealth'],
+		'target_values': [0.2, 3.2],
+		'target_types': ['MPC', 'Equilibrium'],
+		'solver': 'minimize',
+		'scale': [1, 1],
+		'weights': [1, 1],
+	}
 	ii += 1
 
 
@@ -417,65 +460,73 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	RA_x = []
 	wealthTarget = 0.3
 
-	for x in RA_x:
-		paramsDicts.append({})
-		paramsDicts[ii]['name'] = f'2-pt RA het exp(-x), exp(x), x = {x}'
-		paramsDicts[ii]['index'] = ii
-		paramsDicts[ii]['adjustCost'] = adjustCost
-		paramsDicts[ii]['noPersIncome'] = False
-		paramsDicts[ii]['riskAver'] = 0
-		paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
-		paramsDicts[ii]['wealthTarget'] = wealthTarget
-		paramsDicts[ii]['nx'] = 120
-		paramsDicts[ii]['nc'] = 120
-		paramsDicts[ii]['nSim'] = 1e5
-		paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-		ii += 1
+	# for x in RA_x:
+	# 	paramsDicts.append({})
+	# 	paramsDicts[ii]['name'] = f'2-pt RA het exp(-x), exp(x), x = {x}'
+	# 	paramsDicts[ii]['index'] = ii
+	# 	paramsDicts[ii]['adjustCost'] = adjustCost
+	# 	paramsDicts[ii]['noPersIncome'] = False
+	# 	paramsDicts[ii]['riskAver'] = 0
+	# 	paramsDicts[ii]['risk_aver_grid'] = np.array([np.exp(-x), np.exp(x)])
+	# 	paramsDicts[ii]['wealthTarget'] = wealthTarget
+	# 	paramsDicts[ii]['nx'] = 120
+	# 	paramsDicts[ii]['nc'] = 120
+	# 	paramsDicts[ii]['nSim'] = 1e5
+	# 	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# 	ii += 1
 
-	paramsDicts.append({})
-	paramsDicts[ii]['name'] = 'fast'
-	paramsDicts[ii]['adjustCost'] = 1
-	paramsDicts[ii]['noPersIncome'] = True
-	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
-	paramsDicts[ii]['nx'] = 40
-	paramsDicts[ii]['nc'] = 40
-	paramsDicts[ii]['nSim'] = 1e4
-	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.8
-	paramsDicts[ii]['r'] = 0.02
-	paramsDicts[ii]['wealthTarget'] = 0.5
-	ii += 1
+	# paramsDicts.append({})
+	# paramsDicts[ii]['name'] = 'fast'
+	# paramsDicts[ii]['adjustCost'] = 1
+	# paramsDicts[ii]['noPersIncome'] = True
+	# paramsDicts[ii]['riskAver'] = 1
+	# paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
+	# paramsDicts[ii]['nx'] = 40
+	# paramsDicts[ii]['nc'] = 40
+	# paramsDicts[ii]['nSim'] = 1e4
+	# paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# paramsDicts[ii]['timeDiscount'] = 0.8
+	# paramsDicts[ii]['r'] = 0.02
+	# paramsDicts[ii]['wealthTarget'] = 0.5
+	# ii += 1
 
-	paramsDicts.append({})
-	paramsDicts[ii]['name'] = 'custom'
-	paramsDicts[ii]['adjustCost'] = 0.001 # 0.005
-	paramsDicts[ii]['riskAver'] = 1
-	paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
-	paramsDicts[ii]['nx'] = 75
-	paramsDicts[ii]['nc'] = 400
-	paramsDicts[ii]['nSim'] = 1e5
-	paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
-	paramsDicts[ii]['timeDiscount'] = 0.95
-	paramsDicts[ii]['r'] = 0.02
-	paramsDicts[ii]['wealthTarget'] = 3.5
-	paramsDicts[ii]['minGridSpacing'] = 0
-	paramsDicts[ii]['tSim'] = 100
-	paramsDicts[ii]['deathProb'] = 0
-	paramsDicts[ii]['cMax'] = 25
-	paramsDicts[ii]['xMax'] = 25
-	ii += 1
+	# paramsDicts.append({})
+	# paramsDicts[ii]['name'] = 'custom'
+	# paramsDicts[ii]['adjustCost'] = 0.001 # 0.005
+	# paramsDicts[ii]['riskAver'] = 1
+	# paramsDicts[ii]['discount_factor_grid'] = np.array([0.0])
+	# paramsDicts[ii]['nx'] = 75
+	# paramsDicts[ii]['nc'] = 400
+	# paramsDicts[ii]['nSim'] = 1e5
+	# paramsDicts[ii]['locIncomeProcess'] = locIncomeProcess
+	# paramsDicts[ii]['timeDiscount'] = 0.95
+	# paramsDicts[ii]['r'] = 0.02
+	# paramsDicts[ii]['wealthTarget'] = 3.5
+	# paramsDicts[ii]['minGridSpacing'] = 0
+	# paramsDicts[ii]['tSim'] = 100
+	# paramsDicts[ii]['deathProb'] = 0
+	# paramsDicts[ii]['cMax'] = 25
+	# paramsDicts[ii]['xMax'] = 25
+	# ii += 1
 
 	#-----------------------------------------------------#
 	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
 	#-----------------------------------------------------#
-	if index is not None:
-		chosenParameters = paramsDicts[index]
-		print(f'Selected parameterization #{index} out of {ii}')
+	if index_adj is not None:
+		chosenParameters = paramsDicts[index_adj]
+		chosenParameters['index'] = index
+		print(f'Selected parameterization #{index}:')
+		print(f"\t{chosenParameters['name']}")
 	else:
+		indexFound = False
 		for ii in range(len(paramsDicts)):
 			if paramsDicts[ii]['name'] == name:
 				chosenParameters = paramsDicts[ii]
+				chosenParameters['index'] = ii
 				print(f'Selected parameterization {ii}')
+				indexFound = True
+
+		if not indexFound:
+			raise Exception('Parameter name not found')
 
 	return chosenParameters

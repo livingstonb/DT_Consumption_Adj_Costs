@@ -265,10 +265,11 @@ class MPCSimulator(Simulator):
 
 		self.finalStates = finalStates
 
+		self.initialize_results()
+
 	def simulate(self):
 
 		self.initialize_variables()
-		self.initialize_results()
 
 		np.random.seed(1991)
 
@@ -412,9 +413,9 @@ class MPCSimulatorNews(MPCSimulator):
 	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, futureShockIndices, 
 		currentShockIndices, finalStates, periodsUntilShock=1):
 		self.futureShockIndices = futureShockIndices
+		self.periodsUntilShock = periodsUntilShock
 		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, currentShockIndices, finalStates)
 		self.nCols = inactionRegions.shape[4]
-		self.periodsUntilShock = periodsUntilShock
 
 		ymin = income.ymin + params.govTransfer
 		self.borrowLims = []
@@ -500,9 +501,9 @@ class MPCSimulatorNews_Loan(MPCSimulator):
 	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, futureShockIndices, 
 		currentShockIndices, finalStates, periodsUntilShock=1):
 		self.futureShockIndices = futureShockIndices
+		self.periodsUntilShock = periodsUntilShock
 		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, currentShockIndices, finalStates)
 		self.nCols = inactionRegions.shape[4]
-		self.periodsUntilShock = periodsUntilShock
 
 		ymin = income.ymin + params.govTransfer
 		self.borrowLims = []

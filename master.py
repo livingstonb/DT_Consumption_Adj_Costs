@@ -13,6 +13,7 @@ from misc import mpcsTable, functions, otherStatistics
 from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
 from model import simulator
+from misc import plots
 
 from IPython.core.debugger import set_trace
 
@@ -35,18 +36,21 @@ if not indexSet:
 #      OR SET PARAMETERIZATION NAME                             #
 #---------------------------------------------------------------#
 # THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-name = 'target P(assets<1000) and P(MPC>0) = 0.2'
+if indexSet:
+	name = ''
+else:
+	name = 'Wealth constrained target w/o adj costs'
 
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-Calibrate = True
+Calibrate = False
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
-MPCsNews = False
+MPCsNews = True
 Fast = False
 PrintGrids = False
-MakePlots = True
+MakePlots = False
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir, 'output')
@@ -97,7 +101,7 @@ model.initialize()
 
 if Calibrate:
 	calibrator = Calibrator(params.cal_options)
-	calibrator.calibrate(params, model, income, grids)
+	opt_results = calibrator.calibrate(params, model, income, grids)
 else:
 	model.solve()
 
@@ -109,8 +113,7 @@ if Simulate:
 else:
 	finalSimStates = []
 
-plt.plot(eqSimulator.cdf_a[:,0], eqSimulator.cdf_a[:,1])
-set_trace()
+# plt.plot(eqSimulator.cdf_a[:,0], eqSimulator.cdf_a[:,1])
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
@@ -262,10 +265,11 @@ if SimulateMPCs and MPCsNews:
 # find fractions of households that respond to one, both, or neither of
 # two treatments
 if Simulate:
-	otherStatistics.saveWealthGroupStats(
-		mpcSimulator, mpcNewsSimulator_shockNextPeriod,
-		mpcNewsSimulator_shock2Years, mpcNewsSimulator_loan,
-		finalSimStates, outdir, paramIndex, params)
+	if MPCsNews:
+		otherStatistics.saveWealthGroupStats(
+			mpcSimulator, mpcNewsSimulator_shockNextPeriod,
+			mpcNewsSimulator_shock2Years, mpcNewsSimulator_loan,
+			finalSimStates, outdir, paramIndex, params)
 
 	# parameters
 	print('\nSelected parameters:\n')
@@ -315,118 +319,5 @@ if Simulate:
 #-----------------------------------------------------------#
 #      PLOTS                                                #
 #-----------------------------------------------------------#
-ixvals = [0,params.nx//8,params.nx//6,params.nx//4,params.nx//3,params.nx//2,params.nx-1]
-xvals = np.array([grids.x_flat[i] for i in ixvals])
-
-icvals = [0,params.nc//6,params.nc//5,params.nc//4,params.nc//3,params.nc//2,params.nc-1]
-cvals = np.array([grids.c_flat[i] for i in icvals])
-
-def plot_policies():
-	cPolicy = model.cChosen
-
-	print(xvals)
-
-	if params.nyP == 1:
-		iyP = 0
-	else:
-		iyP = 5
-
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Consumption function vs. state c')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].scatter(grids.c_flat,cPolicy[ixvals[i],:,0,iyP])
-			ax[row,col].set_title(f'x = {xvals[i]}')
-			ax[row,col].set_xlabel('c, state')
-			ax[row,col].set_ylabel('actual consumption')
-			i += 1
-
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Consumption function vs. state c, zoomed')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].scatter(grids.c_flat,cPolicy[ixvals[i],:,0,iyP])
-			ax[row,col].set_title(f'x = {xvals[i]}')
-			ax[row,col].set_xlabel('c, state')
-			ax[row,col].set_ylabel('actual consumption')
-			ax[row,col].set_xbound(0, 0.5)
-			i += 1
-
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('EMAX vs. state c')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].scatter(grids.c_flat,model.EMAX[ixvals[i],:,0,iyP])
-			ax[row,col].set_title(f'x = {xvals[i]}')
-			ax[row,col].set_xlabel('c, state')
-			ax[row,col].set_ylabel('EMAX')
-			i += 1
-
-	fig, ax = plt.subplots(nrows=2,ncols=3)
-	fig.suptitle('Consumption function vs. assets')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			ax[row,col].scatter(grids.x_flat,cPolicy[:,icvals[i],0,iyP])
-			ax[row,col].set_title(f'c = {cvals[i]}')
-			ax[row,col].set_xlabel('x, cash-on-hand')
-			ax[row,col].set_ylabel('actual consumption')
-			i += 1
-
-	fig = plt.figure()
-	ax = fig.add_subplot(1, 1, 1)
-	ax.scatter(grids.x_flat, model.inactionRegion[:,0,0,iyP])
-	ax.scatter(grids.x_flat, model.cSwitchingPolicy[:,0,0,iyP])
-	ax.scatter(grids.x_flat, model.inactionRegion[:,1,0,iyP])
-
-	ax.set_title('Inaction region for consumption')
-	ax.set_xlabel('cash-on-hand, x')
-	ax.set_ylabel('consumption')
-	ax.legend(['Lower bound of inaction region', 'Desired c if switching', 
-		'Upper bound of inaction region'])
-
-	plt.show()
-
-def plot_mpcs():
-	if not Simulate:
-		return
-
-	ishock = 4
-	idx_yP = np.asarray(mpcSimulator.finalStates['yPind']) == 5
-	idx_yP = idx_yP.reshape((-1,1))
-	mpcs = np.asarray(mpcSimulator.mpcs[ishock]).reshape((-1,1))
-	cash = np.asarray(mpcSimulator.finalStates['xsim'])
-	c = np.asarray(mpcSimulator.finalStates['csim'])
-
-	fig, ax = plt.subplots(nrows=2, ncols=3)
-	fig.suptitle('Quarterly MPC vs. initial cash-on-hand')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			idx_c = np.logical_and(c >= cvals[i], c < cvals[i+1])
-			x = cash[np.logical_and(idx_yP,idx_c)]
-			y = mpcs[np.logical_and(idx_yP,idx_c)]
-			ax[row,col].scatter(x,y)
-			ax[row,col].set_title(f'{cvals[i]:.3g} <= state c < {cvals[i+1]:.3g}')
-			ax[row,col].set_xlabel('cash-on-hand, x')
-			ax[row,col].set_ylabel('MPC out of 0.01')
-			i += 1
-
-	fig, ax = plt.subplots(nrows=2, ncols=3)
-	fig.suptitle('Quarterly MPC vs. consumption state')
-	i = 0
-	for row in range(2):
-		for col in range(3):
-			idx_x = np.logical_and(cash >= xvals[i], cash < xvals[i+1])
-			x = c[np.logical_and(idx_yP,idx_x)]
-			y = mpcs[np.logical_and(idx_yP,idx_x)]
-			ax[row,col].scatter(x,y)
-			ax[row,col].set_title(f'{xvals[i]:.3g} <= x < {xvals[i+1]:.3g}')
-			ax[row,col].set_xlabel('state c')
-			ax[row,col].set_ylabel('MPC out of 0.01')
-			i += 1
-
-	plt.show()
+if MakePlots:
+	plots.plot_policies(model, grids, params, paramIndex, outdir)

@@ -52,6 +52,14 @@ class Calibrator:
 			lbounds, ubounds, keep_feasible=True)
 		self.xbounds = (lbounds, ubounds)
 
+		self.constraints = []
+		if 'sbounds' in cal_options:
+			for ivar in range(self.nvars):
+				sbounds = cal_options['sbounds'][ivar]
+				hbounds = cal_options['bounds'][ivar]
+				newConstraint = Constraint(sbounds, hbounds)
+				self.constraints.append(newConstraint)
+
 	def set_solver_options(self, cal_options):
 		bounds = cal_options['bounds']
 
@@ -65,7 +73,8 @@ class Calibrator:
 			self.solver_kwargs['method'] = 'bounded'
 		elif self.solver == 'minimize':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
-			self.solver_kwargs['method'] = 'SLSQP'
+			self.solver_kwargs['method'] = 'BFGS'
+			self.solver_kwargs['options'] = {'gtol': 1e-4}
 		elif self.solver == 'least_squares':
 			self.solver_kwargs['bounds'] = self.xbounds
 			# self.solver_kwargs['method'] = 'dogbox'
@@ -75,6 +84,8 @@ class Calibrator:
 			self.solver_kwargs['loss'] = 'soft_l1'
 		elif self.solver == 'differential_evolution':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
+		elif self.solver == 'root':
+			pass
 
 	def calibrate(self, p, model, income, grids):
 		self.p = p
@@ -84,7 +95,7 @@ class Calibrator:
 
 		requires_x0 = [
 			'minimize_scalar', 'least_squares',
-			'minimize',
+			'minimize', 'root',
 		]
 
 		solver_args = [self.optim_handle]
@@ -107,6 +118,8 @@ class Calibrator:
 			scipy_solver = optimize.least_squares
 		elif self.solver == 'differential_evolution':
 			scipy_solver = optimize.differential_evolution
+		elif self.solver == 'root':
+			scipy_solver = optimize.root
 
 		opt_results = scipy_solver(*solver_args,
 			**self.solver_kwargs)
@@ -115,7 +128,13 @@ class Calibrator:
 
 	def optim_handle(self, x_scaled):
 		x = self.unscale(x_scaled)
+
+		z = []
 		for ivar in range(self.nvars):
+			if self.solver == 'root':
+				x[ivar], tmp = self.constraints[ivar].check_value(x[ivar])
+				z.append(tmp)
+
 			var = self.variables[ivar]
 			vchange = x[ivar] - self.p.getParam(var)
 			self.p.setParam(var, x[ivar])
@@ -153,7 +172,7 @@ class Calibrator:
 
 			mpcSimulator.simulate()
 
-		yvals = np.zeros(self.nvars)
+		yvals = np.zeros(self.nvars) # + len(z)
 		values = [None] * self.nvars
 		for ivar in range(self.nvars):
 			target = self.target_names[ivar]
@@ -165,6 +184,11 @@ class Calibrator:
 
 			yvals[ivar] = self.weights[ivar] * (values[ivar] - self.target_values[ivar])
 
+		# ii = self.nvars
+		# for ivar in range(self.nvars):
+		# 	if self.solver == 'root':
+		# 		yvals[ii] = z[ivar]
+		# 		ii += 1
 
 		self.printIterationResults(x, values)
 		self.iteration += 1
@@ -189,6 +213,7 @@ class Calibrator:
 	def set_target_transformation(self):
 		leave_unchanged = [
 			'root_scalar', 'least_squares',
+			'root',
 		]
 
 		take_norm = [
@@ -205,3 +230,31 @@ class Calibrator:
 			self.transform_y = lambda x: np.linalg.norm(x)
 		elif self.solver in take_abs:
 			self.transform_y = lambda x: np.abs(x)
+
+class Constraint:
+	def __init__(self, sbounds, hbounds):
+		self.sbounds = sbounds
+		self.hbounds = hbounds
+
+	def check_value(self, x):
+		dl = max(self.sbounds[0] - x, 0)
+		dh = max(x - self.sbounds[1], 0)
+
+		z = max(dl, dh)
+		devz = np.exp(-z)
+
+		if z == 0:
+			x_sc = x
+		elif dl > 0:
+			# Lower bound violated
+			x_s = devz * self.sbounds[0]
+			x_h = (1 - devz) * self.hbounds[0]
+			x_sc = x_s + x_h
+			z = -z
+		elif dh > 0:
+			# Upper bound violated
+			x_s = devz * self.sbounds[1]
+			x_h = (1 - devz) * self.hbounds[1]
+			x_sc = x_s + x_h
+
+		return (x_sc, z)
