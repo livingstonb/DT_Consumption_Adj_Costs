@@ -98,7 +98,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['adjustCost'] = 0
 	paramsDicts[ii]['cal_options'] = {
 		'variables': ['timeDiscount'],
-		'bounds': [0.94, 0.99],
+		'bounds': [[0.94, 0.99]],
 		'target_names': ['Wealth <= $1000'],
 		'target_values': 0.23,
 		'target_types': ['Equilibrium'],
@@ -157,7 +157,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['adjustCost'] = 0
 	paramsDicts[ii]['cal_options'] = {
 		'variables': ['timeDiscount'],
-		'bounds': [0.97, 0.9995],
+		'bounds': [[0.97, 0.9995]],
 		'target_names': ['Mean wealth'],
 		'target_values': 3.2,
 		'target_types': ['Equilibrium'],

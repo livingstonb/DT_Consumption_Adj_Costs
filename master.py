@@ -44,7 +44,7 @@ else:
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-Calibrate = False
+Calibrate = True
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
 MPCsNews = True
