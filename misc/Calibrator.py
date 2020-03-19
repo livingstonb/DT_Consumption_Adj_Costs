@@ -73,8 +73,11 @@ class Calibrator:
 			self.solver_kwargs['method'] = 'bounded'
 		elif self.solver == 'minimize':
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
-			self.solver_kwargs['method'] = 'BFGS'
-			self.solver_kwargs['options'] = {'gtol': 1e-4}
+			self.solver_kwargs['method'] = 'L-BFGS-B'
+			self.solver_kwargs['options'] = {
+				'gtol': 1e-4,
+				'ftol': 1e-7,
+			}
 		elif self.solver == 'least_squares':
 			self.solver_kwargs['bounds'] = self.xbounds
 			# self.solver_kwargs['method'] = 'dogbox'
