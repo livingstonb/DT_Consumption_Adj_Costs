@@ -2,100 +2,20 @@ import numpy as np
 cimport numpy as np
 import numpy.matlib as matlib
 import pandas as pd
+import Defaults
 
 cdef class Params:
 	def __init__(self, params_dict=None):
 		#-----------------------------------#
-		#        SET DEFAULT VALUES         #
+		#     SET DEFAULTS FROM DICTIONARY  #
 		#-----------------------------------#
-		# use small grids for testing
-		self.fastSettings = False
-
-		# identifiers
-		self.name = 'Unnamed'
-		self.index = 0
-
-		# 1 (annual) or 4 (quarterly)
-		self.freq = 4
-
-		# path to income file
-		self.locIncomeProcess = ''
-
-		# income grid sizes
-		self.nyP = 1
-		self.nyT = 1
-		self.noTransIncome = False
-		self.noPersIncome = False
-
-		# preference/other heterogeneity
-		self.nz = 1
-
-		# computation
-		self.maxIters = long(2e4)
-		self.tol = 1e-7
-		self.nSim = long(2e5) # number of draws to sim distribution
-		self.tSim = 100 # number of periods to simulate
-		self.nSectionsGSS = 20
-
-		# mpc options
-		self.NsimMPC = long(2e5) # number of draws to sim MPCs
-		self.MPCshocks = [-0.081, -0.0405, -0.0081, 0.0081, 0.0405, 0.081, 0]
-		self.nshocks = len(self.MPCshocks)
-
-		# fraction of mean annual income
-		self.wealthConstraints = [0,0.005,0.01,0.015,0.02,0.05,0.1,0.15]
-
-		# wealth percentiles to compute
-		self.wealthPercentiles = [10,25,50,75,90,99,99.9]
-
-		# cash-on-hand / savings grid parameters
-		self.xMax = 25 # max of saving grid
-		self.nx = 50
-		self.xGridTerm1Wt = 0.01
-		self.xGridTerm1Curv = 0.9
-		self.xGridCurv = 0.15
-		self.borrowLim = 0
-
-		# consumption grid
-		self.nc = 75
-		self.cMin = 1e-6
-		self.cMax = 5
-		self.cGridTerm1Wt = 0.005
-		self.cGridTerm1Curv = 0.9
-		self.cGridCurv = 0.15
-
-		# options
-		self.MPCsOutOfNews = False
-
-		# returns (annual)
-		self.r = 0.02
-		self.R = 1.0 + self.r
-
-		# death probability (annual)
-		self.deathProb = 1.0/50.0
-
-		self.Bequests = True
-
-		# preferences
-		self.riskAver = 1
-		self.adjustCost = 1
-		self.timeDiscount = 0.8
-		self.risk_aver_grid = np.array([0.0],dtype=float) # riskAver is added to this
-		self.discount_factor_grid = np.array([0.0],dtype=float) # timeDiscount is added to this
-
-		# gov transfer
-		self.govTransfer = 0.0081 * 2.0 * 4.0
+		self.updateFromDict(Defaults.parameters())
 
 		#-----------------------------------#
-		#        OVERRIDE DEFAULTS          #
+		#     OVERRIDE DEFAULTS             #
 		#-----------------------------------#
-
 		if params_dict:
-			for parameter, value in params_dict.items():
-				if hasattr(self, parameter):
-					setattr(self, parameter, value)
-				else:
-					raise Exception(f'"{parameter}" is not a valid parameter')
+			self.updateFromDict(params_dict)
 
 		self.risk_aver_grid = self.risk_aver_grid.astype(float)
 		self.discount_factor_grid = self.discount_factor_grid.astype(float)
@@ -121,6 +41,11 @@ cdef class Params:
 		self.risk_aver_grid += self.riskAver
 
 		#-----------------------------------#
+		#     OTHER ADJUSTMENTS             #
+		#-----------------------------------#
+		self.nshocks = len(self.MPCshocks)
+
+		#-----------------------------------#
 		#     SERIES FOR OUTPUT TABLE       #
 		#-----------------------------------#
 		index = [	'Discount factor (annualized)',
@@ -138,6 +63,13 @@ cdef class Params:
 					self.freq,
 					]
 		self.series = pd.Series(data=data,index=index)
+
+	def updateFromDict(self, paramsUpdate):
+		for parameter, value in paramsUpdate.items():
+			if hasattr(self, parameter):
+				setattr(self, parameter, value)
+			else:
+				raise Exception(f'"{parameter}" is not a valid parameter')
 
 
 	def adjustToQuarterly(self):
