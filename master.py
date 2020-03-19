@@ -3,6 +3,8 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 
+from scipy.interpolate import interp1d
+
 import pandas as pd
 
 from model import Params, Income, Grid
@@ -41,8 +43,10 @@ name = 'target P(assets<1000) and P(MPC>0) = 0.2'
 Calibrate = True
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
+MPCsNews = False
 Fast = False
 PrintGrids = False
+MakePlots = True
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir, 'output')
@@ -86,7 +90,7 @@ if PrintGrids:
 	quit()
 
 #---------------------------------------------------------------#
-#      INITIALIZE AND SOLVE MODEL                                             #
+#      INITIALIZE AND SOLVE MODEL                               #
 #---------------------------------------------------------------#
 model = Model(params, income, grids)
 model.initialize()
@@ -104,6 +108,9 @@ if Simulate:
 	finalSimStates = eqSimulator.finalStates
 else:
 	finalSimStates = []
+
+plt.plot(eqSimulator.cdf_a[:,0], eqSimulator.cdf_a[:,1])
+set_trace()
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
@@ -145,7 +152,7 @@ for ishock in shockIndices_shockNextPeriod:
 		params.MPCshocks[ishock],
 		1)
 
-	if SimulateMPCs:
+	if SimulateMPCs and MPCsNews:
 		print(f'Solving for shock of {params.MPCshocks[ishock]} next period')
 		model_shockNextPeriod.solve()
 		cSwitch_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.cSwitchingPolicy[:,:,:,:,0]
@@ -168,7 +175,7 @@ model_loan = ModelWithNews(
 	shock,
 	1)
 
-if SimulateMPCs:
+if SimulateMPCs and MPCsNews:
 	print(f'Solving for one year loan')
 	model_loan.solve()
 
@@ -200,7 +207,7 @@ model_shock2Years = ModelWithNews(
 	shock,
 	1)
 
-if SimulateMPCs:
+if SimulateMPCs and MPCsNews:
 	model_shock2Years.solve()
 
 	for period in range(2, 9):
@@ -244,7 +251,7 @@ mpcNewsSimulator_loan = simulator.MPCSimulatorNews_Loan(
 	shockIndices_loan, currentShockIndices,
 	finalSimStates, periodsUntilShock=4)
 
-if SimulateMPCs:
+if SimulateMPCs and MPCsNews:
 	mpcNewsSimulator_shockNextPeriod.simulate()
 	mpcNewsSimulator_shock2Years.simulate()
 	mpcNewsSimulator_loan.simulate()

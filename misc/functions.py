@@ -51,3 +51,9 @@ def constructCurvedGrid(lbound, ubound, curv, n,
 		+ (ubound - lbound) * grid_out
 
 	return grid_out
+
+def eval_smoothed(x, y, bounds, q):
+	keep = (x > bounds[0]) & (x < bounds[1])
+	fp = np.polyfit(x[keep], y[keep], 3)
+
+	return np.polyval(fp, q)

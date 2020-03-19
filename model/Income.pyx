@@ -70,3 +70,12 @@ cdef class Income:
 			)
 
 		self.ymin = np.min(np.asarray(self.ymat).flatten())
+
+		self.ydist = np.matmul(
+			np.reshape(self.yPdist, (-1, 1)),
+			np.reshape(self.yTdist, (1, -1))
+			)
+		self.meany = np.matmul(
+			np.reshape(self.ydist, (1, -1)),
+			np.reshape(self.ymat, (-1, 1))
+			)

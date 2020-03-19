@@ -70,7 +70,7 @@ class Calibrator:
 			self.solver_kwargs['bounds'] = self.xbounds
 			# self.solver_kwargs['method'] = 'dogbox'
 			self.solver_kwargs['verbose'] = 1
-			self.solver_kwargs['diff_step'] = 8e-7
+			# self.solver_kwargs['diff_step'] = 1e-7
 			self.solver_kwargs['gtol'] = None
 			self.solver_kwargs['loss'] = 'soft_l1'
 		elif self.solver == 'differential_evolution':
@@ -165,8 +165,6 @@ class Calibrator:
 
 			yvals[ivar] = self.weights[ivar] * (values[ivar] - self.target_values[ivar])
 
-			# if it == 1:
-			# 	yvals[ivar+1] = yvals[ivar] / (1 + yvals[ivar] * x[ivar])
 
 		self.printIterationResults(x, values)
 		self.iteration += 1

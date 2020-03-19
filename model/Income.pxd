@@ -16,10 +16,10 @@ cdef class Income:
 		public long nyP, nyT
 		public double[:] yPgrid, logyPgrid
 		public double[:] yPdist, yPcumdist
-		public double[:,:] yPtrans, ymat
+		public double[:,:] yPtrans, ymat, ydist
 		public object yPcumtrans
 		public double[:] yTgrid, yTdist, logyTgrid
 		public double[:] yTcumdist
 		public object yTcumdistT, yPcumdistT
-		public double ymin
+		public double ymin, meany
 		public bint normalize

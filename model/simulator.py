@@ -2,9 +2,11 @@ from model.csimulator import CSimulator
 
 from misc.cfunctions import gini
 from misc import functions
+from misc import poly_cdf_tools
 
 import numpy as np
 import pandas as pd
+from IPython.core.debugger import set_trace
 
 class Simulator(CSimulator):
 	"""
@@ -48,8 +50,8 @@ class Simulator(CSimulator):
 		if (self.p.deathProb > 0) and (not self.p.Bequests):
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
-		for col in range(self.nCols):
-			self.asim[:,col] = np.maximum(self.asim[:,col], self.p.R * self.borrowLimsCurr[col])
+		# for col in range(self.nCols):
+		# 	self.asim[:,col] = np.maximum(self.asim[:,col], self.p.R * self.borrowLimsCurr[col])
 
 class EquilibriumSimulator(Simulator):
 	"""
@@ -175,11 +177,29 @@ class EquilibriumSimulator(Simulator):
 			constrained = np.mean(np.asarray(self.asim) <= threshold)
 			self.results[f'Wealth <= {threshold:.2g}'] = constrained
 
-		self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0081*2)
-		self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
-		self.results['Wealth <= $10,000'] = np.mean(np.asarray(self.asim) <= 0.081*2)
-		self.results['Wealth <= $25,000'] = np.mean(np.asarray(self.asim) <= 0.405)
-		self.results['Wealth <= $250,000'] = np.mean(np.asarray(self.asim) <= 4.05)
+		# CDF over assets
+		a_unique, a_counts = np.unique(self.asim, return_counts=True)
+		self.cdf_a = np.zeros((a_unique.size, 2))
+		self.cdf_a[:,0] = a_unique
+		self.cdf_a[:,1] = np.cumsum(a_counts) / self.nSim
+
+		# set_trace()
+
+		quantities = [1000, 5000, 10000, 25000, 250000]
+		vals = [0.0162, 0.081, 0.162, 0.405, 4.05]
+		ii = 0
+		for q in vals:
+			poly_obj = poly_cdf_tools.polyfit_fraction_below(
+				self.asim, self.cdf_a[:,0], self.cdf_a[:,1], q)
+
+			self.results[f'Wealth <= ${quantities[ii]}'] = poly_obj['p_lt']
+			ii += 1
+
+		# self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0162)
+		# self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
+		# self.results['Wealth <= $10,000'] = np.mean(np.asarray(self.asim) <= 0.162)
+		# self.results['Wealth <= $25,000'] = np.mean(np.asarray(self.asim) <= 0.405)
+		# self.results['Wealth <= $250,000'] = np.mean(np.asarray(self.asim) <= 4.05)
 
 		self.results['Wealth <= own quarterly income/6'] = np.mean(
 			np.asarray(self.asim) <= (np.asarray(self.ysim) / 6))
