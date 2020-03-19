@@ -184,6 +184,14 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	}
 	ii += 1
 
+# class OptimVariable:
+# 	def __init__(self, name, bounds, v0):
+# 		self.name = name
+# 		self.bounds = bounds
+# 		self.lb = bounds[0]
+# 		self.ub = bounds[1]
+# 		self.v0 = v0
+
 
 	# ###########################################################
 	# ##### 3-PT DISCOUNT FACTOR HETEROGENEITY ##################

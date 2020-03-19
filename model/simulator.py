@@ -257,6 +257,8 @@ class MPCSimulator(Simulator):
 	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, shockIndices, finalStates):
 		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, 4)
 		self.nCols = len(shockIndices) + 1
+		self.borrowLimsCurr = [params.borrowLim] * self.nCols
+		self.xgridCurr = [grids.x_flat] * self.nCols
 		self.shockIndices = shockIndices
 		self.mpcs = pd.Series()
 		self.finalStates = finalStates
