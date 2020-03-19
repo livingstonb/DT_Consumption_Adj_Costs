@@ -116,7 +116,7 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 	paramsDicts[ii]['cal_options'] = {
 		'variables': ['adjustCost', 'timeDiscount'],
 		'bounds': [[0.000002, 0.005], [0.94, 0.99]],
-		'target_names': [targeted_shock, 'Wealth <= $1000'],
+		'target_names': [targeted_stat, 'Wealth <= $1000'],
 		'target_values': [0.2, 0.23],
 		'target_types': ['MPC', 'Equilibrium'],
 		'solver': 'minimize',
@@ -183,15 +183,6 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		'weights': [1, 1],
 	}
 	ii += 1
-
-# class OptimVariable:
-# 	def __init__(self, name, bounds, v0):
-# 		self.name = name
-# 		self.bounds = bounds
-# 		self.lb = bounds[0]
-# 		self.ub = bounds[1]
-# 		self.v0 = v0
-
 
 	# ###########################################################
 	# ##### 3-PT DISCOUNT FACTOR HETEROGENEITY ##################

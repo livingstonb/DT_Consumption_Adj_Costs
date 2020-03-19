@@ -75,8 +75,8 @@ class Calibrator:
 			self.solver_kwargs['bounds'] = self.xbounds_BoundsObj
 			self.solver_kwargs['method'] = 'L-BFGS-B'
 			self.solver_kwargs['options'] = {
-				'gtol': 1e-4,
-				'ftol': 1e-7,
+				'gtol': 1.0e-4,
+				'ftol': 1.0e-7,
 			}
 		elif self.solver == 'least_squares':
 			self.solver_kwargs['bounds'] = self.xbounds
@@ -261,3 +261,20 @@ class Constraint:
 			x_sc = x_s + x_h
 
 		return (x_sc, z)
+
+# class Options:
+# 	def __init__(self):
+# 		self.name = name
+# 		self.bounds = bounds
+# 		self.lb = bounds[0]
+# 		self.ub = bounds[1]
+# 		self.v0 = v0
+
+# class OptimVariable:
+# 	def __init__(self, name, bounds, v0):
+# 		self.name = name
+# 		self.bounds = bounds
+# 		self.lb = bounds[0]
+# 		self.ub = bounds[1]
+# 		self.v0 = v0
+
