@@ -208,12 +208,11 @@ class Constraint:
 class OptimVariable:
 	def __init__(self, name, bounds, x0, scale=1.0):
 		self.name = name
-		self.bounds = bounds
-		self.bracket = bounds
-		self.lb = bounds[0]
-		self.ub = bounds[1]
 		self.xscale = scale
 		self.x0 = self.scale(x0)
+		self.lb = self.scale(bounds[0])
+		self.ub = self.scale(bounds[1])
+		self.bracket = [self.lb, self.ub]
 
 	def scale(self, x):
 		return x * self.xscale
@@ -229,8 +228,11 @@ class OptimTarget:
 		self.weight = weight
 
 class SolverOptions:
-	def __init__(self, solver, solver_kwargs=None):
+	def __init__(self, solver, solver_kwargs=None,
+		other_opts=None):
 		self.solver = solver
+
+		self.set_other_opts(other_opts)
 
 		if solver_kwargs is None:
 			self.solver_kwargs = self.default_kwargs()
@@ -239,6 +241,13 @@ class SolverOptions:
 
 		self.requiresInitialCond = self.checkIfInitialCondNeeded()
 		self.set_target_transformation()
+
+	def set_other_opts(self, other_opts):
+		self.other_opts = {
+			'norm_deg': 2,
+			'norm_raise_to': 1,
+		}
+		self.other_opts.update(other_opts)
 
 	def default_kwargs(self):
 		solver_kwargs = dict()
@@ -254,10 +263,8 @@ class SolverOptions:
 			solver_kwargs['method'] = 'L-BFGS-B'
 			solver_kwargs['options'].update(
 				{
-				'eps': 2.0e-7,
-				'maxiter': 50,
-				# 'gtol': 2.0e-5,
-				# 'ftol': 1.0e-7,
+				'eps': 2.0e-6,
+				'maxiter': 100,
 				}
 			)
 		elif self.solver == 'least_squares':
@@ -298,6 +305,9 @@ class SolverOptions:
 		if self.solver in leave_unchanged:
 			self.transform_y = lambda x: x
 		elif self.solver in take_norm:
-			self.transform_y = lambda x: np.linalg.norm(x)
+			ndg = self.other_opts['norm_deg']
+			npow = self.other_opts['norm_raise_to']
+			self.transform_y = lambda x: np.power(np.linalg.norm(x, ndg), npow)
 		elif self.solver in take_abs:
-			self.transform_y = lambda x: np.abs(x)
+			npow = self.other_opts['norm_raise_to']
+			self.transform_y = lambda x: np.power(np.abs(x), npow)
