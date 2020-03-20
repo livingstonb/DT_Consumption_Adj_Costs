@@ -99,10 +99,11 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		scale=0.2)
 
 	wealthConstrained_target = Calibrator.OptimTarget(
-		'Wealth <= $1000', 0.23, 'Equilibrium')
+		'Wealth <= $1000', 0.23, 'Equilibrium',
+		weight=50)
 
 	opts = {
-		'norm_raise_to': 2,
+		'norm_raise_to': 1,
 	}
 	solver_opts = Calibrator.SolverOptions(
 		'minimize', other_opts=opts)
@@ -170,10 +171,11 @@ def load_specifications(locIncomeProcess, index=None, name=None):
 		scale=0.2)
 
 	meanWealth_target = Calibrator.OptimTarget(
-		'Mean wealth', 3.2, 'Equilibrium')
+		'Mean wealth', 3.2, 'Equilibrium',
+		weight=50)
 
 	opts = {
-		'norm_raise_to': 2,
+		'norm_raise_to': 1,
 	}
 	solver_opts = Calibrator.SolverOptions(
 		'minimize', other_opts=opts)
