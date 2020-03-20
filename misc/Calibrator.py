@@ -254,7 +254,7 @@ class SolverOptions:
 			solver_kwargs['method'] = 'L-BFGS-B'
 			solver_kwargs['options'].update(
 				{
-				'eps': 2.0e-8,
+				'eps': 2.0e-7,
 				'maxiter': 50,
 				# 'gtol': 2.0e-5,
 				# 'ftol': 1.0e-7,

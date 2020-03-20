@@ -192,14 +192,14 @@ class EquilibriumSimulator(Simulator):
 			poly_obj = poly_cdf_tools.polyfit_fraction_below(
 				self.asim, self.cdf_a[:,0], self.cdf_a[:,1], q)
 
-			self.results[f'Wealth <= ${quantities[ii]}'] = poly_obj['p_lt']
+			# self.results[f'Wealth <= ${quantities[ii]}'] = poly_obj['p_lt']
 			ii += 1
 
-		# self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0162)
-		# self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
-		# self.results['Wealth <= $10,000'] = np.mean(np.asarray(self.asim) <= 0.162)
-		# self.results['Wealth <= $25,000'] = np.mean(np.asarray(self.asim) <= 0.405)
-		# self.results['Wealth <= $250,000'] = np.mean(np.asarray(self.asim) <= 4.05)
+		self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0162)
+		self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
+		self.results['Wealth <= $10,000'] = np.mean(np.asarray(self.asim) <= 0.162)
+		self.results['Wealth <= $25,000'] = np.mean(np.asarray(self.asim) <= 0.405)
+		self.results['Wealth <= $250,000'] = np.mean(np.asarray(self.asim) <= 4.05)
 
 		self.results['Wealth <= own quarterly income/6'] = np.mean(
 			np.asarray(self.asim) <= (np.asarray(self.ysim) / 6))
