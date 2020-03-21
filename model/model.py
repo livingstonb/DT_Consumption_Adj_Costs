@@ -4,8 +4,6 @@ from model import Params, Income, Grid
 from model.cmodel import CModel
 from misc import functions
 
-from IPython.core.debugger import set_trace
-
 class Model(CModel):
 	"""
 	Inherits attributes and methods from the base extension class

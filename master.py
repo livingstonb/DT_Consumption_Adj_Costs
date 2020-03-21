@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from model import Params, Income, Grid
-from misc.load_specifications import load_specifications
+from misc.calibrations import load_calibrations
 from misc import mpcsTable, functions, otherStatistics
 from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
@@ -12,80 +12,101 @@ from model import simulator
 from misc import plots
 
 #---------------------------------------------------------------#
-#      SET PARAMETERIZATION NUMBER                              #
+#      FUNCTIONS                                                #
 #---------------------------------------------------------------#
-indexSet = False
-for arg in sys.argv:
-	try:
-		paramIndex = int(arg)
-		indexSet = True
-		break
-	except:
-		pass
+def set_from_cmd_arg(cmd_line_args):
+	"""
+	Returns the first integer-valued command-line
+	argument passed, if available.
+	"""
+	for arg in cmd_line_args:
+		try:
+			return int(arg)
+		except:
+			pass
 
-if not indexSet:
-	paramIndex = 1
+	return None
+
+def create_objects(params, PrintGrids):
+	income = Income.Income(params, False)
+	params.addIncomeParameters(income)
+
+	grids = Grid.Grid(params, income)
+
+	if PrintGrids:
+		print('Cash grid:')
+		functions.printVector(grids.x_flat)
+		print('Consumption grid:')
+		functions.printVector(grids.c_flat)
+		quit()
+
+	return (grids, income)
+
+def solve_back_from_shock(params, income, grids,
+	valueNext, shock, periodsUntilShock):
+
+	model = ModelWithNews(params, income, grids,
+		valueNext, shock, 1)
+	model.solve()
+
+	for ip in range(2, periodsUntilShock+1):
+		model = ModelWithNews(
+			params, income, grids,
+			model.valueFunction, shock, ip)
+		model.solve()
+
+	return model
 
 #---------------------------------------------------------------#
-#      OR SET PARAMETERIZATION NAME                             #
+#      CHOOSE PARAMETERIZATION, SET OPTIONS                     #
 #---------------------------------------------------------------#
-# THIS OVERRIDES paramIndex: TO IGNORE SET TO EMPTY STRING
-if indexSet:
-	name = ''
-else:
-	name = 'Wealth constrained target w/o adj costs'
+# One of these will be used if no command line arg is passed.
+# If both are set to 'None' and no arg is passed, paramIndex
+# will be set to 0.
+# paramName is favored over paramIndex
+paramIndex = None
+paramName = None
 
-#---------------------------------------------------------------#
-#      OPTIONS                                                  #
-#---------------------------------------------------------------#
-Calibrate = False
-Simulate = True # relevant if Calibrate is False
+# Run options
+Calibrate = False # use solver to match targets
+Simulate = True
 SimulateMPCs = True
 MPCsNews = True
-Fast = False
+Fast = False # run w/small grids for debugging
 PrintGrids = False
 MakePlots = False
+
+#---------------------------------------------------------------#
+#      HOUSEKEEPING                                             #
+#---------------------------------------------------------------#
+indexPassed = set_from_cmd_arg(sys.argv)
+if indexPassed is not None:
+	paramIndex = indexPassed
+	param_kwargs = {'index': paramIndex}
+elif paramIndex is not None:
+	param_kwargs = {'index': paramIndex}
+elif paramName is not None:
+	param_kwargs = {'name': paramName}
+	paramIndex = 0
+else:
+	paramIndex = 0
+	param_kwargs = {'index': paramIndex}
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir, 'output')
 if not os.path.exists(outdir):
 	os.mkdir(outdir)
 
-#---------------------------------------------------------------#
-#      LOCATION OF INCOME PROCESS                               #
-#---------------------------------------------------------------#
 locIncomeProcess = os.path.join(
-	basedir,'input', 'income_quarterly_b_fixed.mat')
+	basedir,'input', 'income_quarterly_b.mat')
 
 #---------------------------------------------------------------#
-#      LOAD PARAMETERS                                          #
+#      CREATE PARAMS, GRIDS, AND INCOME OBJECTS                 #
 #---------------------------------------------------------------#
-if name:
-	params_dict = load_specifications(locIncomeProcess, name=name)
-else:
-	params_dict = load_specifications(locIncomeProcess, index=paramIndex)
-
+params_dict = load_calibrations(locIncomeProcess, **param_kwargs)
 params_dict['fastSettings'] = Fast
 params = Params.Params(params_dict)
-
-#---------------------------------------------------------------#
-#      LOAD INCOME PROCESS                                      #
-#---------------------------------------------------------------#
-income = Income.Income(params, False)
-params.addIncomeParameters(income)
-
-#---------------------------------------------------------------#
-#      CREATE GRIDS                                             #
-#---------------------------------------------------------------#
-grids = Grid.Grid(params, income)
-
-if PrintGrids:
-	print('Cash grid:')
-	functions.printVector(grids.x_flat)
-
-	print('Consumption grid:')
-	functions.printVector(grids.c_flat)
-	quit()
+grids, income = create_objects(params, PrintGrids)
 
 #---------------------------------------------------------------#
 #      INITIALIZE AND SOLVE MODEL                               #
@@ -127,8 +148,11 @@ if Simulate and SimulateMPCs:
 shockIndices_shockNextPeriod = [2,3,4,5]
 currentShockIndices = [6] * len(shockIndices_shockNextPeriod) # 6 is shock of 0
 
-cSwitch_shockNextPeriod = np.zeros((params.nx,1,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
-inactionRegions_shockNextPeriod = np.zeros((params.nx,2,params.nz,params.nyP,len(shockIndices_shockNextPeriod)+1))
+nmodels = len(shockIndices_shockNextPeriod) + 1
+cSwitch_shockNextPeriod = np.zeros(
+	(params.nx,1,params.nz,params.nyP,nmodels))
+inactionRegions_shockNextPeriod = np.zeros(
+	(params.nx,2,params.nz,params.nyP,nmodels))
 
 cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 inactionRegions_shockNextPeriod[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
@@ -136,12 +160,13 @@ valueBaseline = model.valueFunction
 model.interpMat = []
 
 i = 0
+periodsUntilShock = 1
 for ishock in shockIndices_shockNextPeriod:
 	model_shockNextPeriod = ModelWithNews(
 		params, income, grids,
 		valueBaseline,
 		params.MPCshocks[ishock],
-		1)
+		periodsUntilShock)
 
 	if SimulateMPCs and MPCsNews:
 		print(f'Solving for shock of {params.MPCshocks[ishock]} next period')
@@ -158,25 +183,11 @@ for ishock in shockIndices_shockNextPeriod:
 cSwitch_loan = np.zeros((params.nx,1,params.nz,params.nyP,2))
 inactionRegions_loan = np.zeros((params.nx,2,params.nz,params.nyP,2))
 
-shock = params.MPCshocks[0]
-# start with last quarter
-model_loan = ModelWithNews(
-	params, income, grids,
-	valueBaseline,
-	shock,
-	1)
 
 if SimulateMPCs and MPCsNews:
-	print(f'Solving for one year loan')
-	model_loan.solve()
-
-	for period in range(2, 5):
-		model_loan = ModelWithNews(
-			params, income, grids,
-			model_loan.valueFunction,
-			shock,
-			period)
-		model_loan.solve()
+	shock = params.MPCshocks[0]
+	model_loan = solve_back_from_shock(params,
+		income, grids, valueBaseline, shock, 4)
 
 	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
 	cSwitch_loan[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
@@ -184,31 +195,43 @@ if SimulateMPCs and MPCsNews:
 	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
 	del model_loan
 
+# shock = params.MPCshocks[0]
+# # start with last quarter
+# model_loan = ModelWithNews(
+# 	params, income, grids,
+# 	valueBaseline,
+# 	shock,
+# 	1)
+
+# if SimulateMPCs and MPCsNews:
+# 	print(f'Solving for one year loan')
+# 	model_loan.solve()
+
+# 	for period in range(2, 5):
+# 		model_loan = ModelWithNews(
+# 			params, income, grids,
+# 			model_loan.valueFunction,
+# 			shock,
+# 			period)
+# 		model_loan.solve()
+
+# 	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
+# 	cSwitch_loan[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
+# 	inactionRegions_loan[:,:,:,:,0] = model_loan.inactionRegion[:,:,:,:,0]
+# 	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
+# 	del model_loan
+
 #-----------------------------------------------------------#
 #      SHOCK OF -$500 IN 2 YEARS                            #
 #-----------------------------------------------------------#
 cSwitch_shock2Years = np.zeros((params.nx,1,params.nz,params.nyP,2))
 inactionRegions_shock2Years = np.zeros((params.nx,2,params.nz,params.nyP,2))
 
-ishock = 2
-shock = params.MPCshocks[ishock]
-model_shock2Years = ModelWithNews(
-	params, income, grids,
-	valueBaseline,
-	shock,
-	1)
-
 if SimulateMPCs and MPCsNews:
-	model_shock2Years.solve()
-
-	for period in range(2, 9):
-		shock = 0.0
-		model_shock2Years = ModelWithNews(
-			params, income, grids,
-			model_shock2Years.valueFunction,
-			shock,
-			period)
-		model_shock2Years.solve()
+	ishock = 2
+	shock = params.MPCshocks[ishock]
+	model_shock2Years = solve_back_from_shock(params,
+		income, grids, valueBaseline, shock, 8)
 
 	cSwitch_shock2Years[:,:,:,:,0] = model_shock2Years.cSwitchingPolicy[:,:,:,:,0]
 	cSwitch_shock2Years[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]

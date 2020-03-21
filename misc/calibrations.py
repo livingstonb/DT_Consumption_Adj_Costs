@@ -3,12 +3,31 @@ import numpy as np
 
 from misc import Calibrator
 
-from IPython.core.debugger import set_trace
+def load_mean_wealth_replication(adjustCostOn, betaHeterogeneity):
+	meanWealthGridParams = {
+		'xGridTerm1Wt': 0.05,
+		'xGridTerm1Curv': 0.8,
+		'xGridCurv': 0.2,
+		'xMax': 50,
+		'borrowLim': 0,
+		'cMin': 1e-6,
+		'cMax': 5,
+		'cGridTerm1Wt': 0.05,
+		'cGridTerm1Curv': 0.9,
+		'cGridCurv': 0.15,
+	}
 
-def load_specifications(locIncomeProcess, index=None, name=None):
+	###########################################################
+	##### NO ADJUSTMENT COSTS, NO BETA HETEROGENEITY ##########
+	###########################################################
+
+	# Target mean wealth
+
+
+def load_calibrations(locIncomeProcess, index=None, name=None):
 	"""
-	This function defines the parameterizations and passes the
-	one selected by 'index' or 'name' to a new Params object.
+	This function sets the parameterizations to be passed
+	to a new Params object.
 	"""
 
 	if (index is None) and (name is None):
