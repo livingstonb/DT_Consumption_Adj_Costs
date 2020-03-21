@@ -12,8 +12,12 @@ class Simulator(CSimulator):
 	"""
 	Base class for simulations
 	"""
-	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, simPeriods):
-		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, simPeriods)
+	def __init__(self, params, income, grids, simPeriods):
+		super().__init__(params, income, grids, simPeriods)
+
+	def initialize(self, cSwitchingPolicies, inactionRegions):
+		self.cSwitchingPolicy = cSwitchingPolicies
+		self.inactionRegion = inactionRegions
 
 		self.borrowLimsCurr = [params.borrowLim] * self.nCols
 		self.xgridCurr = [grids.x_flat] * self.nCols
@@ -57,13 +61,59 @@ class EquilibriumSimulator(Simulator):
 	"""
 	This class is used to simulate statistics for the solved model.
 	"""
-	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions):
-		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, params.tSim)
-
-		self.initialize()
+	def __init__(self, params, income, grids):
+		super().__init__(params, income, grids, params.tSim)
 
 		self.transitionStatistics = {}
 		self.results = pd.Series()
+		self.nCols = 1
+
+	def initialize(self, cSwitchingPolicies, inactionRegions):
+		self.cSwitchingPolicy = cSwitchingPolicies
+		self.inactionRegion = inactionRegions
+
+		self.borrowLimsCurr = [self.p.borrowLim] * self.nCols
+		self.xgridCurr = [self.grids.x_flat] * self.nCols
+
+		self.makeRandomDraws()
+
+		self.asim = 0.5 * np.ones((self.nSim,self.nCols))
+		self.csim = np.ones((self.nSim,self.nCols))
+		self.csim_adj = np.ones((self.nSim,self.nCols))
+
+		self.yPind = np.argmax(self.yPrand[:,self.randIndex,np.newaxis]
+					<= self.income.yPcumdistT,
+					axis=1)
+		yTind = np.argmax(self.yTrand[:,self.randIndex,np.newaxis]
+								<= self.income.yTcumdistT, 
+								axis=1)
+
+		if self.income.nyP == 1:
+			yPsim = self.income.yPgrid[0] * np.ones(self.nSim)
+		else:
+			yPsim = np.asarray(self.income.yPgrid)[np.asarray(self.yPind)]
+
+		if self.income.nyT == 1:
+			yTsim = self.income.yTgrid[0] * np.ones(self.nSim)
+		else:
+			yTsim = np.asarray(self.income.yTgrid)[yTind]
+		self.ysim = (yPsim * yTsim).reshape((-1,1))
+
+		chunkSize = self.nSim // self.p.nz
+		chunks = [0]
+		for iz in range(1,self.p.nz):
+			chunks.append(chunks[iz-1]+chunkSize)
+		chunks.append(self.nSim)
+
+		self.zind = np.zeros(self.nSim,dtype=int)
+		for iz in range(self.p.nz):
+			self.zind[chunks[iz]:chunks[iz+1]] = iz * np.ones(
+				chunks[iz+1]-chunks[iz], dtype=int)
+
+		self.switched = np.zeros((self.nSim,1), dtype=int)
+		self.incomeHistory = np.zeros((self.nSim,4))
+
+		self.initialized = True
 
 	def simulate(self):
 		np.random.seed(1991)
@@ -97,49 +147,6 @@ class EquilibriumSimulator(Simulator):
 
 		self.computeEquilibriumStatistics()
 
-	def initialize(self):
-		self.makeRandomDraws()
-
-		self.asim = 0.5 * np.ones((self.nSim,self.nCols))
-		self.csim = np.ones((self.nSim,self.nCols))
-		self.csim_adj = np.ones((self.nSim,self.nCols))
-
-		self.yPind = np.argmax(self.yPrand[:,self.randIndex,np.newaxis]
-					<= self.income.yPcumdistT,
-					axis=1)
-		yTind = np.argmax(self.yTrand[:,self.randIndex,np.newaxis]
-								<= self.income.yTcumdistT, 
-								axis=1)
-
-		if self.income.nyP == 1:
-			yPsim = self.income.yPgrid[0] * np.ones(self.nSim)
-		else:
-			yPsim = np.asarray(self.income.yPgrid)[np.asarray(self.yPind)]
-
-		if self.income.nyT == 1:
-			yTsim = self.income.yTgrid[0] * np.ones(self.nSim)
-		else:
-			yTsim = np.asarray(self.income.yTgrid)[yTind]
-		self.ysim = (yPsim * yTsim).reshape((-1,1))
-
-		chunkSize = self.nSim // self.p.nz
-		chunks = [0]
-		for iz in range(1,self.p.nz):
-			chunks.append(chunks[iz-1]+chunkSize)
-		chunks.append(self.nSim)
-
-		self.zind = np.zeros(self.nSim,dtype=int)
-		for iz in range(self.p.nz):
-			self.zind[chunks[iz]:chunks[iz+1]] = iz * np.ones(chunks[iz+1]-chunks[iz],dtype=int)
-
-		self.switched = np.zeros((self.nSim,1),dtype=int)
-		self.incomeHistory = np.zeros((self.nSim,4))
-
-		self.xgridCurr = [self.grids.x_flat]
-		self.xgridNext = [self.grids.x_flat]
-
-		self.initialized = True
-
 	def computeTransitionStatistics(self):
 		"""
 		This method computes statistics that can be
@@ -150,8 +157,9 @@ class EquilibriumSimulator(Simulator):
 			self.transitionStatistics = {	'E[a]': np.zeros((self.T,)),
 											'Var[a]': np.zeros((self.T,))
 										}
-		self.transitionStatistics['E[a]'][self.t-1] = np.mean(self.asim,axis=0)
-		self.transitionStatistics['Var[a]'][self.t-1] = np.var(self.asim,axis=0)
+
+		self.transitionStatistics['E[a]'][self.t-1] = np.mean(self.asim, axis=0)
+		self.transitionStatistics['Var[a]'][self.t-1] = np.var(self.asim, axis=0)
 
 		if self.t >= self.T - 3:
 			self.incomeHistory[:,self.t-self.T+3] = np.reshape(self.ysim,self.nSim)
@@ -185,15 +193,15 @@ class EquilibriumSimulator(Simulator):
 
 		# set_trace()
 
-		quantities = [1000, 5000, 10000, 25000, 250000]
-		vals = [0.0162, 0.081, 0.162, 0.405, 4.05]
-		ii = 0
-		for q in vals:
-			poly_obj = poly_cdf_tools.polyfit_fraction_below(
-				self.asim, self.cdf_a[:,0], self.cdf_a[:,1], q)
+		# quantities = [1000, 5000, 10000, 25000, 250000]
+		# vals = [0.0162, 0.081, 0.162, 0.405, 4.05]
+		# ii = 0
+		# for q in vals:
+		# 	poly_obj = poly_cdf_tools.polyfit_fraction_below(
+		# 		self.asim, self.cdf_a[:,0], self.cdf_a[:,1], q)
 
-			# self.results[f'Wealth <= ${quantities[ii]}'] = poly_obj['p_lt']
-			ii += 1
+		# 	self.results[f'Wealth <= ${quantities[ii]}'] = poly_obj['p_lt']
+		# 	ii += 1
 
 		self.results['Wealth <= $1000'] = np.mean(np.asarray(self.asim) <= 0.0162)
 		self.results['Wealth <= $5000'] = np.mean(np.asarray(self.asim) <= 0.081)
@@ -254,21 +262,29 @@ class MPCSimulator(Simulator):
 	finalStates contains the stationary distribution from simulating
 	the original solved model.
 	"""
-	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, shockIndices, finalStates):
-		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions, 4)
+	def __init__(self, params, income, grids, shockIndices):
+		super().__init__(params, income, grids, 4)
+
 		self.nCols = len(shockIndices) + 1
-		self.borrowLimsCurr = [params.borrowLim] * self.nCols
-		self.xgridCurr = [grids.x_flat] * self.nCols
 		self.shockIndices = shockIndices
+
 		self.mpcs = pd.Series()
-		self.finalStates = finalStates
 		self.initialize_results()
 
-	def simulate(self):
+	def initialize(self, cSwitchingPolicies, inactionRegions,
+		finalStates):
+		self.cSwitchingPolicy = cSwitchingPolicies
+		self.inactionRegion = inactionRegions
+
+		self.borrowLimsCurr = [self.p.borrowLim] * self.nCols
+		self.xgridCurr = [self.grids.x_flat] * self.nCols
+
+		self.finalStates = finalStates
 		self.initialize_variables()
+		self.initialized = True
 
+	def simulate(self, ):
 		np.random.seed(1991)
-
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
 
@@ -341,10 +357,7 @@ class MPCSimulator(Simulator):
 			self.results[row] = np.nan
 
 		self.mpcs = dict()
-
-		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
-
-		self.initialized = True
+		self.switched = np.zeros((self.nSim,self.nCols), dtype=int)
 
 	def computeTransitionStatistics(self):
 		ii = 0
@@ -406,23 +419,33 @@ class MPCSimulator(Simulator):
 			ii += 1
 
 class MPCSimulatorNews(MPCSimulator):
-	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, futureShockIndices, 
-		currentShockIndices, finalStates, periodsUntilShock=1):
+	def __init__(self, params, income, grids, futureShockIndices, 
+		currentShockIndices, periodsUntilShock=1):
 		self.futureShockIndices = futureShockIndices
 		self.periodsUntilShock = periodsUntilShock
-		super().__init__(params, income, grids, cSwitchingPolicies,
-			inactionRegions, currentShockIndices, finalStates)
-		self.nCols = inactionRegions.shape[4]
 
-		ymin = income.ymin + params.govTransfer
+		super().__init__(params, income, grids, currentShockIndices)
+		
+		self.nCols = len(futureShockIndices) + 1
+		self.news = True
+
+	def initialize(self, cSwitchingPolicies, inactionRegions,
+		finalStates):
+		self.cSwitchingPolicy = cSwitchingPolicies
+		self.inactionRegion = inactionRegions
+		self.finalStates = finalStates
+
+		ymin = self.income.ymin + self.p.govTransfer
 		self.borrowLims = []
-		for ishock in futureShockIndices:
-			shock = params.MPCshocks[ishock]
+		for ishock in self.futureShockIndices:
+			shock = self.p.MPCshocks[ishock]
 			self.borrowLims.append(functions.computeAdjBorrLims(shock,
-				ymin, params.borrowLim, params.R, periodsUntilShock))
-		self.borrowLims.append([params.borrowLim] * periodsUntilShock)
+				ymin, self.p.borrowLim, self.p.R, self.periodsUntilShock))
+		self.borrowLims.append([self.p.borrowLim] * self.periodsUntilShock)
 
 		self.T = 1
+		self.initialize_variables()
+		self.initialized = True
 
 	def updateCashGrids(self):
 		self.xgridCurr = [None] * self.nCols
@@ -453,10 +476,7 @@ class MPCSimulatorNews(MPCSimulator):
 			self.results[row] = np.nan
 
 		self.mpcs = dict()
-
 		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
-
-		self.initialized = True
 
 	def computeTransitionStatistics(self):
 		quarter = 1
@@ -494,33 +514,7 @@ class MPCSimulatorNews(MPCSimulator):
 		
 			ii += 1
 
-class MPCSimulatorNews_Loan(MPCSimulator):
-	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, futureShockIndices, 
-		currentShockIndices, finalStates, periodsUntilShock=1):
-		self.futureShockIndices = futureShockIndices
-		self.periodsUntilShock = periodsUntilShock
-		super().__init__(params, income, grids, cSwitchingPolicies, inactionRegions,
-			currentShockIndices, finalStates)
-		self.nCols = inactionRegions.shape[4]
-
-		ymin = income.ymin + params.govTransfer
-		self.borrowLims = []
-		for ishock in futureShockIndices:
-			shock = params.MPCshocks[ishock]
-			self.borrowLims.append(functions.computeAdjBorrLims(shock,
-				ymin, params.borrowLim, params.R, periodsUntilShock))
-		self.borrowLims.append([params.borrowLim] * periodsUntilShock)
-
-		self.T = 1
-
-	def updateCashGrids(self):
-		self.xgridCurr = [None] * self.nCols
-		self.borrowLimsCurr = [None] * self.nCols
-		for col in range(self.nCols):
-			self.borrowLimsCurr[col] = self.borrowLims[col].pop()
-			self.xgridCurr[col] = np.asarray(self.grids.x_flat) \
-				+ (self.borrowLimsCurr[col] - self.p.borrowLim)
-
+class MPCSimulatorNews_Loan(MPCSimulatorNews):
 	def initialize_results(self):
 		# statistics to compute very period
 		self.results = pd.Series(name=self.p.name)

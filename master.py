@@ -120,9 +120,10 @@ if Calibrate:
 else:
 	model.solve()
 
-eqSimulator = simulator.EquilibriumSimulator(params, income, grids, 
-	model.cSwitchingPolicy, model.inactionRegion)
+eqSimulator = simulator.EquilibriumSimulator(params, income, grids)
+
 if Simulate:
+	eqSimulator.initialize(model.cSwitchingPolicy, model.inactionRegion)
 	eqSimulator.simulate()
 	finalSimStates = eqSimulator.finalStates
 else:
@@ -134,12 +135,13 @@ else:
 shockIndices = [0,1,2,3,4,5]
 
 mpcSimulator = simulator.MPCSimulator(
-	params, income, grids, 
-	model.cSwitchingPolicy,
-	model.inactionRegion, 
-	shockIndices, finalSimStates)
+	params, income, grids,
+	shockIndices)
 
 if Simulate and SimulateMPCs:
+	mpcSimulator.initialize(
+		model.cSwitchingPolicy, model.inactionRegion,
+		finalSimStates)
 	mpcSimulator.simulate()
 
 #-----------------------------------------------------------#
@@ -195,31 +197,12 @@ if SimulateMPCs and MPCsNews:
 	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
 	del model_loan
 
-# shock = params.MPCshocks[0]
-# # start with last quarter
-# model_loan = ModelWithNews(
-# 	params, income, grids,
-# 	valueBaseline,
-# 	shock,
-# 	1)
+	# def construct_policy_arrays(params, model0, model1):
+	# 	switching = np.zeros((params.nx,1,params.nz,params.nyP,2))
+	# 	inaction = np.zeros((params.nx,2,params.nz,params.nyP,2))
 
-# if SimulateMPCs and MPCsNews:
-# 	print(f'Solving for one year loan')
-# 	model_loan.solve()
-
-# 	for period in range(2, 5):
-# 		model_loan = ModelWithNews(
-# 			params, income, grids,
-# 			model_loan.valueFunction,
-# 			shock,
-# 			period)
-# 		model_loan.solve()
-
-# 	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
-# 	cSwitch_loan[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
-# 	inactionRegions_loan[:,:,:,:,0] = model_loan.inactionRegion[:,:,:,:,0]
-# 	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
-# 	del model_loan
+	# 	switching[:,:,:,:,0] = model0.cSwitchingPolicy[:,:,:,:,0]
+	# 	switching[:,:,:,:,1] = model
 
 #-----------------------------------------------------------#
 #      SHOCK OF -$500 IN 2 YEARS                            #
@@ -245,29 +228,43 @@ if SimulateMPCs and MPCsNews:
 currentShockIndices = [6] * len(shockIndices_shockNextPeriod)
 mpcNewsSimulator_shockNextPeriod = simulator.MPCSimulatorNews(
 	params, income, grids,
-	cSwitch_shockNextPeriod, inactionRegions_shockNextPeriod,
-	shockIndices_shockNextPeriod, currentShockIndices,
-	finalSimStates, periodsUntilShock=1)
+	shockIndices_shockNextPeriod,
+	currentShockIndices,
+	periodsUntilShock=1)
 
 shockIndices_shock2Years = [2]
 currentShockIndices = [6]
 mpcNewsSimulator_shock2Years = simulator.MPCSimulatorNews(
 	params, income, grids,
-	cSwitch_shock2Years, inactionRegions_shock2Years,
-	shockIndices_shock2Years, currentShockIndices,
-	finalSimStates, periodsUntilShock=8)
+	shockIndices_shock2Years,
+	currentShockIndices,
+	periodsUntilShock=8)
 
 shockIndices_loan = [0]
 currentShockIndices = [5]
 mpcNewsSimulator_loan = simulator.MPCSimulatorNews_Loan(
 	params, income, grids,
-	cSwitch_loan, inactionRegions_loan,
-	shockIndices_loan, currentShockIndices,
-	finalSimStates, periodsUntilShock=4)
+	shockIndices_loan,
+	currentShockIndices,
+	periodsUntilShock=4)
 
 if SimulateMPCs and MPCsNews:
+	mpcNewsSimulator_shockNextPeriod.initialize(
+		cSwitch_shockNextPeriod,
+		inactionRegions_shockNextPeriod,
+		finalSimStates)
 	mpcNewsSimulator_shockNextPeriod.simulate()
+
+	mpcNewsSimulator_shock2Years.initialize(
+		cSwitch_shock2Years,
+		inactionRegions_shock2Years,
+		finalSimStates)
 	mpcNewsSimulator_shock2Years.simulate()
+
+	mpcNewsSimulator_loan.initialize(
+		cSwitch_loan,
+		inactionRegions_loan,
+		finalSimStates)
 	mpcNewsSimulator_loan.simulate()
 
 #-----------------------------------------------------------#

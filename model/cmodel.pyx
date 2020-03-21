@@ -59,6 +59,8 @@ cdef class CModel:
 		# policy function for c, conditional on switching
 		public object cSwitchingPolicy, inactionRegion
 
+		public object interpMat
+
 	def __init__(self, params, income, grids):
 		"""
 		Class constructor

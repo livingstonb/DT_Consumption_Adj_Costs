@@ -9,10 +9,6 @@ class Model(CModel):
 	Inherits attributes and methods from the base extension class
 	CModel. This is not to be used when computing MPCs out of news.
 	"""
-	def __init__(self, params, income, grids):
-		self.interpMat = None
-		super().__init__(params, income, grids)
-
 	def initialize(self):
 		self.nextMPCShock = 0 # no shock next period
 
@@ -31,11 +27,12 @@ class Model(CModel):
 		self.valueFunction = valueGuess
 
 	def solve(self, oneIter=False):
-		print('\nBeginning value function iteration...')
+		if not oneIter:
+			print('\nBeginning value function iteration...')
+			self.makeValueGuess()
+
 		distance = 1e5
 		self.iteration = 0
-
-		self.makeValueGuess()
 
 		while distance > self.p.tol:
 
@@ -60,7 +57,7 @@ class Model(CModel):
 				np.asarray(self.valueFunction) - np.asarray(Vprevious)
 				).flatten().max()
 
-			if np.mod(self.iteration,50) == 0:
+			if (np.mod(self.iteration,50) == 0) and not oneIter:
 				print(f'    Iteration {self.iteration+1}, norm of |V1-V| = {distance}')
 
 			if (self.iteration>2000) and (distance>1e5):
@@ -76,7 +73,8 @@ class Model(CModel):
 		# compute c-policy function conditional on switching
 		self.maximizeValueFromSwitching(final=True)
 
-		print(f'Value function converged after {self.iteration} iterations.')
+		if not oneIter:
+			print(f'Value function converged after {self.iteration} iterations.')
 
 	def updateValueFunction(self):
 		"""
@@ -115,9 +113,9 @@ class ModelWithNews(Model):
 	"""
 	def __init__(self, params, income, grids, valueNext,
 		shock, periodsUntilShock):
+		super().__init__(params, income, grids)
 
 		self.nextMPCShock = (periodsUntilShock == 1) * shock
-
 		self.valueFunction = valueNext
 
 		ymin = income.ymin + params.govTransfer
@@ -126,16 +124,7 @@ class ModelWithNews(Model):
 
 		self.borrLimCurr = borrowLims.pop()
 		self.borrLimNext = borrowLims.pop()
-
-		super().__init__(params, income, grids)
+		self.constructInterpolantForEMAX()
 
 	def solve(self):
-		print('\nConstructing interpolant array for EMAX')
-		self.constructInterpolantForEMAX()
-		super().updateEMAX()
 		super().solve(True)
-
-	def updateEMAX(self):
-		# EMAX has already been found, based on next period's
-		# value function
-		pass

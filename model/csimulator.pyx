@@ -31,7 +31,7 @@ cdef class CSimulator:
 		readonly Params p
 		readonly Income income
 		readonly object grids
-		readonly double[:,:,:,:,:] inactionRegion, cSwitchingPolicy
+		public double[:,:,:,:,:] inactionRegion, cSwitchingPolicy
 		public int nCols
 		readonly int periodsBeforeRedraw
 		public int nSim, t, T, randIndex
@@ -42,15 +42,10 @@ cdef class CSimulator:
 		public list xgridCurr
 		public list borrowLims, borrowLimsCurr
 
-	def __init__(self, params, income, grids, cSwitchingPolicies, inactionRegions, simPeriods):
+	def __init__(self, params, income, grids, simPeriods):
 		self.p = params
 		self.income = income
 		self.grids = grids
-
-		self.cSwitchingPolicy = cSwitchingPolicies
-		self.inactionRegion = inactionRegions
-
-		self.nCols = inactionRegions.shape[4]
 
 		self.periodsBeforeRedraw = np.minimum(simPeriods, 10)
 
@@ -60,11 +55,7 @@ cdef class CSimulator:
 		self.randIndex = 0
 
 		self.initialized = False
-
-		if inactionRegions.shape[4] > 1:
-			self.news = True
-		else:
-			self.news = False
+		self.news = False
 
 		np.random.seed(0)
 
