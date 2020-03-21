@@ -3,11 +3,10 @@ import numpy as np
 import pandas as pd
 
 from model import Params, Income, Grid
-from misc.calibrations import load_calibration
-from misc.calibrations import load_replication
 from misc import mpcsTable, functions, otherStatistics
 from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
+from misc.calibrations import load_replication, load_calibration
 from model import simulator
 from misc import plots
 
@@ -94,6 +93,10 @@ def main(paramIndex=None, runopts=None, replication=None):
 	basedir = os.getcwd()
 	locIncomeProcess = os.path.join(
 		basedir, 'input', 'income_quarterly_b.mat')
+	outdir = os.path.join(basedir, 'output')
+
+	if not os.path.exists(outdir):
+		os.mkdir(outdir)
 
 	#---------------------------------------------------------------#
 	#      CREATE PARAMS, GRIDS, AND INCOME OBJECTS                 #
@@ -151,78 +154,79 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#-----------------------------------------------------------#
 	#      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 	#-----------------------------------------------------------#
-	shockIndices_shockNextPeriod = [2,3,4,5]
+	news = dict()
+	news['shockIndices'] = [2,3,4,5]
+	news['currentShockIndices'] = [6] * 4
+	news['periodsUntilShock'] = 1
 
-	cSwitch_shockNextPeriod, inactionRegions_shockNextPeriod = solve_back_from_shock(
-		params, income, grids, valueBaseline, shockIndices_shockNextPeriod, 1)
+	news['cSwitch'], news['inactionRegions'] \
+		= solve_back_from_shock(params, income, grids,
+			valueBaseline, news['shockIndices'],
+			news['periodsUntilShock'])
 
-	cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-	inactionRegions_shockNextPeriod[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+	news['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+	news['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 
 	#-----------------------------------------------------------#
 	#      SOLVE FOR 1-YEAR LOAN                                #
 	#-----------------------------------------------------------#
-	if SimulateMPCs and MPCsNews:
-		cSwitch_loan, inactionRegions_loan = solve_back_from_shock(params,
-			income, grids, valueBaseline, [0], 4)
+	loan = dict()
+	loan['shockIndices'] = [0]
+	loan['currentShockIndices'] = [5]
+	loan['periodsUntilShock'] = 4
 
-		cSwitch_loan[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-		inactionRegions_loan[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+	if SimulateMPCs and MPCsNews:
+		loan['cSwitch'], loan['inactionRegions'] = \
+			solve_back_from_shock(params, income, grids,
+				valueBaseline, loan['shockIndices'],
+				loan['periodsUntilShock'])
+
+		loan['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+		loan['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 
 	#-----------------------------------------------------------#
 	#      SHOCK OF -$500 IN 2 YEARS                            #
 	#-----------------------------------------------------------#
-	if SimulateMPCs and MPCsNews:
-		cSwitch_shock2Years, inactionRegions_shock2Years = solve_back_from_shock(
-			params, income, grids, valueBaseline, [2], 8)
+	loss2years = dict()
+	loss2years['shockIndices'] = [2]
+	loss2years['currentShockIndices'] = [6]
+	loss2years['periodsUntilShock'] = 8
 
-		cSwitch_shock2Years[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-		inactionRegions_shock2Years[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+	if SimulateMPCs and MPCsNews:
+		loss2years['cSwitch'], loss2years['inactionRegions'] = \
+			solve_back_from_shock(params, income, grids,
+				valueBaseline, loss2years['shockIndices'],
+				loss2years['periodsUntilShock'])
+
+		loss2years['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+		loss2years['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 
 	#-----------------------------------------------------------#
 	#      SIMULATE MPCs OUT OF NEWS                            #
 	#-----------------------------------------------------------#
-	currentShockIndices = [6] * len(shockIndices_shockNextPeriod)
-	mpcNewsSimulator_shockNextPeriod = simulator.MPCSimulatorNews(
-		params, income, grids,
-		shockIndices_shockNextPeriod,
-		currentShockIndices,
-		periodsUntilShock=1)
+	ii = 0
+	for newsModel in [news, loan, loss2years]:
+		sim_args = [
+			params, income, grids,
+			newsModel['shockIndices'],
+			newsModel['currentShockIndices'],
+		]
 
-	shockIndices_shock2Years = [2]
-	currentShockIndices = [6]
-	mpcNewsSimulator_shock2Years = simulator.MPCSimulatorNews(
-		params, income, grids,
-		shockIndices_shock2Years,
-		currentShockIndices,
-		periodsUntilShock=8)
+		if ii == 1:
+			newsModel['simulator'] = simulator.MPCSimulatorNews_Loan(
+				*sim_args, periodsUntilShock=newsModel['periodsUntilShock'])
+		else:
+			newsModel['simulator'] = simulator.MPCSimulatorNews(
+				*sim_args, periodsUntilShock=newsModel['periodsUntilShock'])
 
-	shockIndices_loan = [0]
-	currentShockIndices = [5]
-	mpcNewsSimulator_loan = simulator.MPCSimulatorNews_Loan(
-		params, income, grids,
-		shockIndices_loan,
-		currentShockIndices,
-		periodsUntilShock=4)
+		if SimulateMPCs and MPCsNews:
+			newsModel['simulator'].initialize(
+				newsModel['cSwitch'],
+				newsModel['inactionRegions'],
+				finalSimStates)
+			newsModel['simulator'].simulate()
 
-	if SimulateMPCs and MPCsNews:
-		mpcNewsSimulator_shockNextPeriod.initialize(
-			cSwitch_shockNextPeriod,
-			inactionRegions_shockNextPeriod,
-			finalSimStates)
-		mpcNewsSimulator_shockNextPeriod.simulate()
-
-		mpcNewsSimulator_shock2Years.initialize(
-			cSwitch_shock2Years,
-			inactionRegions_shock2Years,
-			finalSimStates)
-		mpcNewsSimulator_shock2Years.simulate()
-
-		mpcNewsSimulator_loan.initialize(
-			cSwitch_loan,
-			inactionRegions_loan,
-			finalSimStates)
-		mpcNewsSimulator_loan.simulate()
+		ii += 1
 
 	#-----------------------------------------------------------#
 	#      RESULTS                                              #
@@ -234,8 +238,8 @@ def main(paramIndex=None, runopts=None, replication=None):
 	if Simulate:
 		if MPCsNews:
 			otherStatistics.saveWealthGroupStats(
-				mpcSimulator, mpcNewsSimulator_shockNextPeriod,
-				mpcNewsSimulator_shock2Years, mpcNewsSimulator_loan,
+				mpcSimulator, news['simulator'],
+				loss2years['simulator'], loan['simulator'],
 				finalSimStates, outdir, paramIndex, params)
 
 		# put main results into a Series
@@ -248,11 +252,11 @@ def main(paramIndex=None, runopts=None, replication=None):
 
 	if MPCsNews:
 		print('\nMPCS out of news:\n')
-		print(mpcNewsSimulator_shockNextPeriod.results.dropna().to_string())
+		print(news['simulator'].results.dropna().to_string())
 
 		print('\nMPCS out of future loss:\n')
-		print(mpcNewsSimulator_shock2Years.results.dropna().to_string())
-		print(mpcNewsSimulator_loan.results.dropna().to_string())
+		print(loss2years['simulator'].results.dropna().to_string())
+		print(loan['simulator'].results.dropna().to_string())
 
 	name_series = pd.Series({'Experiment':params.name})
 	index_series = pd.Series({'Index':params.index})
@@ -261,9 +265,9 @@ def main(paramIndex=None, runopts=None, replication=None):
 							params.series, 
 							eqSimulator.results.dropna(),
 							mpcSimulator.results.dropna(),
-							mpcNewsSimulator_shockNextPeriod.results.dropna(),
-							mpcNewsSimulator_shock2Years.results.dropna(),
-							mpcNewsSimulator_loan.results.dropna(),
+							news['simulator'].results.dropna(),
+							loss2years['simulator'].results.dropna(),
+							loan['simulator'].results.dropna(),
 							])
 
 	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
@@ -273,9 +277,8 @@ def main(paramIndex=None, runopts=None, replication=None):
 	results.to_csv(savepath, index_label=params.name, header=True)
 
 	mpcs_table = mpcsTable.create(params, mpcSimulator, 
-		mpcNewsSimulator_shockNextPeriod,
-		mpcNewsSimulator_shock2Years,
-		mpcNewsSimulator_loan,
+		news['simulator'], loss2years['simulator'],
+		loan['simulator'],
 		)
 	savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.csv')
 	# mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
