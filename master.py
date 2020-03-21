@@ -68,7 +68,7 @@ paramIndex = None
 paramName = None
 
 # Run options
-Calibrate = False # use solver to match targets
+Calibrate = True # use solver to match targets
 Simulate = True
 SimulateMPCs = True
 MPCsNews = True
@@ -117,8 +117,10 @@ model.initialize()
 if Calibrate:
 	calibrator = Calibrator(*params.cal_options)
 	opt_results = calibrator.calibrate(params, model, income, grids)
+	calibrator = None
 else:
 	model.solve()
+model.interpMat = None
 
 eqSimulator = simulator.EquilibriumSimulator(params, income, grids)
 
@@ -159,7 +161,6 @@ inactionRegions_shockNextPeriod = np.zeros(
 cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 inactionRegions_shockNextPeriod[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 valueBaseline = model.valueFunction
-model.interpMat = []
 
 i = 0
 periodsUntilShock = 1
@@ -197,13 +198,6 @@ if SimulateMPCs and MPCsNews:
 	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
 	del model_loan
 
-	# def construct_policy_arrays(params, model0, model1):
-	# 	switching = np.zeros((params.nx,1,params.nz,params.nyP,2))
-	# 	inaction = np.zeros((params.nx,2,params.nz,params.nyP,2))
-
-	# 	switching[:,:,:,:,0] = model0.cSwitchingPolicy[:,:,:,:,0]
-	# 	switching[:,:,:,:,1] = model
-
 #-----------------------------------------------------------#
 #      SHOCK OF -$500 IN 2 YEARS                            #
 #-----------------------------------------------------------#
@@ -211,8 +205,7 @@ cSwitch_shock2Years = np.zeros((params.nx,1,params.nz,params.nyP,2))
 inactionRegions_shock2Years = np.zeros((params.nx,2,params.nz,params.nyP,2))
 
 if SimulateMPCs and MPCsNews:
-	ishock = 2
-	shock = params.MPCshocks[ishock]
+	shock = params.MPCshocks[2]
 	model_shock2Years = solve_back_from_shock(params,
 		income, grids, valueBaseline, shock, 8)
 
