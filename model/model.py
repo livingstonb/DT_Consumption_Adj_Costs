@@ -20,7 +20,7 @@ class Model(CModel):
 
 	def makeValueGuess(self):
 		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
-		denom = (denom < 1e-4) * 1e-3 + (denom >= 1e-4) * denom
+		denom = np.maximum(denom, 1e-3)
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
 			self.grids.x_matrix) / denom
 

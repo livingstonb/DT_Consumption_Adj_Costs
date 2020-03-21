@@ -43,32 +43,44 @@ def create_objects(params, PrintGrids):
 	return (grids, income)
 
 def solve_back_from_shock(params, income, grids,
-	valueNext, shock, periodsUntilShock):
+	valueNext, shockIndices, periodsUntilShock):
 
-	model = ModelWithNews(params, income, grids,
-		valueNext, shock, 1)
-	model.solve()
+	multipleShocks = len(shockIndices) > 1
+	nLast = len(shockIndices) + 1
+	switching = np.zeros(
+		(params.nx,1,params.nz,params.nyP,nLast))
+	inaction = np.zeros(
+		(params.nx,2,params.nz,params.nyP,nLast))
 
-	for ip in range(2, periodsUntilShock+1):
-		model = ModelWithNews(
-			params, income, grids,
-			model.valueFunction, shock, ip)
+	ii = 0
+	for ishock in shockIndices:
+		shock = params.MPCshocks[ishock]
+		model = ModelWithNews(params, income, grids,
+			valueNext, shock, 1)
 		model.solve()
 
-	return model
+		for ip in range(2, periodsUntilShock+1):
+			model = ModelWithNews(
+				params, income, grids,
+				model.valueFunction, shock, ip)
+			model.solve()
+
+		switching[:,:,:,:,ii] = model.cSwitchingPolicy[:,:,:,:,0]
+		inaction[:,:,:,:,ii] = model.inactionRegion[:,:,:,:,0]
+
+		ii += 1
+		del model
+
+	return (switching, inaction)
 
 #---------------------------------------------------------------#
 #      CHOOSE PARAMETERIZATION, SET OPTIONS                     #
 #---------------------------------------------------------------#
-# One of these will be used if no command line arg is passed.
-# If both are set to 'None' and no arg is passed, paramIndex
-# will be set to 0.
-# paramName is favored over paramIndex
-paramIndex = None
-paramName = None
+# Number of parameterization, if not passed at command line
+paramIndex = 0
 
 # Run options
-Calibrate = True # use solver to match targets
+Calibrate = False # use solver to match targets
 Simulate = True
 SimulateMPCs = True
 MPCsNews = True
@@ -82,15 +94,6 @@ MakePlots = False
 indexPassed = set_from_cmd_arg(sys.argv)
 if indexPassed is not None:
 	paramIndex = indexPassed
-	param_kwargs = {'index': paramIndex}
-elif paramIndex is not None:
-	param_kwargs = {'index': paramIndex}
-elif paramName is not None:
-	param_kwargs = {'name': paramName}
-	paramIndex = 0
-else:
-	paramIndex = 0
-	param_kwargs = {'index': paramIndex}
 
 basedir = os.getcwd()
 outdir = os.path.join(basedir, 'output')
@@ -103,7 +106,7 @@ locIncomeProcess = os.path.join(
 #---------------------------------------------------------------#
 #      CREATE PARAMS, GRIDS, AND INCOME OBJECTS                 #
 #---------------------------------------------------------------#
-params_dict = load_calibrations(locIncomeProcess, **param_kwargs)
+params_dict = load_calibrations(locIncomeProcess, index=paramIndex)
 params_dict['fastSettings'] = Fast
 params = Params.Params(params_dict)
 grids, income = create_objects(params, PrintGrids)
@@ -120,7 +123,6 @@ if Calibrate:
 	calibrator = None
 else:
 	model.solve()
-model.interpMat = None
 
 eqSimulator = simulator.EquilibriumSimulator(params, income, grids)
 
@@ -130,6 +132,9 @@ if Simulate:
 	finalSimStates = eqSimulator.finalStates
 else:
 	finalSimStates = []
+
+model.interpMat = None
+valueBaseline = model.valueFunction
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
@@ -150,70 +155,32 @@ if Simulate and SimulateMPCs:
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
 #-----------------------------------------------------------#
 shockIndices_shockNextPeriod = [2,3,4,5]
-currentShockIndices = [6] * len(shockIndices_shockNextPeriod) # 6 is shock of 0
 
-nmodels = len(shockIndices_shockNextPeriod) + 1
-cSwitch_shockNextPeriod = np.zeros(
-	(params.nx,1,params.nz,params.nyP,nmodels))
-inactionRegions_shockNextPeriod = np.zeros(
-	(params.nx,2,params.nz,params.nyP,nmodels))
+cSwitch_shockNextPeriod, inactionRegions_shockNextPeriod = solve_back_from_shock(
+	params, income, grids, valueBaseline, shockIndices_shockNextPeriod, 1)
 
 cSwitch_shockNextPeriod[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 inactionRegions_shockNextPeriod[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
-valueBaseline = model.valueFunction
-
-i = 0
-periodsUntilShock = 1
-for ishock in shockIndices_shockNextPeriod:
-	model_shockNextPeriod = ModelWithNews(
-		params, income, grids,
-		valueBaseline,
-		params.MPCshocks[ishock],
-		periodsUntilShock)
-
-	if SimulateMPCs and MPCsNews:
-		print(f'Solving for shock of {params.MPCshocks[ishock]} next period')
-		model_shockNextPeriod.solve()
-		cSwitch_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.cSwitchingPolicy[:,:,:,:,0]
-		inactionRegions_shockNextPeriod[:,:,:,:,i] = model_shockNextPeriod.inactionRegion[:,:,:,:,0]
-
-	del model_shockNextPeriod
-	i += 1
 
 #-----------------------------------------------------------#
 #      SOLVE FOR 1-YEAR LOAN                                #
 #-----------------------------------------------------------#
-cSwitch_loan = np.zeros((params.nx,1,params.nz,params.nyP,2))
-inactionRegions_loan = np.zeros((params.nx,2,params.nz,params.nyP,2))
-
-
 if SimulateMPCs and MPCsNews:
-	shock = params.MPCshocks[0]
-	model_loan = solve_back_from_shock(params,
-		income, grids, valueBaseline, shock, 4)
+	cSwitch_loan, inactionRegions_loan = solve_back_from_shock(params,
+		income, grids, valueBaseline, [0], 4)
 
-	cSwitch_loan[:,:,:,:,0] = model_loan.cSwitchingPolicy[:,:,:,:,0]
-	cSwitch_loan[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
-	inactionRegions_loan[:,:,:,:,0] = model_loan.inactionRegion[:,:,:,:,0]
-	inactionRegions_loan[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
-	del model_loan
+	cSwitch_loan[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+	inactionRegions_loan[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 
 #-----------------------------------------------------------#
 #      SHOCK OF -$500 IN 2 YEARS                            #
 #-----------------------------------------------------------#
-cSwitch_shock2Years = np.zeros((params.nx,1,params.nz,params.nyP,2))
-inactionRegions_shock2Years = np.zeros((params.nx,2,params.nz,params.nyP,2))
-
 if SimulateMPCs and MPCsNews:
-	shock = params.MPCshocks[2]
-	model_shock2Years = solve_back_from_shock(params,
-		income, grids, valueBaseline, shock, 8)
+	cSwitch_shock2Years, inactionRegions_shock2Years = solve_back_from_shock(
+		params, income, grids, valueBaseline, [2], 8)
 
-	cSwitch_shock2Years[:,:,:,:,0] = model_shock2Years.cSwitchingPolicy[:,:,:,:,0]
-	cSwitch_shock2Years[:,:,:,:,1] = model.cSwitchingPolicy[:,:,:,:,0]
-	inactionRegions_shock2Years[:,:,:,:,0] = model_shock2Years.inactionRegion[:,:,:,:,0]
-	inactionRegions_shock2Years[:,:,:,:,1] = model.inactionRegion[:,:,:,:,0]
-	del model_shock2Years
+	cSwitch_shock2Years[:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+	inactionRegions_shock2Years[:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF NEWS                            #
