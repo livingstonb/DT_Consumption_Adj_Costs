@@ -5,16 +5,16 @@ cimport numpy as np
 from misc.ergodicdist import ergodicdist
 
 cdef class Income:
-	def __init__(self, params, normalize=True):
+	def __init__(self, params, locIncome, normalize=True):
 		self.p = params
 		self.normalize = normalize
 
-		self.readIncome()
+		self.readIncome(locIncome)
 
 		self.createOtherIncomeVariables()
 		
-	def readIncome(self):
-		matFile = loadmat(self.p.locIncomeProcess)
+	def readIncome(self, locIncome):
+		matFile = loadmat(locIncome)
 
 		# persistent component
 		if self.p.noPersIncome:

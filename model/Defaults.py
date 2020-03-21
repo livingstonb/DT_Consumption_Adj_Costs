@@ -6,7 +6,6 @@ def parameters():
 		'name': 'Unnamed',
 		'index': 0,
 		'freq': 4,
-		'locIncomeProcess': '',
 		'nyP': 1,
 		'nyT': 1,
 		'noTransIncome': False,

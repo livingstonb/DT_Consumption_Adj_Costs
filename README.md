@@ -38,17 +38,25 @@ and the compiler produces an unexpected error during an attempt to re-compile.
 
 ## Replicating the experiments in Fuster, Kaplan, and Zafar (2020)
 
-The script *master_replication.py* is provided to solve for the calibrations
-presented in the paper and compute statistics.
-
 ### The calibrations
 
 The desired calibration must be selected prior to running the code.
-This is done in the *CHOOSE CALIBRATION* section in *master_replication.py*.
+This is done in the *CHOOSE REPLICATION* section in *master.py*.
 The parameters specific to each calibration can be viewed in the subsequent
 sections of the script.
-Note than any parameters not explicitly set in *master_replication.py*
-will take their default values, which are declared in *Defaults.py*.
+Note than any parameters not explicitly set in *calibrations.py*
+will take the default values declared in *Defaults.py*.
+
+### Running custom calibrations
+
+To run other calibrations, it is necessary to modify the code in which
+the calibration dictionary is consructed, or write new code for that
+purpose. The calibration dictionaries are created in *calibrations.py*.
+To target a particular statistic via a numerical solver, I've written
+the *Calibrator* class which allows one to set the variables to be varied,
+bounds on those variables, and the target statistics. Note that varying the
+adjustment cost to hit different MPC statistics can be tricky, I suggest
+looking at the settings I used in *load_calibrations* in *calibrations.py*.
 
 ### Output
 

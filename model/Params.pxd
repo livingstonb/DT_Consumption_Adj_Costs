@@ -14,7 +14,7 @@ cdef class Params:
 	quarterly values.
 	"""
 	cdef:
-		public str name, locIncomeProcess
+		public str name
 		public int index, freq, nyP, nyT, nz
 		public long maxIters, nSim, tSim
 		public bint MPCsOutOfNews, Bequests, fastSettings

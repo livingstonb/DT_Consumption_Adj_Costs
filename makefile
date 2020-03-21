@@ -10,7 +10,7 @@ mac:
 	CC=gcc-9 python setup.py build_ext --inplace --build-temp temp
 
 run: all
-	ipython -i master.py
+	python master.py
 
 .PHONY: clean
 

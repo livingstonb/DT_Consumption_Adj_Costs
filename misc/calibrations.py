@@ -3,28 +3,74 @@ import numpy as np
 
 from misc import Calibrator
 
-def load_mean_wealth_replication(adjustCostOn, betaHeterogeneity):
-	meanWealthGridParams = {
-		'xGridTerm1Wt': 0.05,
-		'xGridTerm1Curv': 0.8,
-		'xGridCurv': 0.2,
-		'xMax': 50,
-		'borrowLim': 0,
-		'cMin': 1e-6,
-		'cMax': 5,
-		'cGridTerm1Wt': 0.05,
-		'cGridTerm1Curv': 0.9,
-		'cGridCurv': 0.15,
-	}
+def load_replication(replication):
+	target = replication['target']
+	acost = replication['adjustCostOn']
+	betaHet = replication['betaHeterogeneity']
 
-	###########################################################
-	##### NO ADJUSTMENT COSTS, NO BETA HETEROGENEITY ##########
-	###########################################################
+	if target == 'mean_wealth':
+		params_out = {
+			'xGridTerm1Wt': 0.05,
+			'xGridTerm1Curv': 0.8,
+			'xGridCurv': 0.2,
+			'xMax': 50,
+			'borrowLim': 0,
+			'cMin': 1e-6,
+			'cMax': 5,
+			'cGridTerm1Wt': 0.05,
+			'cGridTerm1Curv': 0.9,
+			'cGridCurv': 0.15,
+		}
+		meanw = True
+	elif target == 'wealth_lt_1000':
+		# Use defaults
+		params_out = dict()
+		meanw = False
 
-	# Target mean wealth
+		if betaHet:
+			msg = 'beta het only calibrated to mean wealth target'
+			raise Exception(msg)
+	else:
+		raise Exception('Invalid entry for target')
 
+	if betaHet:
+		if acost:
+			adjCostQ = 0.0008502
+			betaQ = 0.966602
+		else:
+			adjCostQ = 0
+			betaQ = 0.9666171540419579
+		params_out['discount_factor_grid'] = np.array(
+			[-0.03, 0, 0.03])
+	else:
+		if acost and meanw:
+			adjCostQ = 1.2090215166316641e-05
+			betaQ = 0.9961150556416245
+		elif acost and (not meanw):
+			adjCostQ = 0.00045372243847743637
+			betaQ = 0.9680333619781049
+		elif (not acost) and meanw:
+			adjCostQ = 0
+			betaQ = 0.9961063975124995
+		elif (not acost) and (not meanw):
+			adjCostQ = 0
+			betaQ = 0.968416738581391
 
-def load_calibrations(locIncomeProcess, index=None, name=None):
+	params_out['timeDiscount'] = betaQ ** 4.0
+	params_out['adjustCost'] = adjCostQ * 4.0
+
+	print('Replication chosen:')
+	print(f'\tBeta heterogeneity = {betaHet}')
+	print(f'\tAdjustment cost = {acost}')
+
+	if meanw:
+		print('\tTarget mean wealth')
+	else:
+		print('\tTarget fraction of HHs with w < $1000')
+
+	return params_out
+
+def load_calibration(index=None, name=None):
 	"""
 	This function sets the parameterizations to be passed
 	to a new Params object.
@@ -64,7 +110,6 @@ def load_calibrations(locIncomeProcess, index=None, name=None):
 	# Set shared parameters
 	wealthConstrainedTarget = dict()
 	wealthConstrainedTarget['riskAver'] = 1
-	wealthConstrainedTarget['locIncomeProcess'] = locIncomeProcess
 	wealthConstrainedTarget['timeDiscount'] = (0.96926309097 - beta_w) ** 4.0
 	wealthConstrainedTarget['discount_factor_grid'] = discount_factor_grid
 
@@ -131,7 +176,6 @@ def load_calibrations(locIncomeProcess, index=None, name=None):
 	# Set shared parameters
 	meanWealthTarget = dict()
 	meanWealthTarget['riskAver'] = 1
-	meanWealthTarget['locIncomeProcess'] = locIncomeProcess
 	meanWealthTarget['timeDiscount'] = beta0 ** 4.0
 	meanWealthTarget['xMax'] = 50
 	meanWealthTarget['discount_factor_grid'] = discount_factor_grid
