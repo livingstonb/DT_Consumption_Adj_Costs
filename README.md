@@ -42,8 +42,6 @@ and the compiler produces an unexpected error during an attempt to re-compile.
 
 The desired calibration must be selected prior to running the code.
 This is done in the *CHOOSE REPLICATION* section in *master.py*.
-The parameters specific to each calibration can be viewed in the subsequent
-sections of the script.
 Note than any parameters not explicitly set in *calibrations.py*
 will take the default values declared in *Defaults.py*.
 
