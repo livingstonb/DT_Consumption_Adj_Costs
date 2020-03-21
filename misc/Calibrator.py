@@ -93,7 +93,7 @@ class Calibrator:
 	def optim_handle(self, x_scaled):
 		x = np.copy(x_scaled)
 		for ivar in range(self.nvars):
-			x[ivar] = self.variables[ivar].unscale(x_scaled[ivar])
+			x[ivar] = self.variables[ivar].unscale(x[ivar])
 
 		z = []
 		for ivar in range(self.nvars):

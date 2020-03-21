@@ -1,10 +1,6 @@
 import sys
 import os
-from matplotlib import pyplot as plt
 import numpy as np
-
-from scipy.interpolate import interp1d
-
 import pandas as pd
 
 from model import Params, Income, Grid
@@ -14,8 +10,6 @@ from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
 from model import simulator
 from misc import plots
-
-from IPython.core.debugger import set_trace
 
 #---------------------------------------------------------------#
 #      SET PARAMETERIZATION NUMBER                              #
@@ -44,7 +38,7 @@ else:
 #---------------------------------------------------------------#
 #      OPTIONS                                                  #
 #---------------------------------------------------------------#
-Calibrate = True
+Calibrate = False
 Simulate = True # relevant if Calibrate is False
 SimulateMPCs = True
 MPCsNews = True
@@ -113,8 +107,6 @@ if Simulate:
 else:
 	finalSimStates = []
 
-# plt.plot(eqSimulator.cdf_a[:,0], eqSimulator.cdf_a[:,1])
-
 #-----------------------------------------------------------#
 #      SIMULATE MPCs OUT OF AN IMMEDIATE SHOCK              #
 #-----------------------------------------------------------#
@@ -128,10 +120,6 @@ mpcSimulator = simulator.MPCSimulator(
 
 if Simulate and SimulateMPCs:
 	mpcSimulator.simulate()
-
-# # print(eqSimulator.results.dropna().to_string())
-# print(mpcSimulator.results.dropna().to_string())
-# exit()
 
 #-----------------------------------------------------------#
 #      SOLVE FOR POLICY GIVEN SHOCK NEXT PERIOD             #
@@ -262,8 +250,10 @@ if SimulateMPCs and MPCsNews:
 #-----------------------------------------------------------#
 #      RESULTS                                              #
 #-----------------------------------------------------------#
-# find fractions of households that respond to one, both, or neither of
-# two treatments
+# parameters
+print('\nSelected parameters:\n')
+print(params.series.to_string())
+
 if Simulate:
 	if MPCsNews:
 		otherStatistics.saveWealthGroupStats(
@@ -271,17 +261,15 @@ if Simulate:
 			mpcNewsSimulator_shock2Years, mpcNewsSimulator_loan,
 			finalSimStates, outdir, paramIndex, params)
 
-	# parameters
-	print('\nSelected parameters:\n')
-	print(params.series.to_string())
-
 	# put main results into a Series
 	print('\nResults from simulation:\n')
 	print(eqSimulator.results.dropna().to_string())
 
+if SimulateMPCs:
 	print('\nMPCS:\n')
 	print(mpcSimulator.results.dropna().to_string())
 
+if MPCsNews:
 	print('\nMPCS out of news:\n')
 	print(mpcNewsSimulator_shockNextPeriod.results.dropna().to_string())
 
@@ -289,32 +277,32 @@ if Simulate:
 	print(mpcNewsSimulator_shock2Years.results.dropna().to_string())
 	print(mpcNewsSimulator_loan.results.dropna().to_string())
 
-	name_series = pd.Series({'Experiment':params.name})
-	index_series = pd.Series({'Index':params.index})
-	results = pd.concat([	name_series,
-							index_series,
-							params.series, 
-							eqSimulator.results.dropna(),
-							mpcSimulator.results.dropna(),
-							mpcNewsSimulator_shockNextPeriod.results.dropna(),
-							mpcNewsSimulator_shock2Years.results.dropna(),
-							mpcNewsSimulator_loan.results.dropna(),
-							])
+name_series = pd.Series({'Experiment':params.name})
+index_series = pd.Series({'Index':params.index})
+results = pd.concat([	name_series,
+						index_series,
+						params.series, 
+						eqSimulator.results.dropna(),
+						mpcSimulator.results.dropna(),
+						mpcNewsSimulator_shockNextPeriod.results.dropna(),
+						mpcNewsSimulator_shock2Years.results.dropna(),
+						mpcNewsSimulator_loan.results.dropna(),
+						])
 
-	savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
-	results.to_pickle(savepath)
+savepath = os.path.join(outdir,f'run{paramIndex}.pkl')
+results.to_pickle(savepath)
 
-	savepath = os.path.join(outdir,f'run{paramIndex}_statistics.csv')
-	results.to_csv(savepath, index_label=params.name, header=True)
+savepath = os.path.join(outdir,f'run{paramIndex}_statistics.csv')
+results.to_csv(savepath, index_label=params.name, header=True)
 
-	mpcs_table = mpcsTable.create(params, mpcSimulator, 
-		mpcNewsSimulator_shockNextPeriod,
-		mpcNewsSimulator_shock2Years,
-		mpcNewsSimulator_loan,
-		)
-	savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.csv')
-	# mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
-	mpcs_table.to_csv(savepath, index_label=params.name, header=True)
+mpcs_table = mpcsTable.create(params, mpcSimulator, 
+	mpcNewsSimulator_shockNextPeriod,
+	mpcNewsSimulator_shock2Years,
+	mpcNewsSimulator_loan,
+	)
+savepath = os.path.join(outdir,f'run{paramIndex}_mpcs_table.csv')
+# mpcs_table.to_excel(savepath, freeze_panes=(0,0), index_label=params.name)
+mpcs_table.to_csv(savepath, index_label=params.name, header=True)
 
 #-----------------------------------------------------------#
 #      PLOTS                                                #
