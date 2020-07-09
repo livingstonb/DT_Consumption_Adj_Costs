@@ -14,7 +14,6 @@ The user must have Python 3 with the following packages:
 
 * matplotlib
 * scipy
-* itertools
 * pandas
 * numpy
 * distutils
