@@ -242,12 +242,6 @@ class EquilibriumSimulator(Simulator):
 		print(f"Mean wealth = {self.results['Mean wealth']}")
 
 class MPCSimulator(Simulator):
-	"""
-	This class is used to simulate MPCs.
-
-	finalStates contains the stationary distribution from simulating
-	the original solved model.
-	"""
 	def __init__(self, params, income, grids, shockIndices):
 		super().__init__(params, income, grids, 4)
 

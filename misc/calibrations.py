@@ -41,7 +41,7 @@ def load_replication(replication):
 			adjCostQ = 0
 			betaQ = 0.9666171540419579
 		params_out['discount_factor_grid'] = np.array(
-			[-0.03, 0, 0.03])
+			[-0.032, 0, 0.032])
 	else:
 		if acost and meanw:
 			adjCostQ = 1.2090215166316641e-05
@@ -237,7 +237,7 @@ def load_calibration(index=None, name=None):
 	ii += 1
 
 	#-----------------------------------------------------#
-	#        CREATE PARAMS OBJECT, DO NOT CHANGE          #
+	#        DO NOT CHANGE                                #
 	#-----------------------------------------------------#
 	if index_adj is not None:
 		chosenParameters = paramsDicts[index_adj]

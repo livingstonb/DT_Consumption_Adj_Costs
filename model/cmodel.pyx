@@ -29,7 +29,12 @@ cdef class CModel:
 		public Params p
 		public Income income
 		public Grid grids
-		public double[:] xgrid_curr, xgrid_next
+
+		# xgrid for this period
+		public double[:] xgrid_curr
+
+		# xgrid for next period
+		public double[:] xgrid_next
 
 		# value of the shock next period, used for MPCs out of news
 		public double nextMPCShock
@@ -43,8 +48,8 @@ cdef class CModel:
 		# value functions
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
 
-		# EMAX and next period's EMAX
-		public double[:,:,:,:] EMAX, EMAXnext
+		# EMAX
+		public double[:,:,:,:] EMAX
 
 		# Number of valid consumption points at each x
 		long[:] validConsumptionPts
@@ -56,19 +61,13 @@ cdef class CModel:
 		# excess value from switching
 		public object valueDiff, willSwitch, cChosen
 
-		# policy function for c, conditional on switching
+		# policy functions
 		public object cSwitchingPolicy, inactionRegion
 
+		# sparse matrix for computing EMAX via interpolation
 		public object interpMat
 
 	def __init__(self, params, income, grids):
-		"""
-		Class constructor
-
-		Parameters
-		----------
-		params : a Params object containing the model parameters
-		"""
 		self.p = params
 		self.grids = grids
 		self.income = income
@@ -81,8 +80,8 @@ cdef class CModel:
 	def constructInterpolantForEMAX(self):
 		"""
 		This method constructs the sparse matrix A such that
-		EMAX(x,c,z,yP) = A * E[V(R(x-c),c,z',yP')|z,yP] where
-		the expectation on the right is a flattened vector.
+		EMAX(x,c,z,yP) := E[V(R(x-c)+yP'*yT'+tau,c,z',yP')|z,yP] = A * V
+		where V is the flattened value function.
 		"""
 		cdef:
 			long ix, length
@@ -195,11 +194,10 @@ cdef class CModel:
 		"""
 		cdef:
 			long iyP, ix, ii, iz, ic
-			double xval, maxAdmissibleC, cSwitch, dst
+			double xval, maxAdmissibleC, cSwitch
 			double[:] emaxVec, yderivs
 			double[:] cVals, funVals, bounds
 			double gssResults[2]
-			double cOptimal, vOptimal
 			long iOptimal
 			bint inactionFound
 			double inactionPoints[2]
@@ -263,7 +261,6 @@ cdef class CModel:
 				
 				xval = self.xgrid_curr[ix]
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
-				dst = maxAdmissibleC - self.p.cMin
 
 				if not final:
 					cfunctions.linspace(self.p.cMin, maxAdmissibleC,

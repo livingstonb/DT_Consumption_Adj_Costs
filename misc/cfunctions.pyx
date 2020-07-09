@@ -20,9 +20,6 @@ cdef inline double utility(double riskaver, double con) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
-	"""
-	A faster version of searchSortedSingleInput, uses a bisection algorithm.
-	"""
 	cdef long lower, upper, midpt = 0
 	cdef double valMidpt = 0.0
 

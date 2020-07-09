@@ -21,7 +21,7 @@ def set_from_cmd_arg(cmd_line_args):
 #      CHOOSE RUN OPTIONS                                       #
 #---------------------------------------------------------------#
 runOptions = dict()
-runOptions['Calibrate'] = False # use solver to match targets
+runOptions['Calibrate'] = False # not for replication materials
 runOptions['Simulate'] = True
 runOptions['SimulateMPCs'] = True
 runOptions['MPCsNews'] = True

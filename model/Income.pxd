@@ -1,16 +1,6 @@
 from Params cimport Params
 
 cdef class Income:
-	"""
-	This class stores income variables.
-
-	Mean annual income is normalized to 1 by
-	normalizing persistent income to have mean
-	1 and transitory income to have mean 1 if
-	frequency is annual and 1/4 if frequency
-	is quarterly.
-	"""
-
 	cdef:
 		Params p
 		public long nyP, nyT

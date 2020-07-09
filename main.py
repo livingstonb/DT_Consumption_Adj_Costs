@@ -29,11 +29,14 @@ def create_objects(params, locIncome, PrintGrids):
 	return (grids, income)
 
 def solve_back_from_shock(params, income, grids,
-	valueNext, shockIndices, periodsUntilShock):
+	valueNext, shockIndices, periodsUntilShock,
+	baselineSwitch, baselineInaction):
 	"""
 	Solves for the consumption function given a future
 	shock, backward starting from the period immediately
-	prior to the shock.
+	prior to the shock. Sets the policy functions a the
+	end of the last dimension to the baseline policy
+	functions.
 	"""
 	multipleShocks = len(shockIndices) > 1
 	nLast = len(shockIndices) + 1
@@ -65,6 +68,9 @@ def solve_back_from_shock(params, income, grids,
 
 		ii += 1
 		del model
+
+	switching[:,:,:,:,nLast-1] = baselineSwitch[:,:,:,:,0]
+	inaction[:,:,:,:,nLast-1] = baselineInaction[:,:,:,:,0]
 
 	return (switching, inaction)
 
@@ -162,7 +168,8 @@ def main(paramIndex=None, runopts=None, replication=None):
 	news['cSwitch'], news['inactionRegions'] \
 		= solve_back_from_shock(params, income, grids,
 			valueBaseline, news['shockIndices'],
-			news['periodsUntilShock'])
+			news['periodsUntilShock'],
+			model.cSwitchingPolicy, model.inactionRegion)
 
 	news['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
 	news['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
@@ -179,10 +186,8 @@ def main(paramIndex=None, runopts=None, replication=None):
 		loan['cSwitch'], loan['inactionRegions'] = \
 			solve_back_from_shock(params, income, grids,
 				valueBaseline, loan['shockIndices'],
-				loan['periodsUntilShock'])
-
-		loan['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-		loan['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+				loan['periodsUntilShock'],
+				model.cSwitchingPolicy, model.inactionRegion)
 
 	#-----------------------------------------------------------#
 	#      SHOCK OF -$500 IN 2 YEARS                            #
@@ -193,13 +198,12 @@ def main(paramIndex=None, runopts=None, replication=None):
 	loss2years['periodsUntilShock'] = 8
 
 	if SimulateMPCs and MPCsNews:
+		print('Solving for policy functions given future shock')
 		loss2years['cSwitch'], loss2years['inactionRegions'] = \
 			solve_back_from_shock(params, income, grids,
 				valueBaseline, loss2years['shockIndices'],
-				loss2years['periodsUntilShock'])
-
-		loss2years['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-		loss2years['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+				loss2years['periodsUntilShock'],
+				model.cSwitchingPolicy, model.inactionRegion)
 
 	#-----------------------------------------------------------#
 	#      SIMULATE MPCs OUT OF NEWS                            #
@@ -220,9 +224,9 @@ def main(paramIndex=None, runopts=None, replication=None):
 				*sim_args, periodsUntilShock=newsModel['periodsUntilShock'])
 
 		if SimulateMPCs and MPCsNews:
+			print('Simulating MPCs out of news')
 			newsModel['simulator'].initialize(
-				newsModel['cSwitch'],
-				newsModel['inactionRegions'],
+				newsModel['cSwitch'], newsModel['inactionRegions'],
 				finalSimStates)
 			newsModel['simulator'].simulate()
 
@@ -236,11 +240,11 @@ def main(paramIndex=None, runopts=None, replication=None):
 	print(params.series.to_string())
 
 	if Simulate:
-		if MPCsNews:
-			otherStatistics.saveWealthGroupStats(
-				mpcSimulator, news['simulator'],
-				loss2years['simulator'], loan['simulator'],
-				finalSimStates, outdir, paramIndex, params)
+		# if MPCsNews:
+		# 	otherStatistics.saveWealthGroupStats(
+		# 		mpcSimulator, news['simulator'],
+		# 		loss2years['simulator'], loan['simulator'],
+		# 		finalSimStates, outdir, paramIndex, params)
 
 		# put main results into a Series
 		print('\nResults from simulation:\n')
