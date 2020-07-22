@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from itertools import combinations
 import os
 
 def saveWealthGroupStats(mpcSimulator, mpcNewsSimulator_shockNextPeriod,

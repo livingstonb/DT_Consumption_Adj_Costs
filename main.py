@@ -240,11 +240,11 @@ def main(paramIndex=None, runopts=None, replication=None):
 	print(params.series.to_string())
 
 	if Simulate:
-		# if MPCsNews:
-		# 	otherStatistics.saveWealthGroupStats(
-		# 		mpcSimulator, news['simulator'],
-		# 		loss2years['simulator'], loan['simulator'],
-		# 		finalSimStates, outdir, paramIndex, params)
+		if MPCsNews:
+			otherStatistics.saveWealthGroupStats(
+				mpcSimulator, news['simulator'],
+				loss2years['simulator'], loan['simulator'],
+				finalSimStates, outdir, paramIndex, params)
 
 		# put main results into a Series
 		print('\nResults from simulation:\n')
