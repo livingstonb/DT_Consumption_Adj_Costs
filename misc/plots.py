@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
 import os
+from scipy import interpolate
 
 def plot_policies(model, grids, params, pnum, outdir):
 	cPolicy = model.cChosen
@@ -121,6 +122,36 @@ def plot_mpcs(model, grids, params):
 			ax[row,col].set_title(f'{xvals[i]:.3g} <= x < {xvals[i+1]:.3g}')
 			ax[row,col].set_xlabel('state c')
 			ax[row,col].set_ylabel('MPC out of 0.01')
+			i += 1
+
+	plt.show()
+
+def compare_policies(grids, switching_baseline, switching_news):
+	fig, ax = plt.subplots(nrows=2,ncols=2)
+	fig.suptitle('Desired consumption for GAIN and NEWS-GAIN')
+
+	xgrid = np.asarray(grids.x_flat)
+	iyPs = [2, 4, 6, 8]
+
+	i = 0
+	for row in range(2):
+		for col in range(2):
+
+			iyP = iyPs[i]
+
+			# Interpolants
+			c_baseline = np.asarray(switching_baseline)[:,0,0,iyP].flatten()
+			policy_b = interpolate.interp1d(xgrid, c_baseline, fill_value="extrapolate")
+
+			c_news = np.asarray(switching_news)[:,0,0,iyP].flatten()
+			policy_n = interpolate.interp1d(xgrid, c_news, fill_value="extrapolate")
+
+			ax[row,col].scatter(xgrid, policy_b(xgrid + 0.0081))
+			ax[row,col].scatter(xgrid, c_news)
+			# ax[row,col].set_title(f'x = {xvals[i]}')
+			ax[row,col].legend(['Immediate shock', 'Shock in one quarter'])
+			ax[row,col].set_xlabel('x, cash-on-hand')
+			ax[row,col].set_ylabel('c, desired consumption')
 			i += 1
 
 	plt.show()

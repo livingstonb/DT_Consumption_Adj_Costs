@@ -310,6 +310,11 @@ cdef class CModel:
 			self.inactionRegion = self.inactionRegion.reshape(
 				(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
 
+	# @cython.boundscheck(False)
+	# @cython.wraparound(False)
+	# def findInactionRegion(self):
+		
+
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void setFnArgs(self, FnArgs *fargs, double *emaxvec, long iyP,

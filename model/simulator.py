@@ -253,8 +253,8 @@ class MPCSimulator(Simulator):
 
 	def initialize(self, cSwitchingPolicies, inactionRegions,
 		finalStates):
-		self.cSwitchingPolicy = cSwitchingPolicies
-		self.inactionRegion = inactionRegions
+		self.cSwitchingPolicy = cSwitchingPolicies.copy()
+		self.inactionRegion = inactionRegions.copy()
 
 		self.borrowLimsCurr = [self.p.borrowLim] * self.nCols
 		self.xgridCurr = [self.grids.x_flat] * self.nCols
@@ -263,7 +263,7 @@ class MPCSimulator(Simulator):
 		self.initialize_variables()
 		self.initialized = True
 
-	def simulate(self, ):
+	def simulate(self):
 		np.random.seed(1991)
 		if not self.initialized:
 			raise Exception ('Simulator not initialized')
@@ -455,6 +455,8 @@ class MPCSimulatorNews(MPCSimulator):
 		self.inactionRegion = self.inactions[:,:,:,:,:,remPeriods]
 
 	def applyShocks(self):
+		super().applyShocks()
+
 		if self.t == self.periodsUntilShock + 1:
 			col = 0
 			for ishock in self.futureShockIndices:

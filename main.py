@@ -179,8 +179,13 @@ def main(paramIndex=None, runopts=None, replication=None):
 			news['periodsUntilShock'],
 			model.cSwitchingPolicy, model.inactionRegion)
 
-	# news['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-	# news['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+	#-----------------------------------------------------------#
+	#      INTERMEDIATE PLOTS                                   #
+	#-----------------------------------------------------------#
+	switching_baseline = np.asarray(model.cSwitchingPolicy)
+	switching_news = np.asarray(news['cSwitch'])[:,:,:,:,3,1]
+
+	plots.compare_policies(grids, switching_baseline, switching_news)
 
 	#-----------------------------------------------------------#
 	#      SOLVE FOR 1-YEAR LOAN                                #

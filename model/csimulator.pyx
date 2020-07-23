@@ -35,7 +35,7 @@ cdef class CSimulator:
 		self.income = income
 		self.grids = grids
 
-		self.periodsBeforeRedraw = np.minimum(simPeriods, 10)
+		self.periodsBeforeRedraw = 10
 
 		self.nSim = params.nSim
 		self.T = simPeriods
@@ -58,8 +58,6 @@ cdef class CSimulator:
 			double[:] risk_aver_grid
 			double deathProb, adjustCost, blim
 			long modelNum
-
-		conIndices = np.zeros((self.nSim))
 			
 		cgrid = self.grids.c_flat
 		nc = self.p.nc
@@ -118,7 +116,7 @@ cdef class CSimulator:
 				switch = False
 
 		if switch:
-			if cash < blim:
+			if cash <= blim:
 				self.csim_adj[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
 					-(xgrid[0] - cash)
