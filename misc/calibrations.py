@@ -35,7 +35,7 @@ def load_replication(replication):
 
 	if betaHet:
 		if acost:
-			adjCostQ = 0.0008502
+			adjCostQ = 0.0009
 			betaQ = 0.966602
 		else:
 			adjCostQ = 0
@@ -45,9 +45,9 @@ def load_replication(replication):
 	else:
 		if acost and meanw:
 			adjCostQ = 1.2090215166316641e-05
-			betaQ = 0.9961150556416245
+			betaQ = 0.9961070556416245
 		elif acost and (not meanw):
-			adjCostQ = 0.00045372243847743637
+			adjCostQ = 0.00042572243847743637
 			betaQ = 0.9680333619781049
 		elif (not acost) and meanw:
 			adjCostQ = 0

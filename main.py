@@ -171,8 +171,8 @@ def main(paramIndex=None, runopts=None, replication=None):
 			news['periodsUntilShock'],
 			model.cSwitchingPolicy, model.inactionRegion)
 
-	news['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
-	news['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
+	# news['cSwitch'][:,:,:,:,-1] = model.cSwitchingPolicy[:,:,:,:,0]
+	# news['inactionRegions'][:,:,:,:,-1] = model.inactionRegion[:,:,:,:,0]
 
 	#-----------------------------------------------------------#
 	#      SOLVE FOR 1-YEAR LOAN                                #
