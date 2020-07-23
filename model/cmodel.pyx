@@ -273,7 +273,7 @@ cdef class CModel:
 					if not final:
 						for ii in range(self.p.nSectionsGSS):
 							cfunctions.goldenSectionSearch(iteratorFn, bounds[ii],
-								bounds[ii+1], 1e-8, &gssResults[0], fargs)
+								bounds[ii+1], 1e-10, &gssResults[0], fargs)
 							funVals[ii] = gssResults[0]
 							cVals[ii] = gssResults[1]
 
@@ -340,7 +340,7 @@ cdef class CModel:
 	
 		if fargs.ncValid == 1:
 			emax = fargs.emaxVec[0]
-		elif fargs.ncValid  < 4:
+		elif fargs.ncValid < 4:
 			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch,
 				fargs.ncValid, &indices[0], &weights[0])
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
@@ -400,7 +400,7 @@ cdef class CModel:
 			# Look between these points for a no-switching point
 			iteratorFn = <objectiveFn> self.findValueAtState
 			cfunctions.goldenSectionSearch(iteratorFn, cCheck[0],
-				cCheck[1], 1e-8, &gssResults[0], fargs)
+				cCheck[1], 1e-10, &gssResults[0], fargs)
 
 			if gssResults[0] >= vSwitch:
 				inactionPoints[0] = gssResults[1]
@@ -415,9 +415,9 @@ cdef class CModel:
 		double bound, double vSwitch, FnArgs fargs):
 
 		cdef:
-			double vNoSwitch, tol = 1e-9
+			double vNoSwitch, tol = 1e-10
 			double xb, xg, xm
-			long maxIters = long(1e5)
+			long maxIters = long(1e6)
 			long it = 0
 
 		xb = x0

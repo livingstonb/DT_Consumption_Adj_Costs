@@ -70,7 +70,7 @@ class Model(CModel):
 
 		self.doComputations()
 
-		# compute c-policy function conditional on switching
+		# find inaction region
 		self.maximizeValueFromSwitching(final=True)
 
 		if not oneIter:

@@ -38,12 +38,12 @@ def solve_back_from_shock(params, income, grids,
 	end of the last dimension to the baseline policy
 	functions.
 	"""
-	multipleShocks = len(shockIndices) > 1
 	nLast = len(shockIndices) + 1
+
 	switching = np.zeros(
-		(params.nx,1,params.nz,params.nyP,nLast))
+		(params.nx,1,params.nz,params.nyP,nLast,periodsUntilShock+1))
 	inaction = np.zeros(
-		(params.nx,2,params.nz,params.nyP,nLast))
+		(params.nx,2,params.nz,params.nyP,nLast,periodsUntilShock+1))
 
 	ii = 0
 	for ishock in shockIndices:
@@ -53,6 +53,9 @@ def solve_back_from_shock(params, income, grids,
 			valueNext, shock, 1)
 		model.solve()
 
+		switching[:,:,:,:,ii,1] = model.cSwitchingPolicy[:,:,:,:,0]
+		inaction[:,:,:,:,ii,1] = model.inactionRegion[:,:,:,:,0]
+
 		# Now iterate backward, starting at two periods
 		# before the shock
 		for ip in range(2, periodsUntilShock+1):
@@ -61,16 +64,21 @@ def solve_back_from_shock(params, income, grids,
 				model.valueFunction, shock, ip)
 			model.solve()
 
-		# Set output arrays to the policy functions associated
-		# with this shock
-		switching[:,:,:,:,ii] = model.cSwitchingPolicy[:,:,:,:,0]
-		inaction[:,:,:,:,ii] = model.inactionRegion[:,:,:,:,0]
+			# Set output arrays to the policy functions associated
+			# with this shock
+			switching[:,:,:,:,ii,ip] = model.cSwitchingPolicy[:,:,:,:,0]
+			inaction[:,:,:,:,ii,ip] = model.inactionRegion[:,:,:,:,0]
 
 		ii += 1
 		del model
 
-	switching[:,:,:,:,nLast-1] = baselineSwitch[:,:,:,:,0]
-	inaction[:,:,:,:,nLast-1] = baselineInaction[:,:,:,:,0]
+	for ip in range(0, periodsUntilShock+1):
+		switching[:,:,:,:,nLast-1,ip] = baselineSwitch[:,:,:,:,0]
+		inaction[:,:,:,:,nLast-1,ip] = baselineInaction[:,:,:,:,0]
+
+	for ii in range(0, nLast):
+		switching[:,:,:,:,ii,0] = baselineSwitch[:,:,:,:,0]
+		inaction[:,:,:,:,ii,0] = baselineInaction[:,:,:,:,0]
 
 	return (switching, inaction)
 
@@ -216,7 +224,11 @@ def main(paramIndex=None, runopts=None, replication=None):
 			newsModel['currentShockIndices'],
 		]
 
-		if ii == 1:
+		if ii == 0:
+			newsModel['simulator'] = simulator.MPCSimulatorNews(
+				*sim_args, periodsUntilShock=newsModel['periodsUntilShock'],
+				simPeriods=4)
+		elif ii == 1:
 			newsModel['simulator'] = simulator.MPCSimulatorNews_Loan(
 				*sim_args, periodsUntilShock=newsModel['periodsUntilShock'])
 		else:

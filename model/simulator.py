@@ -271,12 +271,15 @@ class MPCSimulator(Simulator):
 		while self.t <= self.T:
 
 			print(f'    Simulating MPCs, quarter {self.t}')
+			self.updatePolicies()
 
 			if self.t > 1:
 				# assets and income should already be initialized
 				self.updateAssets()
 				self.updateIncome()
 				self.updateCash()
+
+			self.applyShocks()
 
 			self.updateCashGrids()
 			self.solveDecisions()
@@ -296,6 +299,9 @@ class MPCSimulator(Simulator):
 	def updateCashGrids(self):
 		pass
 
+	def updatePolicies(self):
+		pass
+
 	def initialize_variables(self):
 		self.xsim = np.repeat(self.finalStates['xsim'],self.nCols,axis=1)
 		self.csim = np.repeat(self.finalStates['csim'],self.nCols,axis=1)
@@ -303,14 +309,16 @@ class MPCSimulator(Simulator):
 		self.yPind = self.finalStates['yPind'].copy()
 		self.zind = self.finalStates['zind'].copy()
 
-		col = 0
-		for ishock in self.shockIndices:
-			self.xsim[:,col] = np.asarray(self.xsim[:,col]) + self.p.MPCshocks[ishock]
-			col += 1
-
 		self.makeRandomDraws()
 
 		self.cumResponse = np.zeros((self.nSim,len(self.shockIndices)))
+
+	def applyShocks(self):
+		if self.t == 1:
+			col = 0
+			for ishock in self.shockIndices:
+				self.xsim[:,col] = np.asarray(self.xsim[:,col]) + self.p.MPCshocks[ishock]
+				col += 1
 
 	def initialize_results(self):
 		# statistics to compute very period
@@ -400,7 +408,7 @@ class MPCSimulator(Simulator):
 
 class MPCSimulatorNews(MPCSimulator):
 	def __init__(self, params, income, grids, futureShockIndices, 
-		currentShockIndices, periodsUntilShock=1):
+		currentShockIndices, periodsUntilShock=1, simPeriods=1):
 		self.futureShockIndices = futureShockIndices
 		self.periodsUntilShock = periodsUntilShock
 
@@ -408,11 +416,12 @@ class MPCSimulatorNews(MPCSimulator):
 		
 		self.nCols = len(futureShockIndices) + 1
 		self.news = True
+		self.T = simPeriods
 
 	def initialize(self, cSwitchingPolicies, inactionRegions,
 		finalStates):
-		self.cSwitchingPolicy = cSwitchingPolicies
-		self.inactionRegion = inactionRegions
+		self.policies = cSwitchingPolicies
+		self.inactions = inactionRegions
 		self.finalStates = finalStates
 
 		ymin = self.income.ymin + self.p.govTransfer
@@ -423,17 +432,34 @@ class MPCSimulatorNews(MPCSimulator):
 				ymin, self.p.borrowLim, self.p.R, self.periodsUntilShock))
 		self.borrowLims.append([self.p.borrowLim] * self.periodsUntilShock)
 
-		self.T = 1
 		self.initialize_variables()
 		self.initialized = True
 
 	def updateCashGrids(self):
-		self.xgridCurr = [None] * self.nCols
-		self.borrowLimsCurr = [None] * self.nCols
-		for col in range(self.nCols):
-			self.borrowLimsCurr[col] = self.borrowLims[col].pop()
-			self.xgridCurr[col] = np.asarray(self.grids.x_flat) \
-				+ (self.borrowLimsCurr[col] - self.p.borrowLim)
+		if self.t < self.periodsUntilShock + 1:
+			self.xgridCurr = [None] * self.nCols
+			self.borrowLimsCurr = [None] * self.nCols
+			for col in range(self.nCols):
+				self.borrowLimsCurr[col] = self.borrowLims[col].pop()
+				self.xgridCurr[col] = np.asarray(self.grids.x_flat) \
+					+ (self.borrowLimsCurr[col] - self.p.borrowLim)
+		else:
+			for col in range(self.nCols):
+				self.borrowLimsCurr[col] = self.p.borrowLim
+				self.xgridCurr[col] = np.asarray(self.grids.x_flat)
+
+	def updatePolicies(self):
+		remPeriods = np.maximum(self.periodsUntilShock + 1 - self.t, 0)
+
+		self.cSwitchingPolicy = self.policies[:,:,:,:,:,remPeriods]
+		self.inactionRegion = self.inactions[:,:,:,:,:,remPeriods]
+
+	def applyShocks(self):
+		if self.t == self.periodsUntilShock + 1:
+			col = 0
+			for ishock in self.futureShockIndices:
+				self.xsim[:,col] = np.asarray(self.xsim[:,col]) + self.p.MPCshocks[ishock]
+				col += 1
 
 	def initialize_results(self):
 		# statistics to compute very period
@@ -441,16 +467,14 @@ class MPCSimulatorNews(MPCSimulator):
 		rows = []
 		for ishock in range(6):
 			shock = self.p.MPCshocks[ishock]
-			for quarter in range(1,2):
+			for quarter in range(1,self.T+1):
 				rows.append(f'E[Q{quarter} MPC] out of news of {shock} shock in {self.periodsUntilShock} quarter(s)')
 				rows.append(f'E[Q{quarter} MPC | MPC > 0] out of news of {shock} shock in {self.periodsUntilShock} quarter(s)')
 				rows.append(f'Median(Q{quarter} MPC | MPC > 0) out of news of {shock} shock in {self.periodsUntilShock} quarter(s)')
 
-		for ishock in range(6):
-			shock = self.p.MPCshocks[ishock]
-			rows.append(f'P(Q1 MPC < 0) for news of {shock} shock in {self.periodsUntilShock} quarter(s)')
-			rows.append(f'P(Q1 MPC = 0) for news of {shock} shock in {self.periodsUntilShock} quarter(s)')
-			rows.append(f'P(Q1 MPC > 0) for news of {shock} shock in {self.periodsUntilShock} quarter(s)')
+				rows.append(f'P(Q{quarter} MPC < 0) for news of {shock} shock in {self.periodsUntilShock} quarter(s)')
+				rows.append(f'P(Q{quarter} MPC = 0) for news of {shock} shock in {self.periodsUntilShock} quarter(s)')
+				rows.append(f'P(Q{quarter} MPC > 0) for news of {shock} shock in {self.periodsUntilShock} quarter(s)')
 
 		for row in rows:
 			self.results[row] = np.nan
@@ -459,13 +483,12 @@ class MPCSimulatorNews(MPCSimulator):
 		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
 
 	def computeTransitionStatistics(self):
-		quarter = 1
 		ii = 0
 		for ishock in self.futureShockIndices:
 			futureShock = self.p.MPCshocks[ishock]
-			rowQuarterly = f'E[Q{quarter} MPC] out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
-			rowQuarterlyCond = f'E[Q{quarter} MPC | MPC > 0] out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
-			rowQuarterlyCondMedian = f'Median(Q{quarter} MPC | MPC > 0) out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
+			rowQuarterly = f'E[Q{self.t} MPC] out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
+			rowQuarterlyCond = f'E[Q{self.t} MPC | MPC > 0] out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
+			rowQuarterlyCondMedian = f'Median(Q{self.t} MPC | MPC > 0) out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
 
 			csimQuarter = np.asarray(self.csim_adj[:,ii])
 
@@ -484,13 +507,13 @@ class MPCSimulatorNews(MPCSimulator):
 			respondentsQ = allMPCS > 0
 			respondentsQ_neg = allMPCS < 0
 			nonRespondents = (allMPCS == 0)
-			if self.t == 1:
-				rowRespondentsQuarterly = f'P(Q1 MPC < 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
-				self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
-				rowRespondentsQuarterly = f'P(Q1 MPC = 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
-				self.results[rowRespondentsQuarterly] =  nonRespondents.mean()
-				rowRespondentsQuarterly = f'P(Q1 MPC > 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
-				self.results[rowRespondentsQuarterly] = respondentsQ.mean()
+	
+			rowRespondentsQuarterly = f'P(Q{self.t} MPC < 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
+			self.results[rowRespondentsQuarterly] = respondentsQ_neg.mean()
+			rowRespondentsQuarterly = f'P(Q{self.t} MPC = 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
+			self.results[rowRespondentsQuarterly] = nonRespondents.mean()
+			rowRespondentsQuarterly = f'P(Q{self.t} MPC > 0) for news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
+			self.results[rowRespondentsQuarterly] = respondentsQ.mean()
 		
 			ii += 1
 
