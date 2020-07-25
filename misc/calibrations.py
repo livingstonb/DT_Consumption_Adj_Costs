@@ -179,7 +179,7 @@ def load_calibration(index):
 		params['cGridCurv'] = 0.15
 
 		timeDiscount_variable = Calibrator.OptimVariable(
-			'timeDiscount', [0.99 - 0.32, 0.9995 - 0.32],
+			'timeDiscount', [0.99 - 0.032, 0.9995 - 0.032],
 			beta0, scale=0.2)
 
 		meanWealth_target = Calibrator.OptimTarget(
