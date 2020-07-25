@@ -170,7 +170,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#-----------------------------------------------------------#
 	news = dict()
 	news['shockIndices'] = [2,3,4,5]
-	news['currentShockIndices'] = [6] * 4
+	news['currentShockIndices'] = [6,6,6,6]
 	news['periodsUntilShock'] = 1
 
 	news['cSwitch'], news['inactionRegions'] \
@@ -182,10 +182,10 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#-----------------------------------------------------------#
 	#      INTERMEDIATE PLOTS                                   #
 	#-----------------------------------------------------------#
-	switching_baseline = np.asarray(model.cSwitchingPolicy)
-	switching_news = np.asarray(news['cSwitch'])[:,:,:,:,3,1]
+	# switching_baseline = np.asarray(model.cSwitchingPolicy)
+	# switching_news = np.asarray(news['cSwitch'])[:,:,:,:,3,1]
 
-	plots.compare_policies(grids, switching_baseline, switching_news)
+	# plots.compare_policies(grids, switching_baseline, switching_news)
 
 	#-----------------------------------------------------------#
 	#      SOLVE FOR 1-YEAR LOAN                                #

@@ -58,7 +58,7 @@ cdef class CSimulator:
 			double[:] risk_aver_grid
 			double deathProb, adjustCost, blim
 			long modelNum
-			
+		
 		cgrid = self.grids.c_flat
 		nc = self.p.nc
 		nx = self.p.nx
@@ -119,9 +119,9 @@ cdef class CSimulator:
 			if cash <= blim:
 				self.csim_adj[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
-					-(xgrid[0] - cash)
+					+ (xgrid[0] - cash)
 				self.csim[i,col] = self.cSwitchingPolicy[0,0,iz,iyP,modelNum]
-				self.xsim[i,col] = xgrid[0]
+				# self.xsim[i,col] = xgrid[0]
 			else:
 				copt = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
 					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]

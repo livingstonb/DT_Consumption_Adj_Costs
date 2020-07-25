@@ -186,23 +186,10 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	def maximizeValueFromSwitching(self, final=False):
-		"""
-		Updates valueSwitch via a maximization over u(c) + beta * EMAX(c)
-		at each point in the (x,z,yP)-space by computing u(c) and interpolating 
-		EMAX(c) at each iteration.
-		"""
+	def evaluateSwitching(self, final=False):
 		cdef:
-			long iyP, ix, ii, iz, ic
-			double xval, maxAdmissibleC, cSwitch
 			double[:] emaxVec, yderivs
-			double[:] cVals, funVals, bounds
-			double gssResults[2]
-			long iOptimal
-			bint inactionFound
-			double inactionPoints[2]
 			FnArgs fargs
-			objectiveFn iteratorFn
 
 		fargs.cgrid = &self.grids.c_flat[0]
 		fargs.deathProb = self.p.deathProb
@@ -221,99 +208,133 @@ cdef class CModel:
 
 		emaxVec = np.zeros(self.p.nc)
 		yderivs = np.zeros(self.p.nc)
-		bounds = np.zeros(self.p.nSectionsGSS+1)
-		cVals = np.zeros(self.p.nSectionsGSS+2)
-		funVals = np.zeros(self.p.nSectionsGSS+2)
 
 		fargs.emaxVec = &emaxVec[0]
 		fargs.yderivs = &yderivs[0]
 
+		if not final:
+			self.maximizeValueFromSwitching(&fargs)
+		else:
+			self.findInactionRegion(fargs)
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void maximizeValueFromSwitching(self, FnArgs *fargs_ptr):
+		cdef:
+			long iyP, ix, ii, iz
+			double xval, maxAdmissibleC, cSwitch
+			double[:] cVals, funVals, bounds
+			double gssResults[2]
+			long iOptimal
+			objectiveFn iteratorFn
+			FnArgs fargs
+
+		bounds = np.zeros(self.p.nSectionsGSS+1)
+		cVals = np.zeros(self.p.nSectionsGSS+2)
+		funVals = np.zeros(self.p.nSectionsGSS+2)
+
 		iteratorFn = <objectiveFn> self.findValueAtState
 
-		if not final:
-			self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
-				order='F')
-			self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
-				order='F')
-		else:
-			self.inactionRegion = np.zeros((self.p.nx,2,self.p.nz,self.p.nyP),
-				order='F')
+		fargs = dereference(fargs_ptr)
+
+		self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
+			order='F')
+		self.valueSwitch = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
+			order='F')
 
 		for iyP in range(self.p.nyP):
-			for ix in range(self.p.nx-1, -1, -1):
+			for ix in range(1, self.p.nx):
 				fargs.ncValid = self.validConsumptionPts[ix]
-				if ix == 0:
-					for iz in range(self.p.nz):
-						if final:
-							self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
-							self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
-						else:
-							self.setFnArgs(&fargs, fargs.emaxVec, iyP,
-								ix, iz, fargs.yderivs)
 
-							cSwitch = self.cSwitchingPolicy[1,0,iz,iyP] \
-								-(self.xgrid_curr[1] - self.xgrid_curr[0])
-							cSwitch = fmax(cSwitch, self.p.cMin)
-							self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
-							self.valueSwitch[ix,0,iz,iyP] = \
-								self.findValueAtState(cSwitch, fargs) - self.p.adjustCost
-					break
-				
 				xval = self.xgrid_curr[ix]
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
 
-				if not final:
-					cfunctions.linspace(self.p.cMin, maxAdmissibleC,
-						self.p.nSectionsGSS+1, bounds)
+				cfunctions.linspace(self.p.cMin, maxAdmissibleC,
+					self.p.nSectionsGSS+1, bounds)
 
 				for iz in range(self.p.nz):
 					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
 							ix, iz, fargs.yderivs)
 
-					if not final:
-						for ii in range(self.p.nSectionsGSS):
-							cfunctions.goldenSectionSearch(iteratorFn, bounds[ii],
-								bounds[ii+1], 1e-10, &gssResults[0], fargs)
-							funVals[ii] = gssResults[0]
-							cVals[ii] = gssResults[1]
+					for ii in range(self.p.nSectionsGSS):
+						cfunctions.goldenSectionSearch(iteratorFn, bounds[ii],
+							bounds[ii+1], 1e-10, &gssResults[0], fargs)
+						funVals[ii] = gssResults[0]
+						cVals[ii] = gssResults[1]
 
-						# Try consuming cmin
-						cVals[self.p.nSectionsGSS] = self.p.cMin
-						funVals[self.p.nSectionsGSS] = self.findValueAtState(self.p.cMin, fargs)
+					# Try consuming cmin
+					cVals[self.p.nSectionsGSS] = self.p.cMin
+					funVals[self.p.nSectionsGSS] = self.findValueAtState(self.p.cMin, fargs)
 
-						# Try consuming max amount
-						cVals[self.p.nSectionsGSS+1] = maxAdmissibleC
-						funVals[self.p.nSectionsGSS+1] = self.findValueAtState(maxAdmissibleC, fargs)
+					# Try consuming max amount
+					cVals[self.p.nSectionsGSS+1] = maxAdmissibleC
+					funVals[self.p.nSectionsGSS+1] = self.findValueAtState(maxAdmissibleC, fargs)
 
-						iOptimal = cfunctions.cargmax(funVals, self.p.nSectionsGSS+2)
+					iOptimal = cfunctions.cargmax(funVals, self.p.nSectionsGSS+2)
 
-						self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[iOptimal]
-						self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
-							- self.p.adjustCost
+					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[iOptimal]
+					self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
+						- self.p.adjustCost
+
+			ix = 0
+			fargs.ncValid = self.validConsumptionPts[ix]
+			for iz in range(self.p.nz):
+				self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+					ix, iz, fargs.yderivs)
+
+				cSwitch = self.cSwitchingPolicy[1,0,iz,iyP] \
+					-(self.xgrid_curr[1] - self.xgrid_curr[0])
+				cSwitch = fmax(cSwitch, self.p.cMin)
+				self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
+				self.valueSwitch[ix,0,iz,iyP] = \
+					self.findValueAtState(cSwitch, fargs) - self.p.adjustCost
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void findInactionRegion(self, FnArgs fargs):
+		cdef:
+			long iyP, ix, iz
+			double xval, maxAdmissibleC
+			bint inactionFound
+			double inactionPoints[2]
+
+		self.inactionRegion = np.zeros((self.p.nx,2,self.p.nz,self.p.nyP),
+				order='F')
+
+		for iyP in range(self.p.nyP):
+			for ix in range(1, self.p.nx):
+				fargs.ncValid = self.validConsumptionPts[ix]
+
+				xval = self.xgrid_curr[ix]
+				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
+
+				for iz in range(self.p.nz):
+					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+							ix, iz, fargs.yderivs)
+
+					inactionFound = self.lookForInactionPoints(ix, iz, iyP,
+						inactionPoints, fargs)
+					if inactionFound:
+						# Look for lowest inaction point
+						self.inactionRegion[ix,0,iz,iyP] = self.findExtremeNoSwitchPoint(
+							inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP],
+							fargs)
+
+						# Highest inaction point
+						self.inactionRegion[ix,1,iz,iyP] = self.findExtremeNoSwitchPoint(
+							inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP],
+							fargs)
 					else:
-						inactionFound = self.lookForInactionPoints(ix, iz, iyP,
-							inactionPoints, fargs)
-						if inactionFound:
-							# Look for lowest inaction point
-							self.inactionRegion[ix,0,iz,iyP] = self.findExtremeNoSwitchPoint(
-								inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP],
-								fargs)
+						self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
+						self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 
-							# Highest inaction point
-							self.inactionRegion[ix,1,iz,iyP] = self.findExtremeNoSwitchPoint(
-								inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP],
-								fargs)
-						else:
-							self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-							self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-		if final:
-			self.inactionRegion = self.inactionRegion.reshape(
-				(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
+			ix = 0
+			for iz in range(self.p.nz):
+				self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
+				self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
 
-	# @cython.boundscheck(False)
-	# @cython.wraparound(False)
-	# def findInactionRegion(self):
-		
+		self.inactionRegion = self.inactionRegion.reshape(
+			(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -368,6 +389,7 @@ cdef class CModel:
 			double cCheck[2]
 			double gssResults[2]
 			double vSwitch
+			long ic, i1, i2
 			bint inactionFound = False
 			objectiveFn iteratorFn
 

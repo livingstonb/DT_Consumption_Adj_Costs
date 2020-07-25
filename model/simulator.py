@@ -17,8 +17,8 @@ class Simulator(CSimulator):
 		self.cSwitchingPolicy = cSwitchingPolicies
 		self.inactionRegion = inactionRegions
 
-		self.borrowLimsCurr = [params.borrowLim] * self.nCols
-		self.xgridCurr = [grids.x_flat] * self.nCols
+		self.borrowLimsCurr = [self.p.borrowLim] * self.nCols
+		self.xgridCurr = [self.grids.x_flat] * self.nCols
 
 	def makeRandomDraws(self):
 		self.yPrand = np.random.random(size=(self.nSim,self.periodsBeforeRedraw))
@@ -29,10 +29,9 @@ class Simulator(CSimulator):
 
 	def updateIncome(self):
 		self.yPind = np.argmax(self.yPrand[:,self.randIndex,None]
-					<= self.income.yPcumtrans[self.yPind,:],
-					axis=1)
+			<= self.income.yPcumtrans[self.yPind,:], axis=1)
 		yTind = np.argmax(self.yTrand[:,self.randIndex,None]
-								<= self.income.yTcumdistT, axis=1)
+			<= self.income.yTcumdistT, axis=1)
 
 		if self.income.nyP > 1:
 			yPsim = np.asarray(self.income.yPgrid)[self.yPind]
@@ -52,8 +51,8 @@ class Simulator(CSimulator):
 		if (self.p.deathProb > 0) and (not self.p.Bequests):
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
 
-		# for col in range(self.nCols):
-		# 	self.asim[:,col] = np.maximum(self.asim[:,col], self.p.R * self.borrowLimsCurr[col])
+		for col in range(self.nCols):
+			self.asim[:,col] = np.maximum(self.asim[:,col], self.p.R * self.borrowLimsCurr[col])
 
 class EquilibriumSimulator(Simulator):
 	"""
@@ -67,11 +66,7 @@ class EquilibriumSimulator(Simulator):
 		self.nCols = 1
 
 	def initialize(self, cSwitchingPolicies, inactionRegions):
-		self.cSwitchingPolicy = cSwitchingPolicies
-		self.inactionRegion = inactionRegions
-
-		self.borrowLimsCurr = [self.p.borrowLim] * self.nCols
-		self.xgridCurr = [self.grids.x_flat] * self.nCols
+		Simulator.initialize(self, cSwitchingPolicies, inactionRegions)
 
 		self.makeRandomDraws()
 
@@ -253,11 +248,7 @@ class MPCSimulator(Simulator):
 
 	def initialize(self, cSwitchingPolicies, inactionRegions,
 		finalStates):
-		self.cSwitchingPolicy = cSwitchingPolicies.copy()
-		self.inactionRegion = inactionRegions.copy()
-
-		self.borrowLimsCurr = [self.p.borrowLim] * self.nCols
-		self.xgridCurr = [self.grids.x_flat] * self.nCols
+		Simulator.initialize(self, cSwitchingPolicies, inactionRegions)
 
 		self.finalStates = finalStates
 		self.initialize_variables()

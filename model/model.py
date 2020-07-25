@@ -48,7 +48,7 @@ class Model(CModel):
 			self.updateValueNoSwitch()
 
 			# update value function of switching
-			self.maximizeValueFromSwitching()
+			self.evaluateSwitching()
 
 			# compute V = max(VSwitch,VNoSwitch)
 			self.updateValueFunction()
@@ -71,7 +71,7 @@ class Model(CModel):
 		self.doComputations()
 
 		# find inaction region
-		self.maximizeValueFromSwitching(final=True)
+		self.evaluateSwitching(final=True)
 
 		if not oneIter:
 			print(f'Value function converged after {self.iteration} iterations.')
