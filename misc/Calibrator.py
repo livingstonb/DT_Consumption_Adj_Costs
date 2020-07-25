@@ -82,8 +82,8 @@ class Calibrator:
 		self.model.solve()
 
 		eqSimulator = simulator.EquilibriumSimulator(
-			self.p, self.income, self.grids,
-			self.model.cSwitchingPolicy,
+			self.p, self.income, self.grids)
+		eqSimulator.initialize(self.model.cSwitchingPolicy,
 			self.model.inactionRegion)
 		eqSimulator.simulate()
 
@@ -91,11 +91,10 @@ class Calibrator:
 			shockIndices = [3]
 
 			mpcSimulator = simulator.MPCSimulator(
-				self.p, self.income, self.grids, 
-				self.model.cSwitchingPolicy,
-				self.model.inactionRegion, 
-				shockIndices, eqSimulator.finalStates)
-
+				self.p, self.income, self.grids,
+				shockIndices)
+			mpcSimulator.initialize(self.model.cSwitchingPolicy,
+				self.model.inactionRegion, self.finalSimStates)
 			mpcSimulator.simulate()
 
 		yvals = np.zeros(self.nvars) # + len(z)
