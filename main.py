@@ -120,6 +120,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 		params_dict = load_replication(replication)
 	else:
 		params_dict = load_calibration(index=paramIndex)
+
 	functions.printLine()
 	params_dict['fastSettings'] = Fast
 	params = Params.Params(params_dict)
@@ -310,3 +311,8 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#-----------------------------------------------------------#
 	if MakePlots:
 		plots.plot_policies(model, grids, params, paramIndex, outdir)
+
+
+
+
+	import pdb; pdb.set_trace()
