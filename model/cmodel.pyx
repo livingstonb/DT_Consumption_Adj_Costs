@@ -351,8 +351,9 @@ cdef class CModel:
 		if dereference(fargs).ncValid >= 4:
 			for ic in range(dereference(fargs).ncValid):
 				emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
-				spline.spline(&self.grids.c_flat[0], emaxvec, dereference(fargs).ncValid,
-					1.0e30, 1.0e30, yderivs)
+
+			spline.spline(&self.grids.c_flat[0], emaxvec, dereference(fargs).ncValid,
+				1.0e30, 1.0e30, yderivs)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
