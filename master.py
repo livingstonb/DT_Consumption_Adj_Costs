@@ -21,7 +21,7 @@ def set_from_cmd_arg(cmd_line_args):
 #      CHOOSE RUN OPTIONS                                       #
 #---------------------------------------------------------------#
 runOptions = dict()
-runOptions['Calibrate'] = False # not for replication materials
+runOptions['Calibrate'] = True # not for replication materials
 runOptions['Simulate'] = True
 runOptions['SimulateMPCs'] = True
 runOptions['MPCsNews'] = True
@@ -34,10 +34,11 @@ runOptions['MakePlots'] = False
 #---------------------------------------------------------------#
 # If desired, choose a replication experiment
 # Redefine replication = None to ignore
-replication = dict()
-replication['target'] = 'mean_wealth' # Either 'mean_wealth' or 'wealth_lt_1000'
-replication['adjustCostOn'] = False # True or False
-replication['betaHeterogeneity'] = False # True or False
+# replication = dict()
+# replication['target'] = 'mean_wealth' # Either 'mean_wealth' or 'wealth_lt_1000'
+# replication['adjustCostOn'] = False # True or False
+# replication['betaHeterogeneity'] = False # True or False
+replication = None
 
 #---------------------------------------------------------------#
 #      OR CHOOSE AN INDEX                                       #

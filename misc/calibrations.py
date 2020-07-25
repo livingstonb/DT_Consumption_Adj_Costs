@@ -72,7 +72,141 @@ def load_replication(replication):
 
 	return params_out
 
-def load_calibration(index=None, name=None):
+def load_calibration(index):
+	"""
+	This function sets the parameterizations to be passed
+	to a new Params object.
+	"""
+
+	default_values = Params()
+
+	params = dict()
+	params['nc'] = 200
+	params['nx'] = 200
+	params['adjustCost'] = 0
+
+	if index == 0:
+		###########################################################
+		##### TARGET WEALTH < $1000 ###############################
+		###########################################################
+		params['timeDiscount'] = 0.96826309097  ** 4.0
+		params['discount_factor_grid'] = np.array([0.0])
+
+		timeDiscount_variable = Calibrator.OptimVariable(
+			'timeDiscount', [0.94, 0.99],
+			params['timeDiscount'] ** 0.25,
+			scale=0.2)
+
+		wealthConstrained_target = Calibrator.OptimTarget(
+			'Wealth <= $1000', 0.23, 'Equilibrium')
+
+		opts = {
+			'norm_deg': 3,
+			'norm_raise_to': 1,
+		}
+		solver_opts = Calibrator.SolverOptions(
+			'minimize', other_opts=opts)
+
+		params['name'] = 'Wealth constrained target w/o adj costs'
+		params['cal_options'] = [
+			[timeDiscount_variable],
+			[wealthConstrained_target],
+			solver_opts,
+		]
+
+	elif index == 1:
+		###########################################################
+		##### TARGET 3.2 MEAN WEALTH ##############################
+		###########################################################
+		beta0 = 0.996263091
+
+		params['timeDiscount'] = beta0 ** 4.0
+		params['xMax'] = 50
+		params['discount_factor_grid'] = np.array([0.0])
+
+		params['xGridTerm1Wt'] = 0.05
+		params['xGridTerm1Curv'] = 0.8
+		params['xGridCurv'] = 0.2
+		params['borrowLim'] = 0
+
+		params['cMin'] = 1e-6
+		params['cMax'] = 5
+		params['cGridTerm1Wt'] = 0.05
+		params['cGridTerm1Curv'] = 0.9
+		params['cGridCurv'] = 0.15
+
+		timeDiscount_variable = Calibrator.OptimVariable(
+			'timeDiscount', [0.97, 0.9995],
+			beta0, scale=0.2)
+
+		meanWealth_target = Calibrator.OptimTarget(
+			'Mean wealth', 3.2, 'Equilibrium')
+
+		opts = {
+			'norm_deg': 3,
+			'norm_raise_to': 1,
+		}
+		solver_opts = Calibrator.SolverOptions(
+			'minimize', other_opts=opts)
+		
+		# Without adjustment costs
+		params['name'] = 'Mean wealth target w/o adj costs'
+		params['cal_options'] = [
+			[timeDiscount_variable],
+			[meanWealth_target],
+			solver_opts,
+		]
+
+	elif index == 2:
+		###########################################################
+		##### TARGET 3.2 MEAN WEALTH W/BETA HETEROGENEITY #########
+		###########################################################
+		beta0 = 0.966263091
+
+		params['timeDiscount'] = beta0 ** 4.0
+		params['xMax'] = 50
+		params['discount_factor_grid'] = np.array([-0.032, 0, 0.032])
+
+		params['xGridTerm1Wt'] = 0.05
+		params['xGridTerm1Curv'] = 0.8
+		params['xGridCurv'] = 0.2
+		params['borrowLim'] = 0
+
+		params['cMin'] = 1e-6
+		params['cMax'] = 5
+		params['cGridTerm1Wt'] = 0.05
+		params['cGridTerm1Curv'] = 0.9
+		params['cGridCurv'] = 0.15
+
+		timeDiscount_variable = Calibrator.OptimVariable(
+			'timeDiscount', [0.95, 0.9995],
+			beta0, scale=0.2)
+
+		meanWealth_target = Calibrator.OptimTarget(
+			'Mean wealth', 3.2, 'Equilibrium')
+
+		opts = {
+			'norm_deg': 3,
+			'norm_raise_to': 1,
+		}
+		solver_opts = Calibrator.SolverOptions(
+			'minimize', other_opts=opts)
+		
+		# Without adjustment costs
+		params['name'] = 'Beta heterogeneity w/o adj costs'
+		params['cal_options'] = [
+			[timeDiscount_variable],
+			[meanWealth_target],
+			solver_opts,
+		]
+
+	params['index'] = index
+	print(f"Selected parameterization: {params['name']}")
+
+	return params
+
+
+def load_calibration_old(index=None, name=None):
 	"""
 	This function sets the parameterizations to be passed
 	to a new Params object.
