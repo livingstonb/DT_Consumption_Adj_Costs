@@ -311,8 +311,3 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#-----------------------------------------------------------#
 	if MakePlots:
 		plots.plot_policies(model, grids, params, paramIndex, outdir)
-
-
-
-
-	import pdb; pdb.set_trace()
