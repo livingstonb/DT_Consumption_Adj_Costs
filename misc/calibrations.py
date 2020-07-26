@@ -92,7 +92,7 @@ def load_calibration_2(index):
 		targeted_stat, 0.2, 'MPC')
 
 	adjustCost_variable = Calibrator.OptimVariable(
-			'adjustCost', [4 * 5e-6, 4 * 1e-3],
+			'adjustCost', [4 * 5e-6, 1e-2],
 			params['adjustCost'] / 4,
 			scale=0.2)
 
