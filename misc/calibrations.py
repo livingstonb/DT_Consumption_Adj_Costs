@@ -36,30 +36,30 @@ def load_replication(replication):
 	if betaHet:
 		if acost:
 			adjCostQ = 0.0009
-			betaQ = 0.966602
+			betaQ = 0.9663253019078122
 		else:
 			adjCostQ = 0
-			betaQ = 0.9666171540419579
+			betaQ = 0.9663253019078122
 		params_out['discount_factor_grid'] = np.array(
 			[-0.032, 0, 0.032])
 	else:
 		if acost and meanw:
 			adjCostQ = 1.2090215166316641e-05
-			betaQ = 0.9961070556416245
+			betaQ = 0.9960233991324677
 		elif acost and (not meanw):
 			adjCostQ = 0.00042572243847743637
-			betaQ = 0.9680333619781049
+			betaQ = 0.9649136559422705
 		elif (not acost) and meanw:
 			adjCostQ = 0
-			betaQ = 0.9961063975124995
+			betaQ = 0.9960233991324677
 		elif (not acost) and (not meanw):
 			adjCostQ = 0
-			betaQ = 0.968416738581391
+			betaQ = 0.9649136559422705
 
 	params_out['timeDiscount'] = betaQ ** 4.0
 	params_out['adjustCost'] = adjCostQ * 4.0
-	# params_out['nc'] = 200
-	# params_out['nx'] = 200
+	params_out['nc'] = 200
+	params_out['nx'] = 200
 
 	print('Replication chosen:')
 	print(f'\tBeta heterogeneity = {betaHet}')
@@ -71,6 +71,124 @@ def load_replication(replication):
 		print('\tTarget fraction of HHs with w < $1000')
 
 	return params_out
+
+def load_calibration_2(index):
+	"""
+	This function sets the parameterizations to be passed
+	to a new Params object.
+	"""
+
+	default_values = Params()
+
+	params = dict()
+	params['nc'] = 200
+	params['nx'] = 200
+	params['adjustCost'] = 4e-4
+
+	targeted_shock = default_values.MPCshocks[3]
+	targeted_stat = f'P(Q1 MPC > 0) for shock of {targeted_shock}'
+
+	mpc_target = mpc_target = Calibrator.OptimTarget(
+		targeted_stat, 0.2, 'MPC')
+
+	adjustCost_variable = Calibrator.OptimVariable(
+			'adjustCost', [4 * 5e-6, 4 * 1e-3],
+			params['adjustCost'] / 4,
+			scale=0.2)
+
+	if index == 0:
+		###########################################################
+		##### TARGET WEALTH < $1000 ###############################
+		###########################################################
+		params['timeDiscount'] = 0.9649236559422705  ** 4.0
+		params['discount_factor_grid'] = np.array([0.0])
+
+		opts = {
+			'norm_deg': 3,
+			'norm_raise_to': 1,
+		}
+		solver_opts = Calibrator.SolverOptions(
+			'minimize', other_opts=opts)
+
+		params['name'] = 'Wealth constrained target w/o adj costs'
+		params['cal_options'] = [
+			[adjustCost_variable],
+			[mpc_target],
+			solver_opts,
+		]
+
+	elif index == 1:
+		###########################################################
+		##### TARGET 3.2 MEAN WEALTH ##############################
+		###########################################################
+		params['timeDiscount'] = 0.9960233991324677 ** 4.0
+		params['xMax'] = 50
+		params['discount_factor_grid'] = np.array([0.0])
+
+		params['xGridTerm1Wt'] = 0.05
+		params['xGridTerm1Curv'] = 0.8
+		params['xGridCurv'] = 0.2
+		params['borrowLim'] = 0
+
+		params['cMin'] = 1e-6
+		params['cMax'] = 5
+		params['cGridTerm1Wt'] = 0.05
+		params['cGridTerm1Curv'] = 0.9
+		params['cGridCurv'] = 0.15
+
+		opts = {
+			'norm_deg': 3,
+			'norm_raise_to': 1,
+		}
+		solver_opts = Calibrator.SolverOptions(
+			'minimize', other_opts=opts)
+		
+		# Without adjustment costs
+		params['name'] = 'Mean wealth target w/o adj costs'
+		params['cal_options'] = [
+			[adjustCost_variable],
+			[mpc_target],
+			solver_opts,
+		]
+
+	elif index == 2:
+		###########################################################
+		##### TARGET 3.2 MEAN WEALTH W/BETA HETEROGENEITY #########
+		###########################################################
+		params['timeDiscount'] = 0.9663253019078122 ** 4.0
+		params['xMax'] = 50
+		params['discount_factor_grid'] = np.array([-0.032, 0, 0.032])
+
+		params['xGridTerm1Wt'] = 0.05
+		params['xGridTerm1Curv'] = 0.8
+		params['xGridCurv'] = 0.2
+		params['borrowLim'] = 0
+
+		params['cMin'] = 1e-6
+		params['cMax'] = 5
+		params['cGridTerm1Wt'] = 0.05
+		params['cGridTerm1Curv'] = 0.9
+		params['cGridCurv'] = 0.15
+
+		opts = {
+			'norm_deg': 3,
+			'norm_raise_to': 1,
+		}
+		solver_opts = Calibrator.SolverOptions(
+			'minimize', other_opts=opts)
+		
+		# Without adjustment costs
+		params['name'] = 'Beta heterogeneity w/o adj costs'
+		params['cal_options'] = [
+			[adjustCost_variable],
+			[mpc_target],
+			solver_opts,
+		]
+
+	params['index'] = index
+	print(f"Selected parameterization: {params['name']}")
+
+	return params
 
 def load_calibration(index):
 	"""

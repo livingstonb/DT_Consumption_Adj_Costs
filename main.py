@@ -6,7 +6,7 @@ from model import Params, Income, Grid
 from misc import mpcsTable, functions, otherStatistics
 from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
-from misc.calibrations import load_replication, load_calibration
+from misc.calibrations import load_replication, load_calibration, load_calibration_2
 from model import simulator
 from misc import plots
 
@@ -119,7 +119,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 	if replication is not None:
 		params_dict = load_replication(replication)
 	else:
-		params_dict = load_calibration(index=paramIndex)
+		params_dict = load_calibration_2(index=paramIndex)
 
 	functions.printLine()
 	params_dict['fastSettings'] = Fast
