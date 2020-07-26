@@ -9,9 +9,10 @@ class Model(CModel):
 	Inherits attributes and methods from the base extension class
 	CModel. This is not to be used when computing MPCs out of news.
 	"""
-	def initialize(self):
-		self.nextMPCShock = 0 # no shock next period
+	def __init__(self, params, income, grids):
+		CModel.__init__(self, params, income, grids)
 
+		self.nextMPCShock = 0 # no shock next period
 		self.borrLimCurr = self.p.borrowLim
 		self.borrLimNext = self.p.borrowLim
 
@@ -26,10 +27,9 @@ class Model(CModel):
 
 		self.valueFunction = valueGuess
 
-	def solve(self, oneIter=False):
-		if not oneIter:
-			print('\nBeginning value function iteration...')
-			self.makeValueGuess()
+	def solve(self):
+		print('\nBeginning value function iteration...')
+		self.makeValueGuess()
 
 		distance = 1e5
 		self.iteration = 0
@@ -41,23 +41,13 @@ class Model(CModel):
 
 			Vprevious = self.valueFunction
 
-			# update EMAX = E[V|x,c,z,yP], where c is chosen c
-			self.updateEMAX()
-
-			# update value function of not switching
-			self.updateValueNoSwitch()
-
-			# update value function of switching
-			self.evaluateSwitching()
-
-			# compute V = max(VSwitch,VNoSwitch)
-			self.updateValueFunction()
+			self.iterateOnce()
 
 			distance = np.abs(
 				np.asarray(self.valueFunction) - np.asarray(Vprevious)
 				).flatten().max()
 
-			if (np.mod(self.iteration,50) == 0) and not oneIter:
+			if np.mod(self.iteration,50) == 0:
 				print(f'    Iteration {self.iteration+1}, norm of |V1-V| = {distance}')
 
 			if (self.iteration>2000) and (distance>1e5):
@@ -65,16 +55,25 @@ class Model(CModel):
 
 			self.iteration += 1
 
-			if oneIter:
-				break
-
 		self.doComputations()
 
 		# find inaction region
 		self.evaluateSwitching(final=True)
 
-		if not oneIter:
-			print(f'Value function converged after {self.iteration} iterations.')
+		print(f'Value function converged after {self.iteration} iterations.')
+
+	def iterateOnce(self):
+		# update EMAX = E[V|x,c,z,yP], where c is chosen c
+		self.updateEMAX()
+
+		# update value function of not switching
+		self.updateValueNoSwitch()
+
+		# update value function of switching
+		self.evaluateSwitching()
+
+		# compute V = max(VSwitch,VNoSwitch)
+		self.updateValueFunction()
 
 	def updateValueFunction(self):
 		"""
@@ -113,7 +112,7 @@ class ModelWithNews(Model):
 	"""
 	def __init__(self, params, income, grids, valueNext,
 		shock, periodsUntilShock):
-		super().__init__(params, income, grids)
+		CModel.__init__(self, params, income, grids)
 
 		self.nextMPCShock = (periodsUntilShock == 1) * shock
 		self.valueFunction = valueNext
@@ -127,4 +126,8 @@ class ModelWithNews(Model):
 		self.constructInterpolantForEMAX()
 
 	def solve(self):
-		super().solve(True)
+		self.iterateOnce()
+		self.doComputations()
+
+		# find inaction region
+		self.evaluateSwitching(final=True)

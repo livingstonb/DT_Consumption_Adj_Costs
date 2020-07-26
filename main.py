@@ -130,7 +130,6 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#      INITIALIZE AND SOLVE MODEL                               #
 	#---------------------------------------------------------------#
 	model = Model(params, income, grids)
-	model.initialize()
 
 	if Calibrate:
 		calibrator = Calibrator(*params.cal_options)
