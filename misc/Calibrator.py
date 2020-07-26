@@ -94,7 +94,7 @@ class Calibrator:
 				self.p, self.income, self.grids,
 				shockIndices)
 			mpcSimulator.initialize(self.model.cSwitchingPolicy,
-				self.model.inactionRegion, eqSimulator.finalSimStates)
+				self.model.inactionRegion, eqSimulator.finalStates)
 			mpcSimulator.simulate()
 
 		yvals = np.zeros(self.nvars) # + len(z)
