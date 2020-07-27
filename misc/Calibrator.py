@@ -39,6 +39,8 @@ class Calibrator:
 			self.scipy_kwargs['bracket'] = self.variables[0].bracket
 			self.scipy_kwargs['x0'] = self.x0[0]
 			self.scipy_kwargs['x1'] = self.x0[1]
+		elif self.solverOpts.solver == 'minimize_scalar':
+			self.scipy_kwargs['bounds'] = self.variables[0].bracket
 
 	def calibrate(self, p, model, income, grids):
 		self.p = p
@@ -56,6 +58,8 @@ class Calibrator:
 			scipy_solver = optimize.least_squares
 		elif self.solverOpts.solver == 'root_scalar':
 			scipy_solver = optimize.root_scalar
+		elif self.solverOpts.solver == 'minimize_scalar':
+			scipy_solver = optimize.minimize_scalar
 
 		opt_results = scipy_solver(
 			*scipy_args,
@@ -207,6 +211,8 @@ class SolverOptions:
 			solver_kwargs['gtol'] = None
 		elif self.solver == 'root_scalar':
 			solver_kwargs['method'] = 'secant'
+		elif self.solver == 'minimize_scalar':
+			solver_kwargs['method'] = 'bounded'
 
 		return solver_kwargs
 
@@ -220,3 +226,5 @@ class SolverOptions:
 				np.linalg.norm(x, ndg), npow)
 		elif self.solver == 'root_scalar':
 			self.transform_y = lambda x: x
+		elif self.solver == 'minimize_scalar':
+			self.transform_y = lambda x: np.linalg.norm(x)

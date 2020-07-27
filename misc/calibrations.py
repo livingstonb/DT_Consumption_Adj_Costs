@@ -96,7 +96,7 @@ def load_calibration_2(index):
 
 	adjustCost_variable = Calibrator.OptimVariable(
 			'adjustCost', [1e-6, 1e-2],
-			x0, x1=x1, scale=1)
+			x0, scale=1)
 
 	if index == 0:
 		###########################################################
@@ -105,7 +105,7 @@ def load_calibration_2(index):
 		params['timeDiscount'] = 0.9649236559422705  ** 4.0
 		params['discount_factor_grid'] = np.array([0.0])
 
-		solver_opts = Calibrator.SolverOptions('root_scalar')
+		solver_opts = Calibrator.SolverOptions('minimize_scalar')
 
 		params['name'] = 'Wealth constrained target w/o adj costs'
 		params['cal_options'] = [
@@ -133,7 +133,7 @@ def load_calibration_2(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		solver_opts = Calibrator.SolverOptions('root_scalar')
+		solver_opts = Calibrator.SolverOptions('minimize_scalar')
 		
 		# Without adjustment costs
 		params['name'] = 'Mean wealth target w/o adj costs'
@@ -162,7 +162,7 @@ def load_calibration_2(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		solver_opts = Calibrator.SolverOptions('root_scalar')
+		solver_opts = Calibrator.SolverOptions('minimize_scalar')
 		
 		# Without adjustment costs
 		params['name'] = 'Beta heterogeneity w/o adj costs'
