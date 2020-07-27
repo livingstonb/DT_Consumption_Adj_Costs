@@ -47,30 +47,20 @@ def solve_back_from_shock(params, income, grids,
 
 	ii = 0
 	for ishock in shockIndices:
-		# Period before the shock
-		shock = params.MPCshocks[ishock]
-		model = ModelWithNews(params, income, grids,
-			valueNext, shock, 1)
-		model.solve()
+		valueCurr = valueNext
 
-		switching[:,:,:,:,ii,1] = model.cSwitchingPolicy[:,:,:,:,0]
-		inaction[:,:,:,:,ii,1] = model.inactionRegion[:,:,:,:,0]
-
-		# Now iterate backward, starting at two periods
-		# before the shock
-		for ip in range(2, periodsUntilShock+1):
+		for ip in range(1, periodsUntilShock+1):
 			model = ModelWithNews(
 				params, income, grids,
-				model.valueFunction, shock, ip)
+				valueCurr, shock, ip)
 			model.solve()
 
-			# Set output arrays to the policy functions associated
-			# with this shock
+			valueCurr = model.valueFunction
 			switching[:,:,:,:,ii,ip] = model.cSwitchingPolicy[:,:,:,:,0]
 			inaction[:,:,:,:,ii,ip] = model.inactionRegion[:,:,:,:,0]
 
-		ii += 1
-		del model
+			del model
+			ii += 1
 
 	for ip in range(0, periodsUntilShock+1):
 		switching[:,:,:,:,nLast-1,ip] = baselineSwitch[:,:,:,:,0]

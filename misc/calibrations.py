@@ -85,6 +85,9 @@ def load_calibration_2(index):
 	params['nx'] = 200
 	params['adjustCost'] = 4e-4
 
+	x0 = 1e-4
+	x1 = 1e-3
+
 	targeted_shock = default_values.MPCshocks[3]
 	targeted_stat = f'P(Q1 MPC > 0) for shock of {targeted_shock}'
 
@@ -93,8 +96,7 @@ def load_calibration_2(index):
 
 	adjustCost_variable = Calibrator.OptimVariable(
 			'adjustCost', [1e-6, 1e-2],
-			params['adjustCost'] / 4,
-			scale=0.2)
+			x0, x1=x1, scale=1)
 
 	if index == 0:
 		###########################################################
@@ -103,12 +105,7 @@ def load_calibration_2(index):
 		params['timeDiscount'] = 0.9649236559422705  ** 4.0
 		params['discount_factor_grid'] = np.array([0.0])
 
-		opts = {
-			'norm_deg': 3,
-			'norm_raise_to': 1,
-		}
-		solver_opts = Calibrator.SolverOptions(
-			'minimize', other_opts=opts)
+		solver_opts = Calibrator.SolverOptions('root_scalar')
 
 		params['name'] = 'Wealth constrained target w/o adj costs'
 		params['cal_options'] = [
@@ -136,12 +133,7 @@ def load_calibration_2(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		opts = {
-			'norm_deg': 3,
-			'norm_raise_to': 1,
-		}
-		solver_opts = Calibrator.SolverOptions(
-			'minimize', other_opts=opts)
+		solver_opts = Calibrator.SolverOptions('root_scalar')
 		
 		# Without adjustment costs
 		params['name'] = 'Mean wealth target w/o adj costs'
@@ -170,12 +162,7 @@ def load_calibration_2(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		opts = {
-			'norm_deg': 3,
-			'norm_raise_to': 1,
-		}
-		solver_opts = Calibrator.SolverOptions(
-			'minimize', other_opts=opts)
+		solver_opts = Calibrator.SolverOptions('root_scalar')
 		
 		# Without adjustment costs
 		params['name'] = 'Beta heterogeneity w/o adj costs'

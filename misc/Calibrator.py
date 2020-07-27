@@ -18,7 +18,9 @@ class Calibrator:
 		self.set_bounds()
 
 	def set_x0(self):
-		if self.solverOpts.requiresInitialCond:
+		if self.solverOpts.solver == 'root_scalar':
+			self.x0 = [self.variables[0].x0, self.variables[0].x1]
+		elif self.solverOpts.requiresInitialCond:
 			x0 = [self.variables[i].x0 for i in range(self.nvars)]
 			self.x0 = np.array(x0)
 		else:
@@ -33,6 +35,10 @@ class Calibrator:
 				lbounds, ubounds, keep_feasible=True)
 		elif self.solverOpts.solver == 'least_squares':
 			self.scipy_kwargs['bounds'] = (lbounds, ubounds)
+		elif self.solverOpts.solver == 'root_scalar':
+			self.scipy_kwargs['bracket'] = self.variables[0].bracket
+			self.scipy_kwargs['x0'] = self.x0[0]
+			self.scipy_kwargs['x1'] = self.x0[1]
 
 	def calibrate(self, p, model, income, grids):
 		self.p = p
@@ -41,13 +47,15 @@ class Calibrator:
 		self.grids = grids
 
 		scipy_args = [self.optim_handle]
-		if self.x0 is not None:
+		if (self.x0 is not None) and (self.solverOpts.solver != 'root_scalar'):
 			scipy_args.append(self.x0)
 
 		if self.solverOpts.solver == 'minimize':
 			scipy_solver = optimize.minimize
 		elif self.solverOpts.solver == 'least_squares':
 			scipy_solver = optimize.least_squares
+		elif self.solverOpts.solver == 'root_scalar':
+			scipy_solver = optimize.root_scalar
 
 		opt_results = scipy_solver(
 			*scipy_args,
@@ -57,6 +65,9 @@ class Calibrator:
 
 	def optim_handle(self, x_scaled):
 		x = np.copy(x_scaled)
+		if np.ndim(x) == 0:
+			x = np.array([x])
+
 		for ivar in range(self.nvars):
 			x[ivar] = self.variables[ivar].unscale(x[ivar])
 
@@ -131,16 +142,20 @@ class Calibrator:
 		functions.printLine()
 
 class OptimVariable:
-	def __init__(self, name, bounds, x0, scale=1.0):
+	def __init__(self, name, bounds, x0, x1=None, scale=1.0):
 		self.name = name
 		self.xscale = scale
 		self.x0 = self.scale(x0)
+		self.x1 = self.scale(x1)
 		self.lb = self.scale(bounds[0])
 		self.ub = self.scale(bounds[1])
 		self.bracket = [self.lb, self.ub]
 
 	def scale(self, x):
-		return x * self.xscale
+		if x is not None:
+			return x * self.xscale
+		else:
+			return None
 
 	def unscale(self, x_scaled):
 		return x_scaled / self.xscale
@@ -157,7 +172,8 @@ class SolverOptions:
 		other_opts=None):
 		self.solver = solver
 
-		self.set_other_opts(other_opts)
+		if other_opts is not None:
+			self.set_other_opts(other_opts)
 
 		if solver_kwargs is None:
 			self.solver_kwargs = self.default_kwargs()
@@ -189,6 +205,8 @@ class SolverOptions:
 		elif self.solver == 'least_squares':
 			solver_kwargs['verbose'] = 1
 			solver_kwargs['gtol'] = None
+		elif self.solver == 'root_scalar':
+			solver_kwargs['method'] = 'secant'
 
 		return solver_kwargs
 
@@ -200,3 +218,5 @@ class SolverOptions:
 			npow = self.other_opts['norm_raise_to']
 			self.transform_y = lambda x: np.power(
 				np.linalg.norm(x, ndg), npow)
+		elif self.solver == 'root_scalar':
+			self.transform_y = lambda x: x
