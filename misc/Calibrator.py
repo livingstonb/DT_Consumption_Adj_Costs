@@ -81,10 +81,10 @@ class Calibrator3(Calibrator):
 	def __init__(self, p, model, income, grids):
 		self.lbounds = [0.96, 0.01]
 		self.ubounds = [0.9995, 0.05]
-		self.x0 = np.array([0.998, 0.032])
+		self.x0 = np.array([0.9985, 0.032])
 		
 		super().__init__(p, model, income, grids)
-		self.step = np.array([0.00002, 0.00002])
+		self.step = np.array([0.00002, 0.00005])
 
 	def optim_handle(self, x):
 		self.p.setParam('timeDiscount', x[0], True)
@@ -109,7 +109,7 @@ class Calibrator4(Calibrator):
 		self.x0 = np.array([1e-4])
 
 		super().__init__(p, model, income, grids)
-		self.step = np.array([1e-6])
+		self.step = np.array([2.5e-6])
 
 	def optim_handle(self, x):
 		self.p.setParam('adjustCost', x[0], True)
