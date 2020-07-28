@@ -4,83 +4,35 @@ from model import simulator
 from misc import functions
 
 class Calibrator:
-	def __init__(self, variables, targets, solverOpts):
-
-		self.nvars = len(variables)
-		self.variables = variables
-		self.targets = targets
-		self.target_types = [targets[i].type for i in range(self.nvars)]
-		self.solverOpts = solverOpts
-		self.scipy_kwargs = solverOpts.solver_kwargs
-		self.iteration = 0
-
-		self.set_x0()
-		self.set_bounds()
-
-	def set_x0(self):
-		x0 = [self.variables[i].x0 for i in range(self.nvars)]
-		self.x0 = np.array(x0)
-
-	def set_bounds(self):
-		lbounds = [self.variables[i].lb for i in range(self.nvars)]
-		ubounds = [self.variables[i].ub for i in range(self.nvars)]
-
-		if self.solverOpts.solver  == 'minimize':
-			self.scipy_kwargs['bounds'] = optimize.Bounds(
-				lbounds, ubounds, keep_feasible=True)
-		elif self.solverOpts.solver == 'least_squares':
-			self.scipy_kwargs['bounds'] = (lbounds, ubounds)
-		elif self.solverOpts.solver == 'minimize_scalar':
-			self.scipy_kwargs['bounds'] = self.variables[0].bracket
-
-	def calibrate(self, p, model, income, grids):
+	def __init__(self, p, model, income, grids):
 		self.p = p
 		self.model = model
 		self.income = income
 		self.grids = grids
+		self.step = None
 
-		scipy_args = [self.optim_handle]
+		if 'lbounds' in p.cal_options:
+			self.lbounds = p.cal_options['lbounds']
 
-		if self.solverOpts.solver == 'minimize':
-			scipy_solver = optimize.minimize
-		elif self.solverOpts.solver == 'least_squares':
-			scipy_solver = optimize.least_squares
-		elif self.solverOpts.solver == 'minimize_scalar':
-			scipy_solver = optimize.minimize_scalar
+		if 'ubounds' in p.cal_options:
+			self.ubounds = p.cal_options['ubounds']
 
-		opt_results = scipy_solver(
-			*scipy_args,
-			**self.scipy_kwargs)
+		if 'x0' in p.cal_options:
+			self.x0 = p.cal_options['x0']
 
-		return opt_results
+	def calibrate(self):
+		boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
+			keep_feasible=True)
 
-	def optim_handle(self, x_scaled):
-		x = np.copy(x_scaled)
-		if np.ndim(x) == 0:
-			x = np.array([x])
+		if self.step is not None:
+			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
+				method='L-BFGS-B', jac=None,
+				options={'eps': self.step})
+		else:
+			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
+				method='L-BFGS-B', jac=None)
 
-		for ivar in range(self.nvars):
-			x[ivar] = self.variables[ivar].unscale(x[ivar])
-
-		for ivar in range(self.nvars):
-			var = self.variables[ivar].name
-			vchange = x[ivar] - self.p.getParam(var)
-			self.p.setParam(var, x[ivar])
-
-			if self.iteration > 0:
-				iterStr = f'For iteration {self.iteration}'
-				if vchange == 0:
-					print(f'{iterStr}, {var} was not changed')
-				elif vchange > 0:
-					print(f'{iterStr}, {var} was increased by {vchange}')
-				else:
-					print(f'{iterStr}, {var} was decreased by {np.abs(vchange)}')
-
-		if self.iteration == 0:
-			functions.printLine()
-			print('Beginning calibration')
-			functions.printLine()
-
+	def simulate(self):
 		self.model.solve()
 
 		eqSimulator = simulator.EquilibriumSimulator(
@@ -89,130 +41,92 @@ class Calibrator:
 			self.model.inactionRegion)
 		eqSimulator.simulate()
 
-		if 'MPC' in self.target_types:
-			shockIndices = [3]
+		return eqSimulator
 
-			mpcSimulator = simulator.MPCSimulator(
-				self.p, self.income, self.grids,
-				shockIndices)
-			mpcSimulator.initialize(self.model.cSwitchingPolicy,
-				self.model.inactionRegion, eqSimulator.finalStates)
-			mpcSimulator.simulate()
+class Calibrator1(Calibrator):
+	def __init__(self, p, model, income, grids):
+		self.lbounds = [0.96]
+		self.ubounds = [0.999]
+		self.x0 = np.array([0.99])
 
-		yvals = np.zeros(self.nvars) # + len(z)
-		values = [None] * self.nvars
-		for ivar in range(self.nvars):
-			target = self.targets[ivar].name
+		super().__init__(p, model, income, grids)
 
-			if self.target_types[ivar] == 'Equilibrium':
-				values[ivar] = eqSimulator.results[target]
-			elif self.target_types[ivar] == 'MPC':
-				values[ivar] = mpcSimulator.results[target]
+	def optim_handle(self, x):
+		self.p.setParam('timeDiscount', x, True)
 
-			yvals[ivar] = values[ivar] - self.targets[ivar].value
+		eqSimulator = self.simulate()
 
-		self.printIterationResults(x, values)
-		self.iteration += 1
-		return self.solverOpts.transform_y(yvals)
+		z = np.linalg.norm(eqSimulator.results['Mean wealth'] - 3.2)
+		return z
 
-	def printIterationResults(self, x, values):
-		functions.printLine()
+class Calibrator2(Calibrator):
+	def __init__(self, p, model, income, grids):
+		self.lbounds = [0.95]
+		self.ubounds = [0.99]
+		self.x0 = np.array([0.97])
+		
+		super().__init__(p, model, income, grids)
+		self.step = np.array([0.00002])
 
-		print('\nAt this solver iteration, parameters were:')
-		for ivar in range(self.nvars):
-			var = self.variables[ivar].name
-			print(f'\t{var}\n\t\t= {x[ivar]}')
+	def optim_handle(self, x):
+		self.p.setParam('timeDiscount', x, True)
 
-		print('\nResults were:')
-		for ivar in range(self.nvars):
-			target = self.targets[ivar].name
-			target_val = self.targets[ivar].value
-			print(f'\t{target}\n\t\t= {values[ivar]} (desired = {target_val})')
+		eqSimulator = self.simulate()
 
-		functions.printLine()
+		z = eqSimulator.results['Wealth <= $1000'] - 0.23
+		print(f'Wealth constrained = {z + 0.23}')
+		return np.linalg.norm(z)
 
-class OptimVariable:
-	def __init__(self, name, bounds, x0, x1=None, scale=1.0):
-		self.name = name
-		self.xscale = scale
-		self.x0 = self.scale(x0)
-		self.x1 = self.scale(x1)
-		self.lb = self.scale(bounds[0])
-		self.ub = self.scale(bounds[1])
-		self.bracket = [self.lb, self.ub]
+class Calibrator3(Calibrator):
+	def __init__(self, p, model, income, grids):
+		self.lbounds = [0.96, 0.01]
+		self.ubounds = [0.9995, 0.05]
+		self.x0 = np.array([0.998, 0.032])
+		
+		super().__init__(p, model, income, grids)
+		self.step = np.array([0.00002, 0.00002])
 
-	def scale(self, x):
-		if x is not None:
-			return x * self.xscale
-		else:
-			return None
+	def optim_handle(self, x):
+		self.p.setParam('timeDiscount', x[0], True)
+		self.p.setParam('discount_factor_grid', np.array([x[0]- 2 * x[1], x[0] - x[1], x[0]]), True)
+		self.model.p = self.p
 
-	def unscale(self, x_scaled):
-		return x_scaled / self.xscale
+		eqSimulator = self.simulate()
 
-class OptimTarget:
-	def __init__(self, name, value, target_type):
-		self.name = name
-		self.value = value
-		self.type = target_type
+		z = np.zeros(2)
+		z[0] = eqSimulator.results['Mean wealth'] - 3.2
+		z[1] = eqSimulator.results['Wealth <= $1000'] - 0.23
 
-class SolverOptions:
-	def __init__(self, solver, solver_kwargs=None,
-		other_opts=None):
-		self.solver = solver
+		print(f'Mean wealth = {z[0] + 3.2}')
+		print(f'Wealth constrained = {z[1] + 0.23}')
 
-		self.set_other_opts(other_opts)
+		return np.linalg.norm(z)
 
-		if solver_kwargs is None:
-			self.solver_kwargs = self.default_kwargs()
-		else:
-			self.solver_kwargs = solver_kwargs
+class Calibrator4(Calibrator):
+	def __init__(self, p, model, income, grids):
+		self.lbounds = [1e-6]
+		self.ubounds = [5e-3]
+		self.x0 = np.array([1e-4])
 
-		self.requiresInitialCond = True
-		self.set_target_transformation()
+		super().__init__(p, model, income, grids)
+		self.step = np.array([1e-6])
 
-	def set_other_opts(self, other_opts):
-		self.other_opts = {
-			'norm_deg': 2,
-			'norm_raise_to': 1,
-		}
+	def optim_handle(self, x):
+		self.p.setParam('adjustCost', x[0], True)
+		self.model.p = self.p
 
-		if other_opts is not None:
-			self.other_opts.update(other_opts)
+		eqSimulator = self.simulate()
 
-	def default_kwargs(self):
-		solver_kwargs = dict()
-		solver_kwargs['options'] = {'disp': True}
+		shockIndices = [3]
+		mpcSimulator = simulator.MPCSimulator(
+			self.p, self.income, self.grids, shockIndices)
+		mpcSimulator.initialize(self.model.cSwitchingPolicy,
+			self.model.inactionRegion, eqSimulator.finalStates)
+		mpcSimulator.simulate()
 
-		if self.solver == 'minimize':
-			solver_kwargs['method'] = 'L-BFGS-B'
-			solver_kwargs['options'].update(
-				{
-				'eps': 2.0e-6,
-				'maxiter': 100,
-				}
-			)
-		elif self.solver == 'least_squares':
-			solver_kwargs['verbose'] = 1
-			solver_kwargs['gtol'] = None
-		elif self.solver == 'root_scalar':
-			solver_kwargs['method'] = 'secant'
-		elif self.solver == 'minimize_scalar':
-			solver_kwargs['method'] = 'bounded'
+		targeted_stat = f'P(Q1 MPC > 0) for shock of 0.0081'
+		z = mpcSimulator.results[targeted_stat] - 0.2
 
-		return solver_kwargs
+		print(f'P(MPC > 0) = {z + 0.2}')
 
-	def set_target_transformation(self):
-		if self.solver == 'least_squares':
-			self.transform_y = lambda x: x
-		elif self.solver == 'minimize':
-			ndg = self.other_opts['norm_deg']
-			npow = self.other_opts['norm_raise_to']
-			self.transform_y = lambda x: np.power(
-				np.linalg.norm(x, ndg), npow)
-		elif self.solver == 'root_scalar':
-			self.transform_y = lambda x: x
-		elif self.solver == 'minimize_scalar':
-			self.transform_y = lambda x: np.linalg.norm(x)
-
-class WealthCalib
+		return np.linalg.norm(z)
