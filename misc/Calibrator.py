@@ -18,13 +18,8 @@ class Calibrator:
 		self.set_bounds()
 
 	def set_x0(self):
-		if self.solverOpts.solver == 'root_scalar':
-			self.x0 = [self.variables[0].x0, self.variables[0].x1]
-		elif self.solverOpts.requiresInitialCond:
-			x0 = [self.variables[i].x0 for i in range(self.nvars)]
-			self.x0 = np.array(x0)
-		else:
-			self.x0 = None
+		x0 = [self.variables[i].x0 for i in range(self.nvars)]
+		self.x0 = np.array(x0)
 
 	def set_bounds(self):
 		lbounds = [self.variables[i].lb for i in range(self.nvars)]
@@ -35,10 +30,6 @@ class Calibrator:
 				lbounds, ubounds, keep_feasible=True)
 		elif self.solverOpts.solver == 'least_squares':
 			self.scipy_kwargs['bounds'] = (lbounds, ubounds)
-		elif self.solverOpts.solver == 'root_scalar':
-			self.scipy_kwargs['bracket'] = self.variables[0].bracket
-			self.scipy_kwargs['x0'] = self.x0[0]
-			self.scipy_kwargs['x1'] = self.x0[1]
 		elif self.solverOpts.solver == 'minimize_scalar':
 			self.scipy_kwargs['bounds'] = self.variables[0].bracket
 
@@ -49,15 +40,11 @@ class Calibrator:
 		self.grids = grids
 
 		scipy_args = [self.optim_handle]
-		if (self.x0 is not None) and (self.solverOpts.solver != 'root_scalar'):
-			scipy_args.append(self.x0)
 
 		if self.solverOpts.solver == 'minimize':
 			scipy_solver = optimize.minimize
 		elif self.solverOpts.solver == 'least_squares':
 			scipy_solver = optimize.least_squares
-		elif self.solverOpts.solver == 'root_scalar':
-			scipy_solver = optimize.root_scalar
 		elif self.solverOpts.solver == 'minimize_scalar':
 			scipy_solver = optimize.minimize_scalar
 
@@ -174,8 +161,7 @@ class SolverOptions:
 		other_opts=None):
 		self.solver = solver
 
-		if other_opts is not None:
-			self.set_other_opts(other_opts)
+		self.set_other_opts(other_opts)
 
 		if solver_kwargs is None:
 			self.solver_kwargs = self.default_kwargs()
@@ -190,7 +176,9 @@ class SolverOptions:
 			'norm_deg': 2,
 			'norm_raise_to': 1,
 		}
-		self.other_opts.update(other_opts)
+
+		if other_opts is not None:
+			self.other_opts.update(other_opts)
 
 	def default_kwargs(self):
 		solver_kwargs = dict()
@@ -226,3 +214,5 @@ class SolverOptions:
 			self.transform_y = lambda x: x
 		elif self.solver == 'minimize_scalar':
 			self.transform_y = lambda x: np.linalg.norm(x)
+
+class WealthCalib

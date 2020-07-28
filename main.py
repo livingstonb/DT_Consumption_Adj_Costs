@@ -4,7 +4,7 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc import mpcsTable, functions, otherStatistics
-from misc.Calibrator import Calibrator
+from misc.Calibrator3 import Calibrator, Calibrator1, Calibrator2, Calibrator3
 from model.model import Model, ModelWithNews
 from misc.calibrations import load_replication_2, load_calibration_2
 from model import simulator
@@ -77,11 +77,11 @@ def solve_back_from_shock(params, income, grids,
 def main(paramIndex=None, runopts=None, replication=None):
 	if runopts is None:
 		# Default run options
-		Calibrate = False # use solver to match targets
+		Calibrate = True # use solver to match targets
 		Simulate = True
 		SimulateMPCs = True
 		MPCsNews = True
-		Fast = False # run w/small grids for debugging
+		Fast = True # run w/small grids for debugging
 		PrintGrids = False
 		MakePlots = False
 	else:
@@ -121,12 +121,23 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#---------------------------------------------------------------#
 	#      INITIALIZE AND SOLVE MODEL                               #
 	#---------------------------------------------------------------#
+	# if replication is not None:
+
 	model = Model(params, income, grids)
 
 	if Calibrate:
-		calibrator = Calibrator(*params.cal_options)
-		opt_results = calibrator.calibrate(params, model, income, grids)
-		calibrator = None
+		# calibrator = Calibrator(*params.cal_options)
+		# opt_results = calibrator.calibrate(params, model, income, grids)
+		# calibrator = None
+		if params.n_discountFactor == 1:
+			calibrator = Calibrator1(params, model, income, grids)
+			calibrator.calibrate()
+		else:
+			calibrator = Calibrator2(params, model, income, grids)
+			calibrator.calibrate()
+
+		calibrator = Calibrator3(params, model, income, grids)
+		calibrator.calibrate()
 	else:
 		model.solve()
 

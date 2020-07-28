@@ -1,7 +1,7 @@
 from model.Params import Params
 import numpy as np
 
-from misc import Calibrator
+# from misc import Calibrator
 
 # def load_replication(replication):
 # 	target = replication['target']
@@ -150,22 +150,40 @@ def load_calibration_2(index):
 	default_values = Params()
 
 	params = dict()
-	params['nc'] = 200
-	params['nx'] = 200
+	params['nc'] = 40
+	params['nx'] = 40
 	params['adjustCost'] = 4e-4
 
 	x0 = 1e-4
 	x1 = 1e-3
 
-	targeted_shock = default_values.MPCshocks[3]
-	targeted_stat = f'P(Q1 MPC > 0) for shock of {targeted_shock}'
+	# # set up calibrator for discount factor calibration
+	# timeDiscount_variable = Calibrator.OptimVariable(
+	# 	'timeDiscount', [0.94, 0.998],
+	# 	0.98, scale=0.2)
 
-	mpc_target = mpc_target = Calibrator.OptimTarget(
-		targeted_stat, 0.2, 'MPC')
+	# mwealth_target = Calibrator.OptimTarget(
+	# 	'Mean wealth', 3.2, 'Equilibrium')
 
-	adjustCost_variable = Calibrator.OptimVariable(
-			'adjustCost', [1e-6, 1e-2],
-			x0, scale=1)
+	# # set up calibrator for adjust cost calibration
+	# adjustCost_variable = Calibrator.OptimVariable(
+	# 		'adjustCost', [1e-6, 1e-2],
+	# 		x0, scale=1)
+
+	# targeted_shock = default_values.MPCshocks[3]
+	# targeted_stat = f'P(Q1 MPC > 0) for shock of {targeted_shock}'
+
+	# mpc_target = Calibrator.OptimTarget(
+	# 	targeted_stat, 0.2, 'MPC')
+
+	# solver_opts = Calibrator.SolverOptions('minimize_scalar')
+	# params['cal1_option'] = [
+	# 	[adjustCost_variable],
+	# 	[mpc_target],
+	# 	solver_opts
+	# 	]
+
+	params['cal_options'] = index
 
 	if index == 0:
 		###########################################################
@@ -174,14 +192,14 @@ def load_calibration_2(index):
 		params['timeDiscount'] = 0.9649236559422705  ** 4.0
 		params['discount_factor_grid'] = np.array([0.0])
 
-		solver_opts = Calibrator.SolverOptions('minimize_scalar')
+		
 
 		params['name'] = 'Wealth constrained target w/o adj costs'
-		params['cal_options'] = [
-			[adjustCost_variable],
-			[mpc_target],
-			solver_opts,
-		]
+		# params['cal_options'] = [
+		# 	[adjustCost_variable],
+		# 	[mpc_target],
+		# 	solver_opts,
+		# ]
 
 	elif index == 1:
 		###########################################################
@@ -202,15 +220,15 @@ def load_calibration_2(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		solver_opts = Calibrator.SolverOptions('minimize_scalar')
+		# solver_opts = Calibrator.SolverOptions('minimize_scalar')
 		
 		# Without adjustment costs
 		params['name'] = 'Mean wealth target w/o adj costs'
-		params['cal_options'] = [
-			[adjustCost_variable],
-			[mpc_target],
-			solver_opts,
-		]
+		# params['cal_options'] = [
+		# 	[adjustCost_variable],
+		# 	[mpc_target],
+		# 	solver_opts,
+		# ]
 
 	elif index == 2:
 		###########################################################
@@ -231,15 +249,15 @@ def load_calibration_2(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		solver_opts = Calibrator.SolverOptions('minimize_scalar')
+		# solver_opts = Calibrator.SolverOptions('minimize_scalar')
 		
 		# Without adjustment costs
 		params['name'] = 'Beta heterogeneity w/o adj costs'
-		params['cal_options'] = [
-			[adjustCost_variable],
-			[mpc_target],
-			solver_opts,
-		]
+		# params['cal_options'] = [
+		# 	[adjustCost_variable],
+		# 	[mpc_target],
+		# 	solver_opts,
+		# ]
 
 	params['index'] = index
 	print(f"Selected parameterization: {params['name']}")
