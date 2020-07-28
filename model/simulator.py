@@ -115,7 +115,7 @@ class EquilibriumSimulator(Simulator):
 
 		while self.t <= self.T:
 
-			if np.mod(self.t, 25) == 0:
+			if np.mod(self.t, 100) == 0:
 				print(f'    Simulating period {self.t}')
 
 			if self.t > 1:

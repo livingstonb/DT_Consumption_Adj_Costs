@@ -3,9 +3,6 @@ from scipy import optimize
 from model import simulator
 from misc import functions
 
-# def generate_Calibrator(index, p, model, income, grids):
-# 	if index == 
-
 class Calibrator:
 	def __init__(self, p, model, income, grids):
 		self.p = p
@@ -13,6 +10,11 @@ class Calibrator:
 		self.income = income
 		self.grids = grids
 		self.step = None
+
+		if p.cal_options is not None:
+			self.lbounds = p.cal_options['lbounds']
+			self.ubounds = p.cal_options['ubounds']
+			self.x0 = p.cal_options['x0']
 
 	def calibrate(self):
 		boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
@@ -35,9 +37,11 @@ class Calibrator:
 class Calibrator1(Calibrator):
 	def __init__(self, p, model, income, grids):
 		super().__init__(p, model, income, grids)
-		self.lbounds = [0.95]
-		self.ubounds = [0.999]
-		self.x0 = np.array([0.98])
+
+		if p.cal_options is None:
+			self.lbounds = [0.96]
+			self.ubounds = [0.999]
+			self.x0 = np.array([0.99])
 
 	def optim_handle(self, x):
 		self.p.setParam('timeDiscount', x, True)
@@ -50,10 +54,29 @@ class Calibrator1(Calibrator):
 class Calibrator2(Calibrator):
 	def __init__(self, p, model, income, grids):
 		super().__init__(p, model, income, grids)
-		self.lbounds = [0.96, 0.01]
-		self.ubounds = [0.9995, 0.05]
-		self.x0 = np.array([0.995, 0.03])
-		self.step = [0.01, 0.01]
+
+		if p.cal_options is None:
+			self.lbounds = [0.95]
+			self.ubounds = [0.99]
+			self.x0 = np.array([0.97])
+
+	def optim_handle(self, x):
+		self.p.setParam('timeDiscount', x, True)
+
+		eqSimulator = self.simulate()
+
+		z = eqSimulator.results['Wealth <= $1000'] - 0.23
+		print(f'Wealth constrained = {z}')
+		return np.linalg.norm(z)
+
+class Calibrator3(Calibrator):
+	def __init__(self, p, model, income, grids):
+		super().__init__(p, model, income, grids)
+
+		if p.cal_options is None:
+			self.lbounds = [0.96, 0.01]
+			self.ubounds = [0.9995, 0.05]
+			self.x0 = np.array([0.995, 0.03])
 
 	def optim_handle(self, x):
 		self.p.setParam('timeDiscount', x[0], True)
@@ -71,12 +94,14 @@ class Calibrator2(Calibrator):
 
 		return np.linalg.norm(z)
 
-class Calibrator3(Calibrator):
+class Calibrator4(Calibrator):
 	def __init__(self, p, model, income, grids):
 		super().__init__(p, model, income, grids)
-		self.lbounds = [1e-6]
-		self.ubounds = [5e-3]
-		self.x0 = np.array([1e-4])
+
+		if p.cal_options is None:
+			self.lbounds = [1e-6]
+			self.ubounds = [5e-3]
+			self.x0 = np.array([1e-4])
 
 	def optim_handle(self, x):
 		self.p.setParam('adjustCost', x[0], True)
@@ -94,8 +119,6 @@ class Calibrator3(Calibrator):
 		targeted_stat = f'P(Q1 MPC > 0) for shock of 0.0081'
 		z = mpcSimulator.results[targeted_stat] - 0.2
 
-		print(f'P(MPC > 0) = {z[0] + 0.2}')
+		print(f'P(MPC > 0) = {z + 0.2}')
 
 		return np.linalg.norm(z)
-
-	

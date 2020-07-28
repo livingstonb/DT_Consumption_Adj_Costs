@@ -4,7 +4,7 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc import mpcsTable, functions, otherStatistics
-from misc.Calibrator3 import Calibrator, Calibrator1, Calibrator2, Calibrator3
+from misc.Calibrator3 import getCalibrator, Calibrator4
 from model.model import Model, ModelWithNews
 from misc.calibrations import load_replication_2, load_calibration_2
 from model import simulator
@@ -27,6 +27,16 @@ def create_objects(params, locIncome, PrintGrids):
 		quit()
 
 	return (grids, income)
+
+def getCalibrator(index, p, model, income, grids):
+	if p.cal_options['run'] == 'beta heterogeneity':
+		calibrator = Calibrator3(p, model, income, grids)
+	elif p.cal_options['run'] == 'mean wealth':
+		calibrator = Calibrator1(p, model, income, grids)
+	else:
+		calibrator = Calibrator2(p, model, income, grids)
+
+	return calibrator
 
 def solve_back_from_shock(params, income, grids,
 	valueNext, shockIndices, periodsUntilShock,
@@ -81,7 +91,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 		Simulate = True
 		SimulateMPCs = True
 		MPCsNews = True
-		Fast = True # run w/small grids for debugging
+		Fast = False # run w/small grids for debugging
 		PrintGrids = False
 		MakePlots = False
 	else:
@@ -129,14 +139,10 @@ def main(paramIndex=None, runopts=None, replication=None):
 		# calibrator = Calibrator(*params.cal_options)
 		# opt_results = calibrator.calibrate(params, model, income, grids)
 		# calibrator = None
-		if params.n_discountFactor == 1:
-			calibrator = Calibrator1(params, model, income, grids)
-			calibrator.calibrate()
-		else:
-			calibrator = Calibrator2(params, model, income, grids)
-			calibrator.calibrate()
+		calibrator = getCalibrator(params, model, income, grids)
+		calibrator.calibrate()
 
-		calibrator = Calibrator3(params, model, income, grids)
+		calibrator = Calibrator4(params, model, income, grids)
 		calibrator.calibrate()
 	else:
 		model.solve()

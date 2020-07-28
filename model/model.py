@@ -47,7 +47,7 @@ class Model(CModel):
 				np.asarray(self.valueFunction) - np.asarray(Vprevious)
 				).flatten().max()
 
-			if np.mod(self.iteration,50) == 0:
+			if np.mod(self.iteration, 100) == 0:
 				print(f'    Iteration {self.iteration+1}, norm of |V1-V| = {distance}')
 
 			if (self.iteration>2000) and (distance>1e5):
