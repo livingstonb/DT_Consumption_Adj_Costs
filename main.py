@@ -119,9 +119,9 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#---------------------------------------------------------------#
 	functions.printLine()
 	if replication is not None:
-		params_dict = load_replication_2(replication)
+		params_dict = load_replication(replication)
 	else:
-		params_dict = load_calibration_2(index=paramIndex)
+		params_dict = load_calibration(index=paramIndex)
 
 	functions.printLine()
 	params_dict['fastSettings'] = Fast

@@ -82,7 +82,7 @@ def load_calibration(index):
 	params['index'] = index
 
 	gridSize = index % 4
-	index = index // 3
+	index = index // 4
 
 	if gridSize == 0:
 		params['nc'] = 100
