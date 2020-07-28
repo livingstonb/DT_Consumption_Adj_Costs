@@ -148,12 +148,12 @@ def load_calibration_2(index):
 	"""
 
 	default_values = Params()
+
+	params = dict()
 	params['index'] = index
 
 	gridSize = index % 4
 	index = index // 4
-
-	params = dict()
 
 	if gridSize == 0:
 		params['nc'] = 100

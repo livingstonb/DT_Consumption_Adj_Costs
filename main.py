@@ -4,7 +4,7 @@ import pandas as pd
 
 from model import Params, Income, Grid
 from misc import mpcsTable, functions, otherStatistics
-from misc.Calibrator3 import getCalibrator, Calibrator4
+from misc.Calibrator3 import Calibrator1, Calibrator2, Calibrator3, Calibrator4
 from model.model import Model, ModelWithNews
 from misc.calibrations import load_replication_2, load_calibration_2
 from model import simulator
@@ -28,7 +28,7 @@ def create_objects(params, locIncome, PrintGrids):
 
 	return (grids, income)
 
-def getCalibrator(index, p, model, income, grids):
+def getCalibrator(p, model, income, grids):
 	if p.cal_options['run'] == 'beta heterogeneity':
 		calibrator = Calibrator3(p, model, income, grids)
 	elif p.cal_options['run'] == 'mean wealth':
