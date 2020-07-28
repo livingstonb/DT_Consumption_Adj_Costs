@@ -24,8 +24,8 @@ class Calibrator:
 		boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
 			keep_feasible=True)
 		optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-			method='SLSQP', jac='2-point',
-			options={'finite_diff_rel_step': None})
+			method='L-BFGS-B', jac='2-point',
+			options={'finite_diff_rel_step': self.step})
 
 	def simulate(self):
 		self.model.solve()
@@ -59,6 +59,7 @@ class Calibrator2(Calibrator):
 		self.lbounds = [0.95]
 		self.ubounds = [0.99]
 		self.x0 = np.array([0.97])
+		self.step = np.array([0.0001])
 
 		super().__init__(p, model, income, grids)
 
@@ -67,7 +68,7 @@ class Calibrator2(Calibrator):
 
 		eqSimulator = self.simulate()
 
-		z = eqSimulator.results['Wealth <= $1000 interp'] - 0.23
+		z = eqSimulator.results['Wealth <= $1000'] - 0.23
 		print(f'Wealth constrained = {z + 0.23}')
 		return np.linalg.norm(z)
 
@@ -77,15 +78,11 @@ class Calibrator3(Calibrator):
 		self.lbounds = [0.96, 0.01]
 		self.ubounds = [0.9995, 0.05]
 		self.x0 = np.array([0.995, 0.03])
-
-		self.lbounds = [self.scale * lb for lb in self.lbounds]
-		self.ubounds = [self.scale * ub for ub in self.ubounds]
-		self.x0 = self.scale * self.x0
+		self.step = np.array([0.0001, 0.0001])
 
 		super().__init__(p, model, income, grids)
 
 	def optim_handle(self, x):
-		x = x / self.scale
 		self.p.setParam('timeDiscount', x[0], True)
 		self.p.setParam('discount_factor_grid', np.array([x[0]- 2 * x[1], x[0] - x[1], x[0]]), True)
 		self.model.p = self.p
@@ -107,16 +104,11 @@ class Calibrator4(Calibrator):
 		self.lbounds = [1e-6]
 		self.ubounds = [5e-3]
 		self.x0 = np.array([1e-4])
-
-		self.lbounds = [self.scale * lb for lb in self.lbounds]
-		self.ubounds = [self.scale * ub for ub in self.ubounds]
-		self.x0 = self.scale * self.x0
+		self.step = np.array([1e-9])
 
 		super().__init__(p, model, income, grids)
 
 	def optim_handle(self, x):
-		x = x / self.scale
-
 		self.p.setParam('adjustCost', x[0], True)
 		self.model.p = self.p
 
