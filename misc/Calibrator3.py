@@ -68,7 +68,7 @@ class Calibrator2(Calibrator):
 		eqSimulator = self.simulate()
 
 		z = eqSimulator.results['Wealth <= $1000'] - 0.23
-		print(f'Wealth constrained = {z}')
+		print(f'Wealth constrained = {z + 0.23}')
 		return np.linalg.norm(z)
 
 class Calibrator3(Calibrator):

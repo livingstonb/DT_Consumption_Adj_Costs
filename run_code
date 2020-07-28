@@ -2,4 +2,3 @@
 maindir="/home/livingstonb/GitHub/DT_Consumption_Adj_Costs"
 rm "${maindir}/output/*"
 sbatch "${maindir}/batch/server1.sh"
-sbatch "${maindir}/batch/server2.sh"
