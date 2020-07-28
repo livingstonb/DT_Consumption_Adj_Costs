@@ -122,8 +122,7 @@ class Calibrator:
 			elif self.target_types[ivar] == 'MPC':
 				values[ivar] = mpcSimulator.results[target]
 
-			dy = values[ivar] - self.targets[ivar].value
-			yvals[ivar] = dy * self.targets[ivar].weight
+			yvals[ivar] = values[ivar] - self.targets[ivar].value
 
 		self.printIterationResults(x, values)
 		self.iteration += 1
@@ -165,11 +164,10 @@ class OptimVariable:
 		return x_scaled / self.xscale
 
 class OptimTarget:
-	def __init__(self, name, value, target_type, weight=1.0):
+	def __init__(self, name, value, target_type):
 		self.name = name
 		self.value = value
 		self.type = target_type
-		self.weight = weight
 
 class SolverOptions:
 	def __init__(self, solver, solver_kwargs=None,

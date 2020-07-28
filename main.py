@@ -6,7 +6,7 @@ from model import Params, Income, Grid
 from misc import mpcsTable, functions, otherStatistics
 from misc.Calibrator import Calibrator
 from model.model import Model, ModelWithNews
-from misc.calibrations import load_replication, load_calibration, load_calibration_2
+from misc.calibrations import load_replication_2, load_calibration_2
 from model import simulator
 from misc import plots
 
@@ -48,6 +48,7 @@ def solve_back_from_shock(params, income, grids,
 	ii = 0
 	for ishock in shockIndices:
 		valueCurr = valueNext
+		shock = params.MPCshocks[ishock]
 
 		for ip in range(1, periodsUntilShock+1):
 			model = ModelWithNews(
@@ -60,7 +61,8 @@ def solve_back_from_shock(params, income, grids,
 			inaction[:,:,:,:,ii,ip] = model.inactionRegion[:,:,:,:,0]
 
 			del model
-			ii += 1
+		
+		ii += 1
 
 	for ip in range(0, periodsUntilShock+1):
 		switching[:,:,:,:,nLast-1,ip] = baselineSwitch[:,:,:,:,0]
@@ -107,7 +109,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#---------------------------------------------------------------#
 	functions.printLine()
 	if replication is not None:
-		params_dict = load_replication(replication)
+		params_dict = load_replication_2(replication)
 	else:
 		params_dict = load_calibration_2(index=paramIndex)
 

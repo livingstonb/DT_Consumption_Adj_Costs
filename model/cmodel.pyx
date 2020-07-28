@@ -58,8 +58,7 @@ cdef class CModel:
 		long [:] I, J
 		double [:] V
 
-		# excess value from switching
-		public object valueDiff, willSwitch, cChosen
+		public object willSwitch, cChosen
 
 		# policy functions
 		public object cSwitchingPolicy, inactionRegion
@@ -109,9 +108,9 @@ cdef class CModel:
 			double xval
 			object validCs
 
+		# xgrids adjusted for news of a future shock
 		self.xgrid_curr = np.asarray(self.grids.x_flat) \
 			+ (self.borrLimCurr - self.p.borrowLim)
-
 		self.xgrid_next = np.asarray(self.grids.x_flat) \
 			+ (self.borrLimNext - self.p.borrowLim)
 
@@ -187,6 +186,11 @@ cdef class CModel:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	def evaluateSwitching(self, final=False):
+		"""
+		Constructs required objects for one of two tasks:
+		(1) Computing the value of switching via optimization over c.
+		(2) Computing the inaction region.
+		"""
 		cdef:
 			double[:] emaxVec, yderivs
 			FnArgs fargs
@@ -220,21 +224,23 @@ cdef class CModel:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void maximizeValueFromSwitching(self, FnArgs *fargs_ptr):
+		"""
+		Computes the value function for switching consumption.
+		"""
 		cdef:
 			long iyP, ix, ii, iz
 			double xval, maxAdmissibleC, cSwitch
-			double[:] cVals, funVals, bounds
+			double[:] cVals, funVals, gssBounds
 			double gssResults[2]
 			long iOptimal
 			objectiveFn iteratorFn
 			FnArgs fargs
 
-		bounds = np.zeros(self.p.nSectionsGSS+1)
+		gssBounds = np.zeros(self.p.nSectionsGSS+1)
 		cVals = np.zeros(self.p.nSectionsGSS+2)
 		funVals = np.zeros(self.p.nSectionsGSS+2)
 
 		iteratorFn = <objectiveFn> self.findValueAtState
-
 		fargs = dereference(fargs_ptr)
 
 		self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
@@ -249,16 +255,17 @@ cdef class CModel:
 				xval = self.xgrid_curr[ix]
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
 
+				# Create linearly spaced vector in gssBounds
 				cfunctions.linspace(self.p.cMin, maxAdmissibleC,
-					self.p.nSectionsGSS+1, bounds)
+					self.p.nSectionsGSS+1, gssBounds)
 
 				for iz in range(self.p.nz):
 					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
 							ix, iz, fargs.yderivs)
 
 					for ii in range(self.p.nSectionsGSS):
-						cfunctions.goldenSectionSearch(iteratorFn, bounds[ii],
-							bounds[ii+1], 1e-10, &gssResults[0], fargs)
+						cfunctions.goldenSectionSearch(iteratorFn, gssBounds[ii],
+							gssBounds[ii+1], 1e-10, &gssResults[0], fargs)
 						funVals[ii] = gssResults[0]
 						cVals[ii] = gssResults[1]
 
@@ -292,6 +299,9 @@ cdef class CModel:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef void findInactionRegion(self, FnArgs fargs):
+		"""
+		Computes the value function for not switching consumption.
+		"""
 		cdef:
 			long iyP, ix, iz
 			double xval, maxAdmissibleC
@@ -340,6 +350,10 @@ cdef class CModel:
 	@cython.wraparound(False)
 	cdef void setFnArgs(self, FnArgs *fargs, double *emaxvec, long iyP,
 		long ix, long iz, double *yderivs):
+		"""
+		Takes an FnArgs object and updates the values of certain parameters
+		held within it.
+		"""
 		cdef:
 			long ic
 
@@ -352,6 +366,7 @@ cdef class CModel:
 			for ic in range(dereference(fargs).ncValid):
 				emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
 
+			# Compute yderivs in preparation for spline interpolation of EMAX
 			spline.spline(&self.grids.c_flat[0], emaxvec, dereference(fargs).ncValid,
 				1.0e30, 1.0e30, yderivs)
 
@@ -384,7 +399,11 @@ cdef class CModel:
 	@cython.wraparound(False)
 	cdef bint lookForInactionPoints(self, long ix, long iz, long iyP,
 		double *inactionPoints, FnArgs fargs):
-
+		"""
+		Searches for the lowest and highest points of inaction on the consumption grid.
+		If none exist, then a golden section search routine is called to look for a point
+		of inaction.
+		"""
 		cdef:
 			double[:] vNoSwitchCheck
 			double cCheck[2]
@@ -441,7 +460,11 @@ cdef class CModel:
 	@cython.wraparound(False)
 	cdef double findExtremeNoSwitchPoint(self, double x0,
 		double bound, double vSwitch, FnArgs fargs):
-
+		"""
+		Searches for the largest (or smallest) consumption value that
+		implies inaction. The algorithm starts at x0, which is assumed to be
+		a point of inaction, and searches toward bound.
+		"""
 		cdef:
 			double vNoSwitch, tol = 1e-10
 			double xb, xg, xm
