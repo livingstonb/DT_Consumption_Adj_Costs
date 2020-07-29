@@ -33,7 +33,7 @@ def getCalibrator(p, model, income, grids, cal_options):
 		calibrator = Calibrator3(p, model, income, grids)
 	elif cal_options['run'] == 'mean wealth':
 		calibrator = Calibrator1(p, model, income, grids)
-	else if cal_options['run'] = 'wealth constrained':
+	elif cal_options['run'] == 'wealth constrained':
 		calibrator = Calibrator2(p, model, income, grids)
 	else:
 		calibrator = Calibrator4(p, model, income, grids)
@@ -45,10 +45,10 @@ def getCalibrator(p, model, income, grids, cal_options):
 		calibrator.ubounds = cal_options['ubounds']
 
 	if 'x0' in cal_options:
-		calibrator.ubounds = cal_options['x0']
+		calibrator.x0 = cal_options['x0']
 
 	if 'step' in cal_options:
-		calibrator.ubounds = cal_options['step']
+		calibrator.step = cal_options['step']
 
 	return calibrator
 
