@@ -17,4 +17,4 @@ cdef class Params:
 		public double r, R, deathProb, govTransfer, tol
 		public double riskAver, adjustCost, timeDiscount
 		public object risk_aver_grid, discount_factor_grid
-		public object series, cal_options
+		public object series, cal1_options, cal2_options

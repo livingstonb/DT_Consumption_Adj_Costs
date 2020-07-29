@@ -28,13 +28,27 @@ def create_objects(params, locIncome, PrintGrids):
 
 	return (grids, income)
 
-def getCalibrator(p, model, income, grids):
-	if p.cal_options['run'] == 'beta heterogeneity':
+def getCalibrator(p, model, income, grids, cal_options):
+	if cal_options['run'] == 'beta heterogeneity':
 		calibrator = Calibrator3(p, model, income, grids)
-	elif p.cal_options['run'] == 'mean wealth':
+	elif cal_options['run'] == 'mean wealth':
 		calibrator = Calibrator1(p, model, income, grids)
-	else:
+	else if cal_options['run'] = 'wealth constrained':
 		calibrator = Calibrator2(p, model, income, grids)
+	else:
+		calibrator = Calibrator4(p, model, income, grids)
+
+	if 'lbounds' in cal_options:
+		calibrator.lbounds = cal_options['lbounds']
+	
+	if 'ubounds' in cal_options:
+		calibrator.ubounds = cal_options['ubounds']
+
+	if 'x0' in cal_options:
+		calibrator.ubounds = cal_options['x0']
+
+	if 'step' in cal_options:
+		calibrator.ubounds = cal_options['step']
 
 	return calibrator
 
@@ -139,10 +153,10 @@ def main(paramIndex=None, runopts=None, replication=None):
 		# calibrator = Calibrator(*params.cal_options)
 		# opt_results = calibrator.calibrate(params, model, income, grids)
 		# calibrator = None
-		calibrator = getCalibrator(params, model, income, grids)
+		calibrator = getCalibrator(params, model, income, grids, params.cal1_options)
 		calibrator.calibrate()
 
-		calibrator = Calibrator4(params, model, income, grids)
+		calibrator = getCalibrator(params, model, income, grids, params.cal2_options)
 		calibrator.calibrate()
 	else:
 		model.solve()

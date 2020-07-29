@@ -11,15 +11,6 @@ class Calibrator:
 		self.grids = grids
 		self.step = None
 
-		if 'lbounds' in p.cal_options:
-			self.lbounds = p.cal_options['lbounds']
-
-		if 'ubounds' in p.cal_options:
-			self.ubounds = p.cal_options['ubounds']
-
-		if 'x0' in p.cal_options:
-			self.x0 = p.cal_options['x0']
-
 	def calibrate(self):
 		boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
 			keep_feasible=True)
@@ -105,7 +96,7 @@ class Calibrator3(Calibrator):
 class Calibrator4(Calibrator):
 	def __init__(self, p, model, income, grids):
 		self.lbounds = [1e-6]
-		self.ubounds = [5e-3]
+		self.ubounds = [2e-3]
 		self.x0 = np.array([1e-4])
 
 		super().__init__(p, model, income, grids)

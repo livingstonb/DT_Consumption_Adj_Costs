@@ -100,7 +100,8 @@ def load_calibration(index):
 		raise Exception('Invalid entry')
 
 	params['adjustCost'] = 0
-	params['cal_options'] = dict()
+	params['cal1_options'] = dict()
+	params['cal2_options'] = dict()
 
 	if index == 0:
 		###########################################################
@@ -108,14 +109,20 @@ def load_calibration(index):
 		###########################################################
 		params['timeDiscount'] = 0.9649236559422705  ** 4.0
 		params['discount_factor_grid'] = np.array([0.0])
-		params['cal_options']['run'] = 'wealth constrained'
-		params['name'] = 'Wealth constrained target w/o adj costs'
+		params['name'] = 'Wealth constrained target'
+
+		params['cal1_options']['run'] = 'wealth constrained'
+		params['cal1_options']['x0'] = np.array([0.96773251])
+		params['cal1_options']['step'] = np.array([0.000015])
+
+		params['cal2_options']['run'] = 'adjustCost'
+		params['cal2_options']['x0'] = np.array([0.001])
 
 	elif index == 1:
 		###########################################################
 		##### TARGET 3.2 MEAN WEALTH ##############################
 		###########################################################
-		params['timeDiscount'] = 0.9960233991324677 ** 4.0
+		params['timeDiscount'] = 0.996042 ** 4.0
 		params['xMax'] = 50
 		params['discount_factor_grid'] = np.array([0.0])
 
@@ -130,9 +137,14 @@ def load_calibration(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 
-		# Without adjustment costs
-		params['name'] = 'Mean wealth target w/o adj costs'
-		params['cal_options']['run'] = 'mean wealth'
+		params['name'] = 'Mean wealth target'
+
+		params['cal1_options']['run'] = 'mean wealth'
+		params['cal1_options']['x0'] = np.array([0.996042])
+
+		params['cal2_options']['run'] = 'adjustCost'
+		params['cal2_options']['x0'] = np.array([1.2848834846425829e-05])
+		params['cal2_options']['step'] = np.array([5e-7])
 
 	elif index == 2:
 		###########################################################
@@ -153,9 +165,11 @@ def load_calibration(index):
 		params['cGridTerm1Curv'] = 0.9
 		params['cGridCurv'] = 0.15
 		
-		# Without adjustment costs
-		params['name'] = 'Beta heterogeneity w/o adj costs'
-		params['cal_options']['run'] = 'beta heterogeneity'
+		params['name'] = 'Beta heterogeneity'
+		params['cal1_options']['run'] = 'beta heterogeneity'
+		params['cal1_options']['x0'] = np.array([0.9983291460598163, 0.03207988])
+
+		params['cal2_options']['run'] = 'adjustCost'
 
 	print(f"Selected parameterization: {params['name']}")
 
