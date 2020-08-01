@@ -56,8 +56,8 @@ def load_replication(replication):
 
 	params_out['timeDiscount'] = betaQ ** 4.0
 	params_out['adjustCost'] = adjCostQ * 4.0
-	params_out['nc'] = 150
-	params_out['nx'] = 150
+	params_out['nc'] = 100
+	params_out['nx'] = 100
 
 	print('Replication chosen:')
 	print(f'\tBeta heterogeneity = {betaHet}')
@@ -94,8 +94,8 @@ def load_calibration(index):
 		params['nc'] = 200
 		params['nx'] = 100
 	elif gridSize == 3:
-		params['nc'] = 200
-		params['nx'] = 200
+		params['nc'] = 100
+		params['nx'] = 100
 	else:
 		raise Exception('Invalid entry')
 

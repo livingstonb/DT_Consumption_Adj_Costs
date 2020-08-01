@@ -3,12 +3,7 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
-from cython.operator cimport dereference
-
 from libc.math cimport log, fabs, pow
-
-cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
-cdef double INV_GOLDEN_RATIO_SQ = 0.38196601125
 
 cdef inline double utility(double riskaver, double con) nogil:
 	"""
@@ -78,7 +73,20 @@ cdef void getInterpolationWeights(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double cmax(double *vals, int nVals) nogil:
+cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil:
+	cdef:
+		long indices[2]
+		double weights[2]
+		double out
+
+	getInterpolationWeights(grid, pt, nGrid, &indices[0], &weights[0])
+	out = weights[0] * vals[indices[0]] + weights[1] * vals[indices[1]]
+
+	return out
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef double cmax(double[:] vals) nogil:
 	"""
 	Finds the maximum in 'vals'. Length of input
 	must be supplied.
@@ -88,7 +96,7 @@ cdef double cmax(double *vals, int nVals) nogil:
 
 	currentMax = vals[0]
 
-	for i in range(1, nVals):
+	for i in range(1, vals.shape[0]):
 		currentVal = vals[i]
 		if currentVal > currentMax:
 			currentMax = currentVal
@@ -97,7 +105,7 @@ cdef double cmax(double *vals, int nVals) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double cmin(double *vals, int nVals) nogil:
+cdef double cmin(double[:] vals) nogil:
 	"""
 	Finds the minimum in 'vals'. Length of input
 	must be supplied.
@@ -107,7 +115,7 @@ cdef double cmin(double *vals, int nVals) nogil:
 
 	currentMin = vals[0]
 
-	for i in range(1,nVals):
+	for i in range(1, vals.shape[0]):
 		currentVal = vals[i]
 		if currentVal < currentMin:
 			currentMin = currentVal
@@ -116,7 +124,7 @@ cdef double cmin(double *vals, int nVals) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef long cargmax(double[:] vals, int nVals) nogil:
+cdef long cargmax(double[:] vals) nogil:
 	"""
 	Finds the argmax of 'vals'. Length of input
 	must be supplied.
@@ -126,7 +134,7 @@ cdef long cargmax(double[:] vals, int nVals) nogil:
 
 	currentMax = vals[0]
 
-	for i in range(1, nVals):
+	for i in range(1, vals.shape[0]):
 		currentVal = vals[i]
 		if currentVal > currentMax:
 			currentMax = currentVal

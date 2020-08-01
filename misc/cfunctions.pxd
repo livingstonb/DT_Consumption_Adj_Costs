@@ -11,11 +11,13 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
 cdef void getInterpolationWeights(
 	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
 
-cdef double cmax(double *vals, int nVals) nogil
+cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil
 
-cdef double cmin(double *vals, int nVals) nogil
+cdef double cmax(double[:] vals) nogil
 
-cdef long cargmax(double[:] vals, int nVals) nogil
+cdef double cmin(double[:] vals) nogil
+
+cdef long cargmax(double[:] vals) nogil
 
 cpdef double gini(double[:] vals)
 

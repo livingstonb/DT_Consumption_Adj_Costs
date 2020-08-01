@@ -120,7 +120,9 @@ cdef class CSimulator:
 				self.csim_adj[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
 					- (xgrid[0] - cash)
-				self.csim[i,col] = self.cSwitchingPolicy[0,0,iz,iyP,modelNum]
+				self.csim[i,col] = \
+					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
+					- (xgrid[0] - cash)
 			else:
 				copt = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
 					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
