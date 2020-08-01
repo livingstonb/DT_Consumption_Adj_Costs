@@ -35,8 +35,8 @@ runOptions['MakePlots'] = False
 # If desired, choose a replication experiment
 # Redefine replication = None to ignore
 replication = dict()
-replication['target'] = 'wealth_lt_1000' # Either 'mean_wealth' or 'wealth_lt_1000'
-replication['adjustCostOn'] = True # True or False
+replication['target'] = 'mean_wealth' # Either 'mean_wealth' or 'wealth_lt_1000'
+replication['adjustCostOn'] = False # True or False
 replication['betaHeterogeneity'] = False # True or False
 # replication = None
 

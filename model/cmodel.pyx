@@ -8,8 +8,7 @@ from cython.operator cimport dereference
 
 from misc import functions
 from misc cimport cfunctions
-from misc.cfunctions cimport FnArgs, objectiveFn
-from misc cimport spline
+from misc.cfunctions cimport objectiveFn
 
 from Grid cimport Grid
 from Params cimport Params
@@ -18,7 +17,10 @@ from Income cimport Income
 import pandas as pd
 from scipy import sparse
 
-from libc.math cimport fmin, fmax, fabs
+from libc.math cimport fmin, fmax, fabs, log, pow
+
+cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
+cdef double INV_GOLDEN_RATIO_SQ = 0.38196601125
 
 cdef class CModel:
 	"""
@@ -52,6 +54,11 @@ cdef class CModel:
 		public double[:,:,:,:] EMAX
 		public double[:,:,:,:] EMAX_HTM
 		public double[:,:] htmGrid
+
+		# Temp variables
+		public double[:] temp_emaxVec, temp_emaxHtmVec, temp_htmGrid
+		public double temp_timeDiscount, temp_riskAver
+		public long temp_ncValid
 
 		# Number of valid consumption points at each x
 		long[:] validConsumptionPts
@@ -246,43 +253,26 @@ cdef class CModel:
 		(1) Computing the value of switching via optimization over c.
 		(2) Computing the inaction region.
 		"""
-		cdef:
-			double[:] emaxVec, emaxHtmVec, yderivs, htmGrid
-			FnArgs fargs
-
-		fargs.cgrid = &self.grids.c_flat[0]
-		fargs.deathProb = self.p.deathProb
-		fargs.nc = self.p.nc
-
 		if self.p.risk_aver_grid.size > 1:
-			fargs.hetType = 1
-			fargs.timeDiscount = self.p.timeDiscount
+			self.temp_timeDiscount = self.p.timeDiscount
 		elif self.p.discount_factor_grid.size > 1:
-			fargs.hetType = 2
-			fargs.riskAver = self.p.riskAver
+			self.temp_riskAver = self.p.riskAver
 		else:
-			fargs.hetType = 0
-			fargs.timeDiscount = self.p.timeDiscount
-			fargs.riskAver = self.p.riskAver
+			self.temp_timeDiscount = self.p.timeDiscount
+			self.temp_riskAver = self.p.riskAver
 
-		emaxVec = np.zeros(self.p.nc)
-		emaxHtmVec = np.zeros(10)
-		htmGrid = np.zeros(10)
-		yderivs = np.zeros(self.p.nc)
-
-		fargs.emaxVec = &emaxVec[0]
-		fargs.emaxHtmVec = &emaxHtmVec[0]
-		fargs.htmGrid = &htmGrid[0]
-		fargs.yderivs = &yderivs[0]
+		self.temp_emaxVec = np.zeros(self.p.nc)
+		self.temp_emaxHtmVec = np.zeros(10)
+		self.temp_htmGrid = np.zeros(10)
 
 		if not final:
-			self.maximizeValueFromSwitching(&fargs)
+			self.maximizeValueFromSwitching()
 		else:
-			self.findInactionRegion(fargs)
+			self.findInactionRegion()
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void maximizeValueFromSwitching(self, FnArgs *fargs_ptr):
+	cdef void maximizeValueFromSwitching(self):
 		"""
 		Computes the value function for switching consumption.
 		"""
@@ -293,14 +283,10 @@ cdef class CModel:
 			double gssResults[2]
 			long iOptimal
 			objectiveFn iteratorFn
-			FnArgs fargs
 
 		gssBounds = np.zeros(self.p.nSectionsGSS+1)
 		cVals = np.zeros(self.p.nSectionsGSS+2)
 		funVals = np.zeros(self.p.nSectionsGSS+2)
-
-		iteratorFn = <objectiveFn> self.findValueAtState
-		fargs = dereference(fargs_ptr)
 
 		self.cSwitchingPolicy = np.zeros((self.p.nx,1,self.p.nz,self.p.nyP),
 			order='F')
@@ -309,7 +295,7 @@ cdef class CModel:
 
 		for iyP in range(self.p.nyP):
 			for ix in range(self.p.nx):
-				fargs.ncValid = self.validConsumptionPts[ix]
+				self.temp_ncValid = self.validConsumptionPts[ix]
 
 				xval = self.xgrid_curr[ix]
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
@@ -319,22 +305,35 @@ cdef class CModel:
 					self.p.nSectionsGSS+1, gssBounds)
 
 				for iz in range(self.p.nz):
-					self.setFnArgs(&fargs, fargs.emaxVec, fargs.emaxHtmVec, fargs.htmGrid, iyP,
-							ix, iz, fargs.yderivs)
+					if self.p.risk_aver_grid.size > 1:
+						self.temp_riskAver = self.p.risk_aver_grid[iz]
+					elif self.p.discount_factor_grid.size > 1:
+						self.temp_timeDiscount = self.p.discount_factor_grid[iz]
+
+					for ic in range(self.temp_ncValid):
+						self.temp_emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
+
+					for ic in range(10):
+						self.temp_emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
+						self.temp_htmGrid[ic] = self.htmGrid[ix,ic]
+
+					# tempFn = lambda x: self.findValueAtState(x)
+					# iteratorFn = <objectiveFn> self.findValueAtState
+					# iteratorFn = <objectiveFn> tempFn
 
 					for ii in range(self.p.nSectionsGSS):
-						cfunctions.goldenSectionSearch(iteratorFn, gssBounds[ii],
-							gssBounds[ii+1], 1e-10, &gssResults[0], fargs)
+						self.goldenSectionSearch(gssBounds[ii],
+							gssBounds[ii+1], 1e-10, &gssResults[0])
 						funVals[ii] = gssResults[0]
 						cVals[ii] = gssResults[1]
 
 					# Try consuming cmin
 					cVals[self.p.nSectionsGSS] = self.p.cMin
-					funVals[self.p.nSectionsGSS] = self.findValueAtState(self.p.cMin, fargs)
+					funVals[self.p.nSectionsGSS] = self.findValueAtState(self.p.cMin)
 
 					# Try consuming max amount
 					cVals[self.p.nSectionsGSS+1] = maxAdmissibleC
-					funVals[self.p.nSectionsGSS+1] = self.findValueAtState(maxAdmissibleC, fargs)
+					funVals[self.p.nSectionsGSS+1] = self.findValueAtState(maxAdmissibleC)
 
 					iOptimal = cfunctions.cargmax(funVals, self.p.nSectionsGSS+2)
 
@@ -342,27 +341,14 @@ cdef class CModel:
 					self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
 						- self.p.adjustCost
 
-			# ix = 0
-			# fargs.ncValid = self.validConsumptionPts[ix]
-			# for iz in range(self.p.nz):
-			# 	self.setFnArgs(&fargs, fargs.emaxVec, iyP,
-			# 		ix, iz, fargs.yderivs)
-
-			# 	cSwitch = self.cSwitchingPolicy[1,0,iz,iyP] \
-			# 		-(self.xgrid_curr[1] - self.xgrid_curr[0])
-			# 	cSwitch = fmax(cSwitch, self.p.cMin)
-			# 	self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
-			# 	self.valueSwitch[ix,0,iz,iyP] = \
-			# 		self.findValueAtState(cSwitch, fargs) - self.p.adjustCost
-
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void findInactionRegion(self, FnArgs fargs):
+	cdef void findInactionRegion(self):
 		"""
 		Computes the value function for not switching consumption.
 		"""
 		cdef:
-			long iyP, ix, iz
+			long iyP, ix, iz, ic
 			double xval, maxAdmissibleC
 			bint inactionFound
 			double inactionPoints[2]
@@ -372,71 +358,44 @@ cdef class CModel:
 
 		for iyP in range(self.p.nyP):
 			for ix in range(self.p.nx):
-				fargs.ncValid = self.validConsumptionPts[ix]
+				self.temp_ncValid = self.validConsumptionPts[ix]
 
 				xval = self.xgrid_curr[ix]
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
 
 				for iz in range(self.p.nz):
-					self.setFnArgs(&fargs, fargs.emaxVec, fargs.emaxHtmVec, fargs.htmGrid, iyP,
-							ix, iz, fargs.yderivs)
+					if self.p.risk_aver_grid.size > 1:
+						self.temp_riskAver = self.p.risk_aver_grid[iz]
+					elif self.p.discount_factor_grid.size > 1:
+						self.temp_timeDiscount = self.p.discount_factor_grid[iz]
+
+					for ic in range(self.temp_ncValid):
+						self.temp_emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
+
+					for ic in range(10):
+						self.temp_emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
+						self.temp_htmGrid[ic] = self.htmGrid[ix,ic]
 
 					inactionFound = self.lookForInactionPoints(ix, iz, iyP,
-						inactionPoints, fargs)
+						inactionPoints)
 					if inactionFound:
 						# Look for lowest inaction point
 						self.inactionRegion[ix,0,iz,iyP] = self.findExtremeNoSwitchPoint(
-							inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP],
-							fargs)
+							inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP])
 
 						# Highest inaction point
 						self.inactionRegion[ix,1,iz,iyP] = self.findExtremeNoSwitchPoint(
-							inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP],
-							fargs)
+							inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP])
 					else:
 						self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 						self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-
-			# ix = 0
-			# for iz in range(self.p.nz):
-			# 	self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
-			# 	self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
 
 		self.inactionRegion = self.inactionRegion.reshape(
 			(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void setFnArgs(self, FnArgs *fargs, double *emaxvec, double *emaxHtmVec,
-		double *htmGrid, long iyP, long ix, long iz, double *yderivs):
-		"""
-		Takes an FnArgs object and updates the values of certain parameters
-		held within it.
-		"""
-		cdef:
-			long ic, ncTemp
-
-		if fargs.hetType == 1:
-			dereference(fargs).riskAver = self.p.risk_aver_grid[iz]
-		elif fargs.hetType == 2:
-			dereference(fargs).timeDiscount = self.p.discount_factor_grid[iz]
-
-		ncTemp = dereference(fargs).ncValid
-		for ic in range(ncTemp):
-			emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
-
-		for ic in range(10):
-			emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
-			htmGrid[ic] = self.htmGrid[ix,ic]
-
-		# if dereference(fargs).ncValid >= 4:
-		# 	# Compute yderivs in preparation for spline interpolation of EMAX
-		# 	spline.spline(&self.grids.c_flat[0], emaxvec, ncTemp,
-		# 		1.0e30, 1.0e30, yderivs)
-
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
-	cdef double findValueAtState(self, double cSwitch, FnArgs fargs) nogil:
+	cdef double findValueAtState(self, double cSwitch):
 		"""
 		Outputs the value u(cSwitch) + beta * EMAX(cSwitch) for a given cSwitch.
 		"""
@@ -444,31 +403,28 @@ cdef class CModel:
 		cdef double weights[2]
 		cdef long indices[2]
 
-		if cSwitch <= fargs.cgrid[0]:
-			emax = fargs.emaxVec[0]
-		elif cSwitch == fargs.cgrid[fargs.ncValid-1]:
-			emax = fargs.emaxVec[fargs.ncValid-1]
-		elif cSwitch > fargs.cgrid[fargs.ncValid-1]:
-			cfunctions.getInterpolationWeights(fargs.htmGrid, cSwitch,
+		if cSwitch <= self.grids.c_flat[0]:
+			emax = self.temp_emaxVec[0]
+		elif cSwitch == self.grids.c_flat[self.temp_ncValid-1]:
+			emax = self.temp_emaxVec[self.temp_ncValid-1]
+		elif cSwitch > self.grids.c_flat[self.temp_ncValid-1]:
+			cfunctions.getInterpolationWeights(&self.temp_htmGrid[0], cSwitch,
 				10, &indices[0], &weights[0])
-			emax = weights[0] * fargs.emaxHtmVec[indices[0]] + weights[1] * fargs.emaxHtmVec[indices[1]]
+			emax = weights[0] * self.temp_emaxHtmVec[indices[0]] + weights[1] * self.temp_emaxHtmVec[indices[1]]
 		else:
-			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch,
-				fargs.ncValid, &indices[0], &weights[0])
-			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
-		# else:
-		# 	spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs,
-		# 		ncInterp, cSwitch, &emax)
+			cfunctions.getInterpolationWeights(&self.grids.c_flat[0], cSwitch,
+				self.temp_ncValid, &indices[0], &weights[0])
+			emax = weights[0] * self.temp_emaxVec[indices[0]] + weights[1] * self.temp_emaxVec[indices[1]]
 
-		u = cfunctions.utility(fargs.riskAver, cSwitch)
-		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax
+		u = cfunctions.utility(self.temp_riskAver, cSwitch)
+		value = u + self.temp_timeDiscount * (1 - self.p.deathProb) * emax
 
 		return value
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef bint lookForInactionPoints(self, long ix, long iz, long iyP,
-		double *inactionPoints, FnArgs fargs):
+		double *inactionPoints):
 		"""
 		Searches for the lowest and highest points of inaction on the consumption grid.
 		If none exist, then a golden section search routine is called to look for a point
@@ -481,12 +437,12 @@ cdef class CModel:
 			double vSwitch
 			long ic, i1, i2
 			bint inactionFound = False
-			objectiveFn iteratorFn
+			# objectiveFn iteratorFn
 
 		vSwitch = self.valueSwitch[ix,0,iz,iyP]
 
 		# Look for lowest point of inaction
-		for ic in range(fargs.ncValid):
+		for ic in range(self.temp_ncValid):
 			if not self.willSwitch[ix,ic,iz,iyP]:
 				inactionPoints[0] = self.grids.c_flat[ic]
 				inactionFound = True
@@ -494,7 +450,7 @@ cdef class CModel:
 
 		if inactionFound:
 			# Look for high inaction point
-			for ic in range(fargs.ncValid-1, -1, -1):
+			for ic in range(self.temp_ncValid-1, -1, -1):
 				if not self.willSwitch[ix,ic,iz,iyP]:
 					inactionPoints[1] = self.grids.c_flat[ic]
 					return True
@@ -503,8 +459,8 @@ cdef class CModel:
 			return True
 		else:
 			# Look between most promising two consumption values
-			vNoSwitchCheck = np.zeros(fargs.ncValid)
-			for ic in range(fargs.ncValid):
+			vNoSwitchCheck = np.zeros(self.temp_ncValid)
+			for ic in range(self.temp_ncValid):
 				vNoSwitchCheck[ic] = self.valueNoSwitch[ix,ic,iz,iyP]
 
 			i1 = np.argmax(vNoSwitchCheck)
@@ -515,9 +471,9 @@ cdef class CModel:
 			cCheck[1] = fmax(self.grids.c_flat[i1], self.grids.c_flat[i2])
 
 			# Look between these points for a no-switching point
-			iteratorFn = <objectiveFn> self.findValueAtState
-			cfunctions.goldenSectionSearch(iteratorFn, cCheck[0],
-				cCheck[1], 1e-10, &gssResults[0], fargs)
+			# iteratorFn = <objectiveFn> self.findValueAtState
+			self.goldenSectionSearch(cCheck[0],
+				cCheck[1], 1e-10, &gssResults[0])
 
 			if gssResults[0] >= vSwitch:
 				inactionPoints[0] = gssResults[1]
@@ -529,7 +485,7 @@ cdef class CModel:
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cdef double findExtremeNoSwitchPoint(self, double x0,
-		double bound, double vSwitch, FnArgs fargs):
+		double bound, double vSwitch):
 		"""
 		Searches for the largest (or smallest) consumption value that
 		implies inaction. The algorithm starts at x0, which is assumed to be
@@ -546,14 +502,14 @@ cdef class CModel:
 		
 		while (fabs(xb - xg) > tol) and (it < maxIters):
 			xm = (xb + xg) / 2.0
-			if self.findValueAtState(xm, fargs) >= vSwitch:
+			if self.findValueAtState(xm) >= vSwitch:
 				xb = xm
 			else:
 				xg = xm
 
 			it += 1
 
-		if self.findValueAtState(xb, fargs) >= vSwitch:
+		if self.findValueAtState(xb) >= vSwitch:
 			return xb
 		else:
 			return -1
@@ -582,3 +538,52 @@ cdef class CModel:
 
 	def resetParams(self, newParams):
 		self.p = newParams
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void goldenSectionSearch(self, double a, double b, 
+		double tol, double* out):
+		"""
+		This function iterates over the objective function f using
+		the golden section search method in the interval (a,b).
+
+		The maximum function value is supplied to out[0] and the
+		maximizer is supplied to out[1]. Arguments of f must be arg1,
+		arg2, and fparams.
+
+		Algorithm taken from Wikipedia.
+		"""
+		cdef double c, d, diff
+		cdef double fc, fd
+
+		diff = b - a
+
+		c = a + diff * INV_GOLDEN_RATIO_SQ
+		d = a + diff * INV_GOLDEN_RATIO 
+
+		fc = -self.findValueAtState(c)
+		fd = -self.findValueAtState(d)
+
+		while fabs(c - d) > tol:
+			if fc < fd:
+				b = d
+				d = c
+				fd = fc
+
+				diff = diff * INV_GOLDEN_RATIO
+				c = a + diff * INV_GOLDEN_RATIO_SQ
+				fc = -self.findValueAtState(c)
+			else:
+				a = c
+				c = d
+				fc = fd
+				diff = diff * INV_GOLDEN_RATIO
+				d = a + diff * INV_GOLDEN_RATIO
+				fd = -self.findValueAtState(d)
+
+		if fc < fd:
+			out[0] = -fc
+			out[1] = c
+		else:
+			out[0] = -fd
+			out[1] = d

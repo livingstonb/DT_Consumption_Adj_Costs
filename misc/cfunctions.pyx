@@ -3,6 +3,8 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
+from cython.operator cimport dereference
+
 from libc.math cimport log, fabs, pow
 
 cdef double INV_GOLDEN_RATIO = 0.61803398874989479150
@@ -74,54 +76,54 @@ cdef void getInterpolationWeights(
 		weights[0] = weight0
 		weights[1] = 1 - weight0
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
-	double tol, double* out, FnArgs fargs) nogil:
-	"""
-	This function iterates over the objective function f using
-	the golden section search method in the interval (a,b).
+# @cython.boundscheck(False)
+# @cython.wraparound(False)
+# cdef void goldenSectionSearch(objectiveFn f, double a, double b, 
+# 	double tol, double* out):
+# 	"""
+# 	This function iterates over the objective function f using
+# 	the golden section search method in the interval (a,b).
 
-	The maximum function value is supplied to out[0] and the
-	maximizer is supplied to out[1]. Arguments of f must be arg1,
-	arg2, and fparams.
+# 	The maximum function value is supplied to out[0] and the
+# 	maximizer is supplied to out[1]. Arguments of f must be arg1,
+# 	arg2, and fparams.
 
-	Algorithm taken from Wikipedia.
-	"""
-	cdef double c, d, diff
-	cdef double fc, fd
+# 	Algorithm taken from Wikipedia.
+# 	"""
+# 	cdef double c, d, diff
+# 	cdef double fc, fd
 
-	diff = b - a
+# 	diff = b - a
 
-	c = a + diff * INV_GOLDEN_RATIO_SQ
-	d = a + diff * INV_GOLDEN_RATIO 
+# 	c = a + diff * INV_GOLDEN_RATIO_SQ
+# 	d = a + diff * INV_GOLDEN_RATIO 
 
-	fc = -f(c, fargs)
-	fd = -f(d, fargs)
+# 	fc = -f(c)
+# 	fd = -f(d)
 
-	while fabs(c - d) > tol:
-		if fc < fd:
-			b = d
-			d = c
-			fd = fc
+# 	while fabs(c - d) > tol:
+# 		if fc < fd:
+# 			b = d
+# 			d = c
+# 			fd = fc
 
-			diff = diff * INV_GOLDEN_RATIO
-			c = a + diff * INV_GOLDEN_RATIO_SQ
-			fc = -f(c, fargs)
-		else:
-			a = c
-			c = d
-			fc = fd
-			diff = diff * INV_GOLDEN_RATIO
-			d = a + diff * INV_GOLDEN_RATIO
-			fd = -f(d, fargs)
+# 			diff = diff * INV_GOLDEN_RATIO
+# 			c = a + diff * INV_GOLDEN_RATIO_SQ
+# 			fc = -f(c)
+# 		else:
+# 			a = c
+# 			c = d
+# 			fc = fd
+# 			diff = diff * INV_GOLDEN_RATIO
+# 			d = a + diff * INV_GOLDEN_RATIO
+# 			fd = -f(d)
 
-	if fc < fd:
-		out[0] = -fc
-		out[1] = c
-	else:
-		out[0] = -fd
-		out[1] = d
+# 	if fc < fd:
+# 		out[0] = -fc
+# 		out[1] = c
+# 	else:
+# 		out[0] = -fd
+# 		out[1] = d
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
