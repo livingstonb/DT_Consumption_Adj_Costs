@@ -92,6 +92,7 @@ class Model(CModel):
 		there is NOT news of a future shock. In the case of news, next
 		period's value function should be used.
 		"""
+		# self.updateEMAX_HTM()
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
 			).reshape(self.grids.matrixDim, order='F')
 

@@ -71,8 +71,8 @@ class EquilibriumSimulator(Simulator):
 		self.makeRandomDraws()
 
 		self.asim = 0.5 * np.ones((self.nSim,self.nCols))
-		self.csim = np.ones((self.nSim,self.nCols))
-		self.csim_adj = np.ones((self.nSim,self.nCols))
+		self.csim = 0.1 * np.ones((self.nSim,self.nCols))
+		self.csim_adj = 0.1 * np.ones((self.nSim,self.nCols))
 
 		self.yPind = np.argmax(self.yPrand[:,self.randIndex,np.newaxis]
 					<= self.income.yPcumdistT,
@@ -437,8 +437,7 @@ class MPCSimulatorNews(MPCSimulator):
 			self.borrowLimsCurr = [None] * self.nCols
 			for col in range(self.nCols):
 				self.borrowLimsCurr[col] = self.borrowLims[col].pop()
-				self.xgridCurr[col] = np.asarray(self.grids.x_flat) \
-					+ (self.borrowLimsCurr[col] - self.p.borrowLim)
+				self.xgridCurr[col] = self.grids.genAdjustedXGrid(self.borrowLimsCurr[col])
 		else:
 			for col in range(self.nCols):
 				self.borrowLimsCurr[col] = self.p.borrowLim

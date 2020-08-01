@@ -50,6 +50,7 @@ cdef class CModel:
 
 		# EMAX
 		public double[:,:,:,:] EMAX
+		public double[:,:,:] EMAX_HTM
 
 		# Number of valid consumption points at each x
 		long[:] validConsumptionPts
@@ -109,10 +110,8 @@ cdef class CModel:
 			object validCs
 
 		# xgrids adjusted for news of a future shock
-		self.xgrid_curr = np.asarray(self.grids.x_flat) \
-			+ (self.borrLimCurr - self.p.borrowLim)
-		self.xgrid_next = np.asarray(self.grids.x_flat) \
-			+ (self.borrLimNext - self.p.borrowLim)
+		self.xgrid_curr = self.grids.genAdjustedXGrid(self.borrLimCurr)
+		self.xgrid_next = self.grids.genAdjustedXGrid(self.borrLimNext)
 
 		self.mustSwitch = np.asarray(self.xgrid_curr)[:,None,None,None] \
 			- np.asarray(self.grids.c_wide) \
@@ -145,10 +144,8 @@ cdef class CModel:
 		ii = ix * 2 * self.p.nc * self.p.nz * self.p.nyP * self.p.nyP * self.p.nyT
 		ii2 = ii + 1
 
-		for ic in range(self.p.nc):
+		for ic in range(self.validConsumptionPts[ix]):
 			sav = xval - self.grids.c_flat[ic]
-			if sav < self.borrLimCurr:
-				continue
 
 			assets = self.p.R * sav + self.nextMPCShock + self.p.govTransfer
 
@@ -182,6 +179,39 @@ cdef class CModel:
 							self.V[ii2] = Pytrans * self.income.yTdist[iyT] * xWeights[1]
 							ii += 2
 							ii2 += 2
+
+	# @cython.boundscheck(False)
+	# @cython.wraparound(False)
+	# def updateEMAX_HTM(self):
+	# 	cdef:
+	# 		long ix, iz, iyP1, iyP2, iyT
+	# 		double emax, Pytrans, yP2, cash_other, cash_tot
+	# 		double inctrans
+
+	# 	self.EMAX_HTM = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
+	# 	cash_other = self.p.R * self.borrLimCurr + self.nextMPCShock + self.p.govTransfer
+
+	# 	for ix in range(self.p.nx):
+
+	# 		for iz in range(self.p.nz):
+
+	# 			for iyP1 in range(self.p.nyP):
+	# 				emax = 0
+
+	# 				for iyP2 in range(self.p.nyP):
+	# 					Pytrans = self.income.yPtrans[iyP1, iyP2]
+	# 					yP2 = self.income.yPgrid[iyP2]
+
+	# 					for iyT in range(self.p.nyT):
+	# 						cash_tot = cash_other + yP2 * self.income.yTgrid[iyT]
+
+	# 						# EMAX associated with next period may be over adjusted grid
+	# 						cfunctions.getInterpolationWeights(&self.xgrid_next[0],
+	# 							cash_tot, self.p.nx, &xIndices[0], &xWeights[0])
+
+	# 						inctrans = Pytrans * self.income.yTdist[iyT]
+	# 						emax += inctrans * xWeights[0] * self.valueFunction[xIndices[0],]
+
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -249,7 +279,7 @@ cdef class CModel:
 			order='F')
 
 		for iyP in range(self.p.nyP):
-			for ix in range(1, self.p.nx):
+			for ix in range(self.p.nx):
 				fargs.ncValid = self.validConsumptionPts[ix]
 
 				xval = self.xgrid_curr[ix]
@@ -283,18 +313,18 @@ cdef class CModel:
 					self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
 						- self.p.adjustCost
 
-			ix = 0
-			fargs.ncValid = self.validConsumptionPts[ix]
-			for iz in range(self.p.nz):
-				self.setFnArgs(&fargs, fargs.emaxVec, iyP,
-					ix, iz, fargs.yderivs)
+			# ix = 0
+			# fargs.ncValid = self.validConsumptionPts[ix]
+			# for iz in range(self.p.nz):
+			# 	self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+			# 		ix, iz, fargs.yderivs)
 
-				cSwitch = self.cSwitchingPolicy[1,0,iz,iyP] \
-					-(self.xgrid_curr[1] - self.xgrid_curr[0])
-				cSwitch = fmax(cSwitch, self.p.cMin)
-				self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
-				self.valueSwitch[ix,0,iz,iyP] = \
-					self.findValueAtState(cSwitch, fargs) - self.p.adjustCost
+			# 	cSwitch = self.cSwitchingPolicy[1,0,iz,iyP] \
+			# 		-(self.xgrid_curr[1] - self.xgrid_curr[0])
+			# 	cSwitch = fmax(cSwitch, self.p.cMin)
+			# 	self.cSwitchingPolicy[ix,0,iz,iyP] = cSwitch
+			# 	self.valueSwitch[ix,0,iz,iyP] = \
+			# 		self.findValueAtState(cSwitch, fargs) - self.p.adjustCost
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -312,7 +342,7 @@ cdef class CModel:
 				order='F')
 
 		for iyP in range(self.p.nyP):
-			for ix in range(1, self.p.nx):
+			for ix in range(self.p.nx):
 				fargs.ncValid = self.validConsumptionPts[ix]
 
 				xval = self.xgrid_curr[ix]
@@ -338,10 +368,10 @@ cdef class CModel:
 						self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 						self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 
-			ix = 0
-			for iz in range(self.p.nz):
-				self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
-				self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
+			# ix = 0
+			# for iz in range(self.p.nz):
+			# 	self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
+			# 	self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[0,0,iz,iyP]
 
 		self.inactionRegion = self.inactionRegion.reshape(
 			(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
@@ -355,7 +385,7 @@ cdef class CModel:
 		held within it.
 		"""
 		cdef:
-			long ic
+			long ic, ncTemp
 
 		if fargs.hetType == 1:
 			dereference(fargs).riskAver = self.p.risk_aver_grid[iz]
@@ -363,11 +393,13 @@ cdef class CModel:
 			dereference(fargs).timeDiscount = self.p.discount_factor_grid[iz]
 
 		if dereference(fargs).ncValid >= 4:
-			for ic in range(dereference(fargs).ncValid):
+			# ncTemp = min(dereference(fargs).ncValid+1, dereference(fargs).nc)
+			ncTemp = dereference(fargs).ncValid
+			for ic in range(ncTemp):
 				emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
 
 			# Compute yderivs in preparation for spline interpolation of EMAX
-			spline.spline(&self.grids.c_flat[0], emaxvec, dereference(fargs).ncValid,
+			spline.spline(&self.grids.c_flat[0], emaxvec, ncTemp,
 				1.0e30, 1.0e30, yderivs)
 
 	@cython.boundscheck(False)
@@ -379,16 +411,24 @@ cdef class CModel:
 		cdef double u, emax, value
 		cdef double weights[2]
 		cdef long indices[2]
-	
-		if fargs.ncValid == 1:
+		cdef long ncInterp
+
+		# ncInterp = min(fargs.ncValid+1, fargs.nc)
+		ncInterp = fargs.ncValid
+
+		if cSwitch <= fargs.cgrid[0]:
+			emax = fargs.emaxVec[0]
+		elif cSwitch >= fargs.cgrid[ncInterp-1]:
+			emax = fargs.emaxVec[ncInterp-1]
+		elif fargs.ncValid == 1:
 			emax = fargs.emaxVec[0]
 		elif fargs.ncValid < 4:
 			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch,
-				fargs.ncValid, &indices[0], &weights[0])
+				ncInterp, &indices[0], &weights[0])
 			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
 		else:
 			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs,
-				fargs.ncValid, cSwitch, &emax)
+				ncInterp, cSwitch, &emax)
 
 		u = cfunctions.utility(fargs.riskAver, cSwitch)
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax

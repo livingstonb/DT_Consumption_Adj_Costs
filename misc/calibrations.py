@@ -8,13 +8,13 @@ def load_replication(replication):
 
 	if target == 'mean_wealth':
 		params_out = {
-			'xGridTerm1Wt': 0.05,
-			'xGridTerm1Curv': 0.8,
-			'xGridCurv': 0.2,
+			'xGridTerm1Wt': 0.01,
+			'xGridTerm1Curv': 0.5,
+			'xGridCurv': 0.15,
 			'xMax': 50,
 			'borrowLim': 0,
 			'cMin': 1e-6,
-			'cMax': 5,
+			'cMax': 50,
 			'cGridTerm1Wt': 0.05,
 			'cGridTerm1Curv': 0.9,
 			'cGridCurv': 0.15,
@@ -45,8 +45,8 @@ def load_replication(replication):
 			adjCostQ = 1.2861226655132633e-05
 			betaQ = 0.9960233991324677
 		elif acost and (not meanw):
-			adjCostQ = 0.00036446248457166374
-			betaQ = 0.9649236559422705
+			adjCostQ = 0.000417
+			betaQ = 0.967748
 		elif (not acost) and meanw:
 			adjCostQ = 0
 			betaQ = 0.9960233991324677
@@ -56,8 +56,8 @@ def load_replication(replication):
 
 	params_out['timeDiscount'] = betaQ ** 4.0
 	params_out['adjustCost'] = adjCostQ * 4.0
-	params_out['nc'] = 200
-	params_out['nx'] = 200
+	params_out['nc'] = 300
+	params_out['nx'] = 250
 
 	print('Replication chosen:')
 	print(f'\tBeta heterogeneity = {betaHet}')

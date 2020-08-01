@@ -116,7 +116,7 @@ cdef class CSimulator:
 				switch = False
 
 		if switch:
-			if cash <= blim:
+			if cash <= xgrid[0]:
 				self.csim_adj[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
 					+ (xgrid[0] - cash)

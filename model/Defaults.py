@@ -14,7 +14,7 @@ def parameters():
 		'maxIters': 2e4,
 		'tol': 1e-7,
 		'nSim': 3e5,
-		'tSim': 250,
+		'tSim': 300,
 		'nSectionsGSS': 20,
 		'NsimMPC': 3e5,
 		'MPCshocks': [-0.081, -0.0405, -0.0081, 0.0081, 0.0405, 0.081, 0],
