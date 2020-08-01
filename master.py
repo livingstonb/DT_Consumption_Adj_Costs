@@ -38,7 +38,7 @@ replication = dict()
 replication['target'] = 'mean_wealth' # Either 'mean_wealth' or 'wealth_lt_1000'
 replication['adjustCostOn'] = False # True or False
 replication['betaHeterogeneity'] = False # True or False
-# replication = None
+replication = None
 
 #---------------------------------------------------------------#
 #      OR CHOOSE AN INDEX                                       #
