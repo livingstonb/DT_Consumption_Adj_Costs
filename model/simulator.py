@@ -72,7 +72,6 @@ class EquilibriumSimulator(Simulator):
 
 		self.asim = 0.5 * np.ones((self.nSim,self.nCols))
 		self.csim = 0.1 * np.ones((self.nSim,self.nCols))
-		self.csim_adj = 0.1 * np.ones((self.nSim,self.nCols))
 
 		self.yPind = np.argmax(self.yPrand[:,self.randIndex,np.newaxis]
 					<= self.income.yPcumdistT,
@@ -158,7 +157,7 @@ class EquilibriumSimulator(Simulator):
 			self.incomeHistory[:,self.t-self.T+3] = np.reshape(self.ysim,self.nSim)
 
 		if self.t == self.T - 1:
-			self.finalStates = {'csim': self.csim, 'csim_adj': self.csim_adj}
+			self.finalStates = {'csim': self.csim}
 		elif self.t == self.T:
 			self.finalStates.update({	'yPind': self.yPind,
 										'xsim': self.xsim,
@@ -301,7 +300,6 @@ class MPCSimulator(Simulator):
 	def initialize_variables(self):
 		self.xsim = np.repeat(self.finalStates['xsim'],self.nCols,axis=1)
 		self.csim = np.repeat(self.finalStates['csim'],self.nCols,axis=1)
-		self.csim_adj = np.repeat(self.finalStates['csim_adj'],self.nCols,axis=1)
 		self.yPind = self.finalStates['yPind'].copy()
 		self.zind = self.finalStates['zind'].copy()
 
@@ -353,10 +351,10 @@ class MPCSimulator(Simulator):
 			rowAnnualCond = f'E[Annual MPC | MPC > 0] out of {self.p.MPCshocks[ishock]}'
 			rowAnnualCondMedian = f'Median(Annual MPC | MPC > 0) out of {self.p.MPCshocks[ishock]}'
 
-			csimQuarter = np.asarray(self.csim_adj[:,ii])
+			csimQuarter = np.asarray(self.csim[:,ii])
 
 			# quarterly mpcs
-			allMPCS = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
+			allMPCS = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 					) / self.p.MPCshocks[ishock]
 
 
@@ -487,10 +485,10 @@ class MPCSimulatorNews(MPCSimulator):
 			rowQuarterlyCond = f'E[Q{self.t} MPC | MPC > 0] out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
 			rowQuarterlyCondMedian = f'Median(Q{self.t} MPC | MPC > 0) out of news of {futureShock} shock in {self.periodsUntilShock} quarter(s)'
 
-			csimQuarter = np.asarray(self.csim_adj[:,ii])
+			csimQuarter = np.asarray(self.csim[:,ii])
 
 			# quarterly mpcs
-			allMPCS = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
+			allMPCS = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 					) / self.p.MPCshocks[ishock]
 
 			if self.t == 1:
@@ -550,10 +548,10 @@ class MPCSimulatorNews_Loan(MPCSimulatorNews):
 			rowQuarterlyCond = f'E[Q{quarter} MPC | MPC > 0] out of {loanSize} loan for {self.periodsUntilShock} quarter(s)'
 			rowQuarterlyCondMedian = f'Median(Q{quarter} MPC | MPC > 0) out of {loanSize} loan for {self.periodsUntilShock} quarter(s)'
 
-			csimQuarter = np.asarray(self.csim_adj[:,ii])
+			csimQuarter = np.asarray(self.csim[:,ii])
 
 			# quarterly mpcs
-			allMPCS = (csimQuarter - np.asarray(self.csim_adj[:,self.nCols-1])
+			allMPCS = (csimQuarter - np.asarray(self.csim[:,self.nCols-1])
 					) / loanSize
 
 			if self.t == 1:

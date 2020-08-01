@@ -13,10 +13,6 @@ cdef void getInterpolationWeights(
 
 cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil
 
-cdef double cmax(double[:] vals) nogil
-
-cdef double cmin(double[:] vals) nogil
-
 cdef long cargmax(double[:] vals) nogil
 
 cpdef double gini(double[:] vals)

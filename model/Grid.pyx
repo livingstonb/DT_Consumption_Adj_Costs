@@ -39,9 +39,8 @@ cdef class Grid:
 
 	def genAdjustedXGrid(self, lb):
 		if lb > self.x_flat[0]:
-			new_grid = np.asarray(self.x_flat) + lb - self.x_flat[0] + 2.0e-6
+			new_grid = np.asarray(self.x_flat) + lb - self.x_flat[0] + 2 * self.p.cMin
 		else:
 			new_grid = np.asarray(self.x_flat)
 
-		# return np.asarray(self.x_flat) + (lb - self.p.borrowLim)
 		return new_grid

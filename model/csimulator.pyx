@@ -26,7 +26,7 @@ cdef class CSimulator:
 		public bint initialized, news
 		public long[:,:] switched
 		public long[:] yPind, zind
-		public double[:,:] ysim, csim, csim_adj, xsim, asim
+		public double[:,:] ysim, csim, xsim, asim
 		public list xgridCurr
 		public list borrowLims, borrowLimsCurr
 
@@ -51,21 +51,10 @@ cdef class CSimulator:
 	@cython.wraparound(False)
 	def solveDecisions(self):
 		cdef:
-			long i, col, nc, nx
-			double[:] cgrid
+			long i, col
 			double[:] xgrid
-			double[:] discount_factor_grid
-			double[:] risk_aver_grid
-			double deathProb, adjustCost, blim
+			double blim
 			long modelNum
-		
-		cgrid = self.grids.c_flat
-		nc = self.p.nc
-		nx = self.p.nx
-		discount_factor_grid = self.p.discount_factor_grid
-		deathProb = self.p.deathProb
-		adjustCost = self.p.adjustCost
-		risk_aver_grid = self.p.risk_aver_grid
 
 		for col in range(self.nCols):
 			xgrid = np.asarray(self.xgridCurr[col])
@@ -76,22 +65,18 @@ cdef class CSimulator:
 				modelNum = 0
 
 			for i in prange(self.nSim, schedule='static', nogil=True):
-				self.findIndividualPolicy(i, col, &cgrid[0], nc, &xgrid[0], nx,
-					modelNum, &discount_factor_grid[0], deathProb, adjustCost,
-					&risk_aver_grid[0], blim)
+				self.findIndividualPolicy(i, col, &xgrid[0], modelNum, blim)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void findIndividualPolicy(self, long i, long col, double *cgrid, 
-		long nc, double *xgrid, long nx, long modelNum, double *discount_factor_grid,
-		double deathProb, double adjustCost, double *risk_aver_grid, double blim) nogil:
+	cdef void findIndividualPolicy(self, long i, long col, double *xgrid,
+		long modelNum, double blim) nogil:
 		cdef: 
 			long iyP, iz
 			double xWeights[2]
-			double conInaction[2]
 			long xIndices[2]
 			bint switch
-			double consumption, cash, copt
+			double consumption, cash, inactionLow, inactionHigh
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -99,37 +84,28 @@ cdef class CSimulator:
 		consumption = self.csim[i,col]
 		cash = self.xsim[i,col]
 		
-		cfunctions.getInterpolationWeights(xgrid, cash, nx, &xIndices[0], &xWeights[0])
+		cfunctions.getInterpolationWeights(xgrid, cash, self.p.nx, &xIndices[0], &xWeights[0])
 
 		if cash - consumption < blim:
 			# forced to switch consumption
 			switch = True
 		else:
-			conInaction[0] = xWeights[0] * self.inactionRegion[xIndices[0],0,iz,iyP,modelNum] \
+			inactionLow = xWeights[0] * self.inactionRegion[xIndices[0],0,iz,iyP,modelNum] \
 				+ xWeights[1] * self.inactionRegion[xIndices[1],0,iz,iyP,modelNum]
-			conInaction[1] = xWeights[0] * self.inactionRegion[xIndices[0],1,iz,iyP,modelNum] \
+			inactionHigh = xWeights[0] * self.inactionRegion[xIndices[0],1,iz,iyP,modelNum] \
 				+ xWeights[1] * self.inactionRegion[xIndices[1],1,iz,iyP,modelNum] \
 
-			if (consumption < conInaction[0]) or (consumption > conInaction[1]):
-				switch = True
-			else:
-				switch = False
+			switch = (consumption < inactionLow) or (consumption > inactionHigh)
 
 		if switch:
 			if cash <= xgrid[0]:
-				self.csim_adj[i,col] = \
-					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
-					- (xgrid[0] - cash)
 				self.csim[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
 					- (xgrid[0] - cash)
 			else:
-				copt = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
+				self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
 					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
-				self.csim[i,col] = copt
-				self.csim_adj[i,col] = copt
 
 			self.switched[i,col] = 1
 		else:
-			self.csim_adj[i,col] = consumption
 			self.switched[i,col] = 0

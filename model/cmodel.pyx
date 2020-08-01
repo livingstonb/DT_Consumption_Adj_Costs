@@ -139,7 +139,7 @@ cdef class CModel:
 		cdef: 
 			double xWeights[2]
 			long xIndices[2]
-			double xval, assets, cash, Pytrans, yP2, sav
+			double xval, assets, cash, Pytrans, sav
 			long nEntries_yP1, nEntries_yP2, nValid
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
@@ -161,14 +161,13 @@ cdef class CModel:
 						+ self.p.nx * self.p.nc * self.p.nz * iyP1
 					for iyP2 in range(self.p.nyP):
 						Pytrans = self.income.yPtrans[iyP1, iyP2]
-						yP2 = self.income.yPgrid[iyP2]
 
 						nEntries_yP2 = self.p.nx * ic + self.p.nx * self.p.nc * iz \
 								+ self.p.nx * self.p.nc * self.p.nz * iyP2
 
 						for iyT in range(self.p.nyT):
 
-							cash = assets + yP2 * self.income.yTgrid[iyT] 
+							cash = assets + self.income.yPgrid[iyP2] * self.income.yTgrid[iyT] 
 
 							# EMAX associated with next period may be over adjusted grid
 							cfunctions.getInterpolationWeights(&self.xgrid_next[0],
@@ -241,9 +240,7 @@ cdef class CModel:
 				gssBounds[self.p.nSectionsGSS] = maxAdmissibleC
 
 				for iz in range(self.p.nz):
-					self.setTempValues(ix, iz, iyP)
-					if (maxAdmissibleOnGrid < maxAdmissibleC) & (self.temp_ncValid < self.p.nc):
-						self.temp_cgrid[self.temp_ncValid] = maxAdmissibleC
+					self.setTempValues(ix, iz, iyP, maxAdmissibleC)
 
 					for ii in range(self.p.nSectionsGSS):
 						gssResults = self.goldenSectionSearch(gssBounds[ii],
@@ -259,13 +256,12 @@ cdef class CModel:
 						ii += 1
 
 					iOptimal = cfunctions.cargmax(funVals)
-
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[iOptimal]
 					self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] - self.p.adjustCost
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void setTempValues(self, long ix, long iz, long iyP):
+	cdef void setTempValues(self, long ix, long iz, long iyP, double maxAdmissibleC):
 		cdef long ic
 
 		if self.p.risk_aver_grid.size > 1:
@@ -275,6 +271,10 @@ cdef class CModel:
 
 		self.temp_emaxVec[:] = self.EMAX[ix,:,iz,iyP]
 		self.temp_cgrid[:] = self.grids.c_flat[:]
+
+		if (self.grids.c_flat[self.temp_ncValid-1] < maxAdmissibleC) & (self.temp_ncValid < self.p.nc):
+			self.temp_cgrid[self.temp_ncValid] = maxAdmissibleC
+
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -292,31 +292,38 @@ cdef class CModel:
 				order='F')
 
 		for iyP in range(self.p.nyP):
+
 			for ix in range(self.p.nx):
+
 				self.temp_ncValid = self.validConsumptionPts[ix]
-				maxAdmissibleC = fmin(self.xgrid_curr[ix] - self.borrLimCurr, self.p.cMax)
-
 				for iz in range(self.p.nz):
-					self.setTempValues(ix, iz, iyP)
-
-					if (self.grids.c_flat[self.temp_ncValid-1] < maxAdmissibleC) & (self.temp_ncValid < self.p.nc):
-						self.temp_cgrid[self.temp_ncValid] = maxAdmissibleC
-
-					inactionPoints = self.lookForInactionPoints(ix, iz, iyP)
-					if (inactionPoints[0] != -1):
-						# Look for lowest inaction point
-						self.inactionRegion[ix,0,iz,iyP] = self.findExtremeNoSwitchPoint(
-							inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP])
-
-						# Highest inaction point
-						self.inactionRegion[ix,1,iz,iyP] = self.findExtremeNoSwitchPoint(
-							inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP])
-					else:
-						self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
-						self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
+					self.findInactionRegionOnePt(ix, iz, iyP)
 
 		self.inactionRegion = self.inactionRegion.reshape(
 			(self.p.nx,2,self.p.nz,self.p.nyP,1), order='F')
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void findInactionRegionOnePt(self, long ix, long iz, long iyP):
+		cdef:
+			double[:] inactionPoints
+			double maxAdmissibleC
+
+		maxAdmissibleC = fmin(self.xgrid_curr[ix] - self.borrLimCurr, self.p.cMax)
+		self.setTempValues(ix, iz, iyP, maxAdmissibleC)
+					
+		inactionPoints = self.lookForInactionPoints(ix, iz, iyP)
+		if (inactionPoints[0] != -1):
+			# Look for lowest inaction point
+			self.inactionRegion[ix,0,iz,iyP] = self.findExtremeNoSwitchPoint(
+				inactionPoints[0], self.p.cMin, self.valueSwitch[ix,0,iz,iyP])
+
+			# Highest inaction point
+			self.inactionRegion[ix,1,iz,iyP] = self.findExtremeNoSwitchPoint(
+				inactionPoints[1], maxAdmissibleC, self.valueSwitch[ix,0,iz,iyP])
+		else:
+			self.inactionRegion[ix,0,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
+			self.inactionRegion[ix,1,iz,iyP] = self.cSwitchingPolicy[ix,0,iz,iyP]
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -388,7 +395,7 @@ cdef class CModel:
 			else:
 				# Look closer to x
 				gssResults2 = self.goldenSectionSearch(cHigher,
-					self.xgrid_curr[ix]-self.borrLimCurr, 1e-10)
+					fmin(self.xgrid_curr[ix]-self.borrLimCurr, self.p.cMax), 1e-10)
 				if gssResults2[0] >= vSwitch:
 					inactionPoints[0] = gssResults2[1]
 					inactionPoints[1] = gssResults2[1]

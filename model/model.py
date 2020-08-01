@@ -21,9 +21,8 @@ class Model(CModel):
 
 	def makeValueGuess(self):
 		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
-		denom = np.maximum(denom, 1e-3)
 		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
-			self.grids.x_matrix) / denom
+			self.grids.x_matrix) / np.maximum(denom, 1e-3)
 
 		self.valueFunction = valueGuess
 
@@ -43,16 +42,7 @@ class Model(CModel):
 
 			self.iterateOnce()
 
-			distance = np.abs(
-				np.asarray(self.valueFunction) - np.asarray(Vprevious)
-				).flatten().max()
-
-			if np.mod(self.iteration, 100) == 0:
-				print(f'    Iteration {self.iteration+1}, norm of |V1-V| = {distance}')
-
-			if (self.iteration>2000) and (distance>1e5):
-				raise Exception('No convergence')
-
+			distance = checkProgress(self.valueFunction, Vprevious, self.iteration)
 			self.iteration += 1
 
 		self.doComputations()
@@ -146,3 +136,17 @@ class ModelWithNews(Model):
 
 		# find inaction region
 		self.evaluateSwitching(final=True)
+
+
+def checkProgress(vCurr, vPrev, iteration):
+	distance = np.abs(
+		np.asarray(vCurr) - np.asarray(vPrev)
+		).flatten().max()
+
+	if np.mod(iteration, 100) == 0:
+		print(f'    Iteration {iteration+1}, norm of |V1-V| = {distance}')
+
+	if (iteration>2000) and (distance>1e5):
+		raise Exception('No convergence')
+
+	return distance

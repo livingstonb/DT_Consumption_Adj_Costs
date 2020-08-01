@@ -86,44 +86,6 @@ cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double cmax(double[:] vals) nogil:
-	"""
-	Finds the maximum in 'vals'. Length of input
-	must be supplied.
-	"""
-	cdef long i
-	cdef double currentMax, currentVal
-
-	currentMax = vals[0]
-
-	for i in range(1, vals.shape[0]):
-		currentVal = vals[i]
-		if currentVal > currentMax:
-			currentMax = currentVal
-
-	return currentMax
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cdef double cmin(double[:] vals) nogil:
-	"""
-	Finds the minimum in 'vals'. Length of input
-	must be supplied.
-	"""
-	cdef long i
-	cdef double currentMin, currentVal
-
-	currentMin = vals[0]
-
-	for i in range(1, vals.shape[0]):
-		currentVal = vals[i]
-		if currentVal < currentMin:
-			currentMin = currentVal
-
-	return currentMin
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
 cdef long cargmax(double[:] vals) nogil:
 	"""
 	Finds the argmax of 'vals'. Length of input
