@@ -51,11 +51,10 @@ cdef class CModel:
 		public double[:,:,:,:] valueNoSwitch, valueSwitch, valueFunction
 
 		# EMAX
-		public double[:,:,:,:] EMAX, EMAX_HTM
-		public double[:,:] htmGrid
+		public double[:,:,:,:] EMAX
 
 		# Temp variables
-		public double[:] temp_emaxVec, temp_emaxHtmVec, temp_htmGrid
+		public double[:] temp_emaxVec, temp_cgrid
 		public double temp_timeDiscount, temp_riskAver
 		public long temp_ncValid
 
@@ -141,7 +140,7 @@ cdef class CModel:
 			double xWeights[2]
 			long xIndices[2]
 			double xval, assets, cash, Pytrans, yP2, sav
-			long nEntries_yP1, nEntries_yP2
+			long nEntries_yP1, nEntries_yP2, nValid
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
 		xval = self.xgrid_curr[ix]
@@ -149,9 +148,11 @@ cdef class CModel:
 		ii = ix * 2 * self.p.nc * self.p.nz * self.p.nyP * self.p.nyP * self.p.nyT
 		ii2 = ii + 1
 
-		for ic in range(self.validConsumptionPts[ix]):
-			sav = xval - self.grids.c_flat[ic]
-
+		nValid = min(self.validConsumptionPts[ix]+1, self.p.nc)
+		for ic in range(nValid):
+			# If largest feasible c is less than x - borrLim, use s = borrLim
+			# for last point (nValid)
+			sav = fmax(xval - self.grids.c_flat[ic], self.borrLimCurr)
 			assets = self.p.R * sav + self.nextMPCShock + self.p.govTransfer
 
 			for iz in range(self.p.nz):
@@ -187,58 +188,6 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	def updateEMAX_HTM(self):
-		cdef:
-			long ix, iz, iyP1, iyP2, iyT, npts, ic, p0
-			long xIndices[2]
-			double xWeights[2]
-			double[:] cgrid
-			double emax, Pytrans, yP2, cash, maxAdmissibleC
-			double inctrans, cbar, xval, assets
-
-		npts = 10
-
-		self.EMAX_HTM = np.zeros((self.p.nx,npts,self.p.nz,self.p.nyP))
-		self.htmGrid = np.zeros((self.p.nx,npts))
-
-		for ix in range(self.p.nx):
-			cbar = self.grids.c_flat[self.validConsumptionPts[ix]-1]
-			xval = self.xgrid_curr[ix]
-
-			maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
-			cgrid = np.linspace(cbar, maxAdmissibleC, num=npts)
-
-			for ic in range(npts):
-				assets = self.p.R * (xval - cgrid[ic]) + self.nextMPCShock + self.p.govTransfer
-				self.htmGrid[ix,ic] = cgrid[ic]
-
-				for iz in range(self.p.nz):
-
-					for iyP1 in range(self.p.nyP):
-						emax = 0
-
-						for iyP2 in range(self.p.nyP):
-							Pytrans = self.income.yPtrans[iyP1, iyP2]
-							yP2 = self.income.yPgrid[iyP2]
-
-							for iyT in range(self.p.nyT):
-								cash = assets + yP2 * self.income.yTgrid[iyT]
-
-								# EMAX associated with next period may be over adjusted grid
-								cfunctions.getInterpolationWeights(&self.xgrid_next[0],
-									cash, self.p.nx, &xIndices[0], &xWeights[0])
-
-								inctrans = Pytrans * self.income.yTdist[iyT]
-
-								for p0 in range(2):
-									emax += inctrans * xWeights[p0] * \
-										self.valueFunction[xIndices[p0],ic,iz,iyP2]
-
-						self.EMAX_HTM[ix,ic,iz,iyP1] = emax
-
-
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
 	def evaluateSwitching(self, final=False):
 		"""
 		Constructs required objects for one of two tasks:
@@ -247,10 +196,8 @@ cdef class CModel:
 		"""
 		self.temp_timeDiscount = self.p.timeDiscount
 		self.temp_riskAver = self.p.riskAver
-
 		self.temp_emaxVec = np.zeros(self.p.nc)
-		self.temp_emaxHtmVec = np.zeros(10)
-		self.temp_htmGrid = np.zeros(10)
+		self.temp_cgrid = np.zeros(self.p.nc)
 
 		if not final:
 			self.maximizeValueFromSwitching()
@@ -295,6 +242,8 @@ cdef class CModel:
 
 				for iz in range(self.p.nz):
 					self.setTempValues(ix, iz, iyP)
+					if (maxAdmissibleOnGrid < maxAdmissibleC) & (self.temp_ncValid < self.p.nc):
+						self.temp_cgrid[self.temp_ncValid] = maxAdmissibleC
 
 					for ii in range(self.p.nSectionsGSS):
 						gssResults = self.goldenSectionSearch(gssBounds[ii],
@@ -325,8 +274,7 @@ cdef class CModel:
 			self.temp_timeDiscount = self.p.discount_factor_grid[iz]
 
 		self.temp_emaxVec[:] = self.EMAX[ix,:,iz,iyP]
-		self.temp_emaxHtmVec[:] = self.EMAX_HTM[ix,:,iz,iyP]
-		self.temp_htmGrid[:] = self.htmGrid[ix,:]
+		self.temp_cgrid[:] = self.grids.c_flat[:]
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -350,6 +298,9 @@ cdef class CModel:
 
 				for iz in range(self.p.nz):
 					self.setTempValues(ix, iz, iyP)
+
+					if (self.grids.c_flat[self.temp_ncValid-1] < maxAdmissibleC) & (self.temp_ncValid < self.p.nc):
+						self.temp_cgrid[self.temp_ncValid] = maxAdmissibleC
 
 					inactionPoints = self.lookForInactionPoints(ix, iz, iyP)
 					if (inactionPoints[0] != -1):
@@ -376,11 +327,10 @@ cdef class CModel:
 		cdef double u, emax
 		cdef double weights[2]
 		cdef long indices[2]
+		cdef long nvalid
 
-		if cSwitch > self.grids.c_flat[self.temp_ncValid-1]:
-			emax = cfunctions.interpolate(&self.temp_htmGrid[0], cSwitch, &self.temp_emaxHtmVec[0], 10)
-		else:
-			emax = cfunctions.interpolate(&self.grids.c_flat[0], cSwitch, &self.temp_emaxVec[0], self.temp_ncValid)
+		nValid = min(self.temp_ncValid+1, self.p.nc)
+		emax = cfunctions.interpolate(&self.temp_cgrid[0], cSwitch, &self.temp_emaxVec[0], nValid)
 
 		u = cfunctions.utility(self.temp_riskAver, cSwitch)
 		return u + self.temp_timeDiscount * (1 - self.p.deathProb) * emax
@@ -396,9 +346,8 @@ cdef class CModel:
 		cdef:
 			double[:] vNoSwitchCheck = np.zeros(self.temp_ncValid)
 			double inactionPoints[2]
-			double cCheck[2]
 			double[:] gssResults1, gssResults2
-			double vSwitch
+			double vSwitch, cLower, cHigher
 			long ic, i1, i2
 			bint inactionFound = False
 
@@ -426,19 +375,19 @@ cdef class CModel:
 			vNoSwitchCheck[i1] = -1e9
 			i2 = np.argmax(vNoSwitchCheck)
 			
-			cCheck[0] = fmin(self.grids.c_flat[i1], self.grids.c_flat[i2])
-			cCheck[1] = fmax(self.grids.c_flat[i1], self.grids.c_flat[i2])
+			cLower = fmin(self.grids.c_flat[i1], self.grids.c_flat[i2])
+			cHigher = fmax(self.grids.c_flat[i1], self.grids.c_flat[i2])
 
 			# Look between these points for a no-switching point
-			gssResults1 = self.goldenSectionSearch(cCheck[0],
-				cCheck[1], 1e-10)
+			gssResults1 = self.goldenSectionSearch(cLower,
+				cHigher, 1e-10)
 
 			if gssResults1[0] >= vSwitch:
 				inactionPoints[0] = gssResults1[1]
 				inactionPoints[1] = gssResults1[1]
 			else:
 				# Look closer to x
-				gssResults2 = self.goldenSectionSearch(cCheck[1],
+				gssResults2 = self.goldenSectionSearch(cHigher,
 					self.xgrid_curr[ix]-self.borrLimCurr, 1e-10)
 				if gssResults2[0] >= vSwitch:
 					inactionPoints[0] = gssResults2[1]
