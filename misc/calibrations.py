@@ -15,9 +15,9 @@ def load_replication(replication):
 			'borrowLim': 0,
 			'cMin': 1e-6,
 			'cMax': 50,
-			'cGridTerm1Wt': 0.05,
+			'cGridTerm1Wt': 0.001,
 			'cGridTerm1Curv': 0.9,
-			'cGridCurv': 0.15,
+			'cGridCurv': 0.13,
 		}
 		meanw = True
 	elif target == 'wealth_lt_1000':
@@ -56,8 +56,8 @@ def load_replication(replication):
 
 	params_out['timeDiscount'] = betaQ ** 4.0
 	params_out['adjustCost'] = adjCostQ * 4.0
-	params_out['nc'] = 300
-	params_out['nx'] = 250
+	params_out['nc'] = 150
+	params_out['nx'] = 150
 
 	print('Replication chosen:')
 	print(f'\tBeta heterogeneity = {betaHet}')

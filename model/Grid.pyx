@@ -30,22 +30,12 @@ cdef class Grid:
 			(1,self.p.nc,self.p.nz,self.p.nyP))
 
 	def createConsumptionGrid(self):
-		# cgrid = constructCurvedGrid(self.p.cMin,
-		# 	self.p.cMax, self.p.cGridCurv, self.p.nc,
-		# 	self.p.cGridTerm1Wt, self.p.cGridTerm1Curv)
-
-		cgrid = self.genAdjustedCGrid(self.x_flat)
+		cgrid = constructCurvedGrid(self.p.cMin,
+			self.p.cMax, self.p.cGridCurv, self.p.nc,
+			self.p.cGridTerm1Wt, self.p.cGridTerm1Curv)
 
 		self.c_flat = cgrid.flatten()
 		self.c_wide = cgrid.reshape((1,self.p.nc,1,1))
-
-	def genAdjustedCGrid(self, xgrid):
-		c1 = np.asarray(xgrid).flatten()
-
-		c0 = np.linspace(1.0e-6, c1[0], num=self.p.nc-self.p.nx+1).flatten()
-		cgrid = np.append(c0[:-1], c1)
-
-		return cgrid
 
 	def genAdjustedXGrid(self, lb):
 		if lb > self.x_flat[0]:

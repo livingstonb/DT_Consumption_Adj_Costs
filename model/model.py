@@ -87,6 +87,20 @@ class Model(CModel):
 			np.maximum(self.valueSwitch, correctedValNoSwitch)
 			)
 
+	def updateValueNoSwitch(self):
+		"""
+		Updates valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
+		"""
+		discountFactor_broadcast = np.reshape(self.p.discount_factor_grid,
+			(1, 1, self.p.n_discountFactor, 1))
+		riskAver_broadcast = np.reshape(self.p.risk_aver_grid,
+			(1, 1, self.p.n_riskAver, 1))
+		valueNoSwitch = functions.utilityMat(riskAver_broadcast, self.grids.c_wide) \
+			+ discountFactor_broadcast * (1 - self.p.deathProb) * np.asarray(self.EMAX)
+
+		valueNoSwitch[self.mustSwitch[:,:,0,0]] = np.nan
+		self.valueNoSwitch = valueNoSwitch
+
 	def updateEMAX(self):
 		"""
 		This method computes EMAX, which is interpMat * valueFunction when

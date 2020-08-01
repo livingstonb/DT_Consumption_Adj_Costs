@@ -11,9 +11,6 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
 cdef void getInterpolationWeights(
 	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
 
-# cdef void goldenSectionSearch(objectiveFn *=f, double a, double b, 
-# 	double tol, double* out)
-
 cdef double cmax(double *vals, int nVals) nogil
 
 cdef double cmin(double *vals, int nVals) nogil

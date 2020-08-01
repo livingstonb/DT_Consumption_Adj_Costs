@@ -192,11 +192,9 @@ cdef class CModel:
 	@cython.wraparound(False)
 	def updateEMAX_HTM(self):
 		cdef:
-			long ix, iz, iyP1, iyP2, iyT, npts, ic
+			long ix, iz, iyP1, iyP2, iyT, npts, ic, p0
 			long xIndices[2]
-			long cIndices[2]
 			double xWeights[2]
-			double cWeights[2]
 			double[:] cgrid
 			double emax, Pytrans, yP2, cash
 			double inctrans, cbar, xval, assets
@@ -232,15 +230,11 @@ cdef class CModel:
 								cfunctions.getInterpolationWeights(&self.xgrid_next[0],
 									cash, self.p.nx, &xIndices[0], &xWeights[0])
 
-								cfunctions.getInterpolationWeights(&self.grids.c_flat[0],
-									cgrid[ic], self.p.nc, &cIndices[0], &cWeights[0])
-
 								inctrans = Pytrans * self.income.yTdist[iyT]
 
 								for p0 in range(2):
-									for p1 in range(2):
-										emax += inctrans * xWeights[p0] * cWeights[p1] * \
-											self.valueFunction[xIndices[p0],cIndices[p1],iz,iyP2]
+									emax += inctrans * xWeights[p0] * \
+										self.valueFunction[xIndices[p0],ic,iz,iyP2]
 
 						self.EMAX_HTM[ix,ic,iz,iyP1] = emax
 
@@ -305,21 +299,7 @@ cdef class CModel:
 					self.p.nSectionsGSS+1, gssBounds)
 
 				for iz in range(self.p.nz):
-					if self.p.risk_aver_grid.size > 1:
-						self.temp_riskAver = self.p.risk_aver_grid[iz]
-					elif self.p.discount_factor_grid.size > 1:
-						self.temp_timeDiscount = self.p.discount_factor_grid[iz]
-
-					for ic in range(self.temp_ncValid):
-						self.temp_emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
-
-					for ic in range(10):
-						self.temp_emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
-						self.temp_htmGrid[ic] = self.htmGrid[ix,ic]
-
-					# tempFn = lambda x: self.findValueAtState(x)
-					# iteratorFn = <objectiveFn> self.findValueAtState
-					# iteratorFn = <objectiveFn> tempFn
+					self.setTempValues(ix, iz, iyP)
 
 					for ii in range(self.p.nSectionsGSS):
 						self.goldenSectionSearch(gssBounds[ii],
@@ -340,6 +320,23 @@ cdef class CModel:
 					self.cSwitchingPolicy[ix,0,iz,iyP] = cVals[iOptimal]
 					self.valueSwitch[ix,0,iz,iyP] = funVals[iOptimal] \
 						- self.p.adjustCost
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cdef void setTempValues(self, long ix, long iz, long iyP):
+		cdef long ic
+
+		if self.p.risk_aver_grid.size > 1:
+			self.temp_riskAver = self.p.risk_aver_grid[iz]
+		elif self.p.discount_factor_grid.size > 1:
+			self.temp_timeDiscount = self.p.discount_factor_grid[iz]
+
+		for ic in range(self.temp_ncValid):
+			self.temp_emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
+
+		for ic in range(10):
+			self.temp_emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
+			self.temp_htmGrid[ic] = self.htmGrid[ix,ic]
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -364,17 +361,7 @@ cdef class CModel:
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
 
 				for iz in range(self.p.nz):
-					if self.p.risk_aver_grid.size > 1:
-						self.temp_riskAver = self.p.risk_aver_grid[iz]
-					elif self.p.discount_factor_grid.size > 1:
-						self.temp_timeDiscount = self.p.discount_factor_grid[iz]
-
-					for ic in range(self.temp_ncValid):
-						self.temp_emaxVec[ic] = self.EMAX[ix,ic,iz,iyP]
-
-					for ic in range(10):
-						self.temp_emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
-						self.temp_htmGrid[ic] = self.htmGrid[ix,ic]
+					self.setTempValues(ix, iz, iyP)
 
 					inactionFound = self.lookForInactionPoints(ix, iz, iyP,
 						inactionPoints)
@@ -403,11 +390,7 @@ cdef class CModel:
 		cdef double weights[2]
 		cdef long indices[2]
 
-		if cSwitch <= self.grids.c_flat[0]:
-			emax = self.temp_emaxVec[0]
-		elif cSwitch == self.grids.c_flat[self.temp_ncValid-1]:
-			emax = self.temp_emaxVec[self.temp_ncValid-1]
-		elif cSwitch > self.grids.c_flat[self.temp_ncValid-1]:
+		if cSwitch > self.grids.c_flat[self.temp_ncValid-1]:
 			cfunctions.getInterpolationWeights(&self.temp_htmGrid[0], cSwitch,
 				10, &indices[0], &weights[0])
 			emax = weights[0] * self.temp_emaxHtmVec[indices[0]] + weights[1] * self.temp_emaxHtmVec[indices[1]]
@@ -437,25 +420,22 @@ cdef class CModel:
 			double vSwitch
 			long ic, i1, i2
 			bint inactionFound = False
-			# objectiveFn iteratorFn
 
 		vSwitch = self.valueSwitch[ix,0,iz,iyP]
 
-		# Look for lowest point of inaction
+		# Look for lowest and highest points of inaction
 		for ic in range(self.temp_ncValid):
 			if not self.willSwitch[ix,ic,iz,iyP]:
-				inactionPoints[0] = self.grids.c_flat[ic]
-				inactionFound = True
-				break
+				# This is a point of inaction
+				if not inactionFound:
+					# Update lowest inaction found
+					inactionPoints[0] = self.grids.c_flat[ic]
+					inactionFound = True
+				
+				# Update highest inaction found
+				inactionPoints[1] = self.grids.c_flat[ic]
 
 		if inactionFound:
-			# Look for high inaction point
-			for ic in range(self.temp_ncValid-1, -1, -1):
-				if not self.willSwitch[ix,ic,iz,iyP]:
-					inactionPoints[1] = self.grids.c_flat[ic]
-					return True
-
-			inactionPoints[1] = inactionPoints[0]
 			return True
 		else:
 			# Look between most promising two consumption values
@@ -471,7 +451,6 @@ cdef class CModel:
 			cCheck[1] = fmax(self.grids.c_flat[i1], self.grids.c_flat[i2])
 
 			# Look between these points for a no-switching point
-			# iteratorFn = <objectiveFn> self.findValueAtState
 			self.goldenSectionSearch(cCheck[0],
 				cCheck[1], 1e-10, &gssResults[0])
 
@@ -513,28 +492,6 @@ cdef class CModel:
 			return xb
 		else:
 			return -1
-
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
-	def updateValueNoSwitch(self):
-		"""
-		Updates valueNoSwitch via valueNoSwitch(c) = u(c) + beta * EMAX(c)
-		"""
-		cdef long ix, ic, nvalid
-
-		discountFactor_broadcast = np.reshape(self.p.discount_factor_grid,
-			(1, 1, self.p.n_discountFactor, 1))
-		riskAver_broadcast = np.reshape(self.p.risk_aver_grid,
-			(1, 1, self.p.n_riskAver, 1))
-		self.valueNoSwitch = functions.utilityMat(riskAver_broadcast, self.grids.c_wide) \
-			+ discountFactor_broadcast * (1 - self.p.deathProb) * np.asarray(self.EMAX)
-
-		# Force switching if current consumption level might imply
-		# that borrowing constraint is invalidated next period
-		for ix in range(self.p.nx):
-			nvalid = self.validConsumptionPts[ix]
-			for ic in range(nvalid, self.p.nc):
-				self.valueNoSwitch[ix,ic,:,:] = np.nan
 
 	def resetParams(self, newParams):
 		self.p = newParams
