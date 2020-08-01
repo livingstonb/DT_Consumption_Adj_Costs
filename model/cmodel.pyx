@@ -8,7 +8,6 @@ from cython.operator cimport dereference
 
 from misc import functions
 from misc cimport cfunctions
-from misc.cfunctions cimport objectiveFn
 
 from Grid cimport Grid
 from Params cimport Params
@@ -210,12 +209,11 @@ cdef class CModel:
 		Computes the value function for switching consumption.
 		"""
 		cdef:
-			long iyP, ix, ii, iz, ic
+			long iyP, ix, ii, iz
 			double xval, maxAdmissibleC, cSwitch, con
 			double[:] cVals, funVals, gssBounds
 			double[:] gssResults
 			long iOptimal
-			objectiveFn iteratorFn
 
 		gssBounds = np.zeros(self.p.nSectionsGSS+1)
 		cVals = np.zeros(self.p.nSectionsGSS+2)
@@ -227,6 +225,7 @@ cdef class CModel:
 			order='F')
 
 		for iyP in range(self.p.nyP):
+
 			for ix in range(self.p.nx):
 				self.temp_ncValid = self.validConsumptionPts[ix]
 
@@ -294,8 +293,8 @@ cdef class CModel:
 		for iyP in range(self.p.nyP):
 
 			for ix in range(self.p.nx):
-
 				self.temp_ncValid = self.validConsumptionPts[ix]
+
 				for iz in range(self.p.nz):
 					self.findInactionRegionOnePt(ix, iz, iyP)
 

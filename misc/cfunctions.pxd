@@ -1,9 +1,6 @@
 import numpy as np
 cimport numpy as np
 
-# function pointer for golden section search
-ctypedef double (*objectiveFn)(double x)
-
 cdef double utility(double riskaver, double con) nogil
 
 cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
