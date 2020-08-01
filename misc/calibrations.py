@@ -56,8 +56,8 @@ def load_replication(replication):
 
 	params_out['timeDiscount'] = betaQ ** 4.0
 	params_out['adjustCost'] = adjCostQ * 4.0
-	params_out['nc'] = 300
-	params_out['nx'] = 250
+	params_out['nc'] = 200
+	params_out['nx'] = 150
 
 	print('Replication chosen:')
 	print(f'\tBeta heterogeneity = {betaHet}')

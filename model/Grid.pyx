@@ -53,4 +53,4 @@ cdef class Grid:
 		else:
 			new_grid = np.asarray(self.x_flat)
 
-		return new_grid
+		return np.asarray(self.x_flat) + (lb - self.p.borrowLim)

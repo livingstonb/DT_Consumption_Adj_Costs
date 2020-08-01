@@ -65,6 +65,7 @@ class Model(CModel):
 	def iterateOnce(self):
 		# update EMAX = E[V|x,c,z,yP], where c is chosen c
 		self.updateEMAX()
+		self.updateEMAX_HTM()
 
 		# update value function of not switching
 		self.updateValueNoSwitch()

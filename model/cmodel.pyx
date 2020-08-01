@@ -50,7 +50,8 @@ cdef class CModel:
 
 		# EMAX
 		public double[:,:,:,:] EMAX
-		public double[:,:,:] EMAX_HTM
+		public double[:,:,:,:] EMAX_HTM
+		public double[:,:] htmGrid
 
 		# Number of valid consumption points at each x
 		long[:] validConsumptionPts
@@ -180,37 +181,61 @@ cdef class CModel:
 							ii += 2
 							ii2 += 2
 
-	# @cython.boundscheck(False)
-	# @cython.wraparound(False)
-	# def updateEMAX_HTM(self):
-	# 	cdef:
-	# 		long ix, iz, iyP1, iyP2, iyT
-	# 		double emax, Pytrans, yP2, cash_other, cash_tot
-	# 		double inctrans
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	def updateEMAX_HTM(self):
+		cdef:
+			long ix, iz, iyP1, iyP2, iyT, npts, ic
+			long xIndices[2]
+			long cIndices[2]
+			double xWeights[2]
+			double cWeights[2]
+			double[:] cgrid
+			double emax, Pytrans, yP2, cash
+			double inctrans, cbar, xval, assets
 
-	# 	self.EMAX_HTM = np.zeros((self.p.nx,self.p.nz,self.p.nyP))
-	# 	cash_other = self.p.R * self.borrLimCurr + self.nextMPCShock + self.p.govTransfer
+		npts = 10
 
-	# 	for ix in range(self.p.nx):
+		self.EMAX_HTM = np.zeros((self.p.nx,npts,self.p.nz,self.p.nyP))
+		self.htmGrid = np.zeros((self.p.nx,npts))
 
-	# 		for iz in range(self.p.nz):
+		for ix in range(self.p.nx):
+			cbar = self.grids.c_flat[self.validConsumptionPts[ix]-1]
+			xval = self.xgrid_curr[ix]
 
-	# 			for iyP1 in range(self.p.nyP):
-	# 				emax = 0
+			cgrid = np.linspace(cbar, xval, num=npts)
 
-	# 				for iyP2 in range(self.p.nyP):
-	# 					Pytrans = self.income.yPtrans[iyP1, iyP2]
-	# 					yP2 = self.income.yPgrid[iyP2]
+			for ic in range(npts):
+				assets = self.p.R * (xval - cgrid[ic]) + self.nextMPCShock + self.p.govTransfer
+				self.htmGrid[ix,ic] = cgrid[ic]
 
-	# 					for iyT in range(self.p.nyT):
-	# 						cash_tot = cash_other + yP2 * self.income.yTgrid[iyT]
+				for iz in range(self.p.nz):
 
-	# 						# EMAX associated with next period may be over adjusted grid
-	# 						cfunctions.getInterpolationWeights(&self.xgrid_next[0],
-	# 							cash_tot, self.p.nx, &xIndices[0], &xWeights[0])
+					for iyP1 in range(self.p.nyP):
+						emax = 0
 
-	# 						inctrans = Pytrans * self.income.yTdist[iyT]
-	# 						emax += inctrans * xWeights[0] * self.valueFunction[xIndices[0],]
+						for iyP2 in range(self.p.nyP):
+							Pytrans = self.income.yPtrans[iyP1, iyP2]
+							yP2 = self.income.yPgrid[iyP2]
+
+							for iyT in range(self.p.nyT):
+								cash = assets + yP2 * self.income.yTgrid[iyT]
+
+								# EMAX associated with next period may be over adjusted grid
+								cfunctions.getInterpolationWeights(&self.xgrid_next[0],
+									cash, self.p.nx, &xIndices[0], &xWeights[0])
+
+								cfunctions.getInterpolationWeights(&self.grids.c_flat[0],
+									cgrid[ic], self.p.nc, &cIndices[0], &cWeights[0])
+
+								inctrans = Pytrans * self.income.yTdist[iyT]
+
+								for p0 in range(2):
+									for p1 in range(2):
+										emax += inctrans * xWeights[p0] * cWeights[p1] * \
+											self.valueFunction[xIndices[p0],cIndices[p1],iz,iyP2]
+
+						self.EMAX_HTM[ix,ic,iz,iyP1] = emax
 
 
 	@cython.boundscheck(False)
@@ -222,7 +247,7 @@ cdef class CModel:
 		(2) Computing the inaction region.
 		"""
 		cdef:
-			double[:] emaxVec, yderivs
+			double[:] emaxVec, emaxHtmVec, yderivs, htmGrid
 			FnArgs fargs
 
 		fargs.cgrid = &self.grids.c_flat[0]
@@ -241,9 +266,13 @@ cdef class CModel:
 			fargs.riskAver = self.p.riskAver
 
 		emaxVec = np.zeros(self.p.nc)
+		emaxHtmVec = np.zeros(10)
+		htmGrid = np.zeros(10)
 		yderivs = np.zeros(self.p.nc)
 
 		fargs.emaxVec = &emaxVec[0]
+		fargs.emaxHtmVec = &emaxHtmVec[0]
+		fargs.htmGrid = &htmGrid[0]
 		fargs.yderivs = &yderivs[0]
 
 		if not final:
@@ -258,7 +287,7 @@ cdef class CModel:
 		Computes the value function for switching consumption.
 		"""
 		cdef:
-			long iyP, ix, ii, iz
+			long iyP, ix, ii, iz, ic
 			double xval, maxAdmissibleC, cSwitch
 			double[:] cVals, funVals, gssBounds
 			double gssResults[2]
@@ -290,7 +319,7 @@ cdef class CModel:
 					self.p.nSectionsGSS+1, gssBounds)
 
 				for iz in range(self.p.nz):
-					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+					self.setFnArgs(&fargs, fargs.emaxVec, fargs.emaxHtmVec, fargs.htmGrid, iyP,
 							ix, iz, fargs.yderivs)
 
 					for ii in range(self.p.nSectionsGSS):
@@ -349,7 +378,7 @@ cdef class CModel:
 				maxAdmissibleC = fmin(xval - self.borrLimCurr, self.p.cMax)
 
 				for iz in range(self.p.nz):
-					self.setFnArgs(&fargs, fargs.emaxVec, iyP,
+					self.setFnArgs(&fargs, fargs.emaxVec, fargs.emaxHtmVec, fargs.htmGrid, iyP,
 							ix, iz, fargs.yderivs)
 
 					inactionFound = self.lookForInactionPoints(ix, iz, iyP,
@@ -378,8 +407,8 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void setFnArgs(self, FnArgs *fargs, double *emaxvec, long iyP,
-		long ix, long iz, double *yderivs):
+	cdef void setFnArgs(self, FnArgs *fargs, double *emaxvec, double *emaxHtmVec,
+		double *htmGrid, long iyP, long ix, long iz, double *yderivs):
 		"""
 		Takes an FnArgs object and updates the values of certain parameters
 		held within it.
@@ -392,15 +421,18 @@ cdef class CModel:
 		elif fargs.hetType == 2:
 			dereference(fargs).timeDiscount = self.p.discount_factor_grid[iz]
 
-		if dereference(fargs).ncValid >= 4:
-			# ncTemp = min(dereference(fargs).ncValid+1, dereference(fargs).nc)
-			ncTemp = dereference(fargs).ncValid
-			for ic in range(ncTemp):
-				emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
+		ncTemp = dereference(fargs).ncValid
+		for ic in range(ncTemp):
+			emaxvec[ic] = self.EMAX[ix,ic,iz,iyP]
 
-			# Compute yderivs in preparation for spline interpolation of EMAX
-			spline.spline(&self.grids.c_flat[0], emaxvec, ncTemp,
-				1.0e30, 1.0e30, yderivs)
+		for ic in range(10):
+			emaxHtmVec[ic] = self.EMAX_HTM[ix,ic,iz,iyP]
+			htmGrid[ic] = self.htmGrid[ix,ic]
+
+		# if dereference(fargs).ncValid >= 4:
+		# 	# Compute yderivs in preparation for spline interpolation of EMAX
+		# 	spline.spline(&self.grids.c_flat[0], emaxvec, ncTemp,
+		# 		1.0e30, 1.0e30, yderivs)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -411,24 +443,22 @@ cdef class CModel:
 		cdef double u, emax, value
 		cdef double weights[2]
 		cdef long indices[2]
-		cdef long ncInterp
-
-		# ncInterp = min(fargs.ncValid+1, fargs.nc)
-		ncInterp = fargs.ncValid
 
 		if cSwitch <= fargs.cgrid[0]:
 			emax = fargs.emaxVec[0]
-		elif cSwitch >= fargs.cgrid[ncInterp-1]:
-			emax = fargs.emaxVec[ncInterp-1]
-		elif fargs.ncValid == 1:
-			emax = fargs.emaxVec[0]
-		elif fargs.ncValid < 4:
-			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch,
-				ncInterp, &indices[0], &weights[0])
-			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
+		elif cSwitch == fargs.cgrid[fargs.ncValid-1]:
+			emax = fargs.emaxVec[fargs.ncValid-1]
+		elif cSwitch > fargs.cgrid[fargs.ncValid-1]:
+			cfunctions.getInterpolationWeights(fargs.htmGrid, cSwitch,
+				10, &indices[0], &weights[0])
+			emax = weights[0] * fargs.emaxHtmVec[indices[0]] + weights[1] * fargs.emaxHtmVec[indices[1]]
 		else:
-			spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs,
-				ncInterp, cSwitch, &emax)
+			cfunctions.getInterpolationWeights(fargs.cgrid, cSwitch,
+				fargs.ncValid, &indices[0], &weights[0])
+			emax = weights[0] * fargs.emaxVec[indices[0]] + weights[1] * fargs.emaxVec[indices[1]]
+		# else:
+		# 	spline.splint(fargs.cgrid, fargs.emaxVec, fargs.yderivs,
+		# 		ncInterp, cSwitch, &emax)
 
 		u = cfunctions.utility(fargs.riskAver, cSwitch)
 		value = u + fargs.timeDiscount * (1 - fargs.deathProb) * emax

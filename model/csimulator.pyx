@@ -119,7 +119,7 @@ cdef class CSimulator:
 			if cash <= xgrid[0]:
 				self.csim_adj[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
-					+ (xgrid[0] - cash)
+					- (xgrid[0] - cash)
 				self.csim[i,col] = self.cSwitchingPolicy[0,0,iz,iyP,modelNum]
 				# self.xsim[i,col] = xgrid[0]
 			else:
