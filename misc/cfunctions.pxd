@@ -5,8 +5,8 @@ cdef double utility(double riskaver, double con) nogil
 
 cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil
 
-cdef void getInterpolationWeights(
-	double *grid, double pt, long nGrid, long *indices, double *weights) nogil
+cdef double getInterpolationWeight(
+	double *grid, double pt, long nGrid, long *indices) nogil
 
 cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil
 

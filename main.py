@@ -156,8 +156,10 @@ def main(paramIndex=None, runopts=None, replication=None):
 		calibrator = getCalibrator(params, model, income, grids, params.cal1_options)
 		calibrator.calibrate()
 
-		calibrator = getCalibrator(params, model, income, grids, params.cal2_options)
-		calibrator.calibrate()
+		if index % 2 == 1:
+			# Calibrate to adjustment cost
+			calibrator = getCalibrator(params, model, income, grids, params.cal2_options)
+			calibrator.calibrate()
 	else:
 		model.solve()
 

@@ -73,10 +73,9 @@ cdef class CSimulator:
 		long modelNum, double blim) nogil:
 		cdef: 
 			long iyP, iz
-			double xWeights[2]
 			long xIndices[2]
 			bint switch
-			double consumption, cash, inactionLow, inactionHigh
+			double consumption, cash, inactionLow, inactionHigh, w0
 
 		iyP = self.yPind[i]
 		iz = self.zind[i]
@@ -84,16 +83,16 @@ cdef class CSimulator:
 		consumption = self.csim[i,col]
 		cash = self.xsim[i,col]
 		
-		cfunctions.getInterpolationWeights(xgrid, cash, self.p.nx, &xIndices[0], &xWeights[0])
+		w0 = cfunctions.getInterpolationWeight(xgrid, cash, self.p.nx, &xIndices[0])
 
 		if cash - consumption < blim:
 			# forced to switch consumption
 			switch = True
 		else:
-			inactionLow = xWeights[0] * self.inactionRegion[xIndices[0],0,iz,iyP,modelNum] \
-				+ xWeights[1] * self.inactionRegion[xIndices[1],0,iz,iyP,modelNum]
-			inactionHigh = xWeights[0] * self.inactionRegion[xIndices[0],1,iz,iyP,modelNum] \
-				+ xWeights[1] * self.inactionRegion[xIndices[1],1,iz,iyP,modelNum] \
+			inactionLow = w0 * self.inactionRegion[xIndices[0],0,iz,iyP,modelNum] \
+				+ (1-w0) * self.inactionRegion[xIndices[1],0,iz,iyP,modelNum]
+			inactionHigh = w0 * self.inactionRegion[xIndices[0],1,iz,iyP,modelNum] \
+				+ (1-w0) * self.inactionRegion[xIndices[1],1,iz,iyP,modelNum] \
 
 			switch = (consumption < inactionLow) or (consumption > inactionHigh)
 
@@ -103,8 +102,8 @@ cdef class CSimulator:
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
 					- (xgrid[0] - cash)
 			else:
-				self.csim[i,col] = xWeights[0] * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
-					+ xWeights[1] * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
+				self.csim[i,col] = w0 * self.cSwitchingPolicy[xIndices[0],0,iz,iyP,modelNum] \
+					+ (1-w0) * self.cSwitchingPolicy[xIndices[1],0,iz,iyP,modelNum]
 
 			self.switched[i,col] = 1
 		else:

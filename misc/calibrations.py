@@ -56,8 +56,8 @@ def load_replication(replication):
 
 	params_out['timeDiscount'] = betaQ ** 4.0
 	params_out['adjustCost'] = adjCostQ * 4.0
-	params_out['nc'] = 300
-	params_out['nx'] = 300
+	params_out['nc'] = 100
+	params_out['nx'] = 100
 
 	print('Replication chosen:')
 	print(f'\tBeta heterogeneity = {betaHet}')
@@ -81,23 +81,10 @@ def load_calibration(index):
 	params = dict()
 	params['index'] = index
 
-	gridSize = index % 4
-	index = index // 4
+	index = index // 2
 
-	if gridSize == 0:
-		params['nc'] = 100
-		params['nx'] = 100
-	elif gridSize == 1:
-		params['nc'] = 100
-		params['nx'] = 200
-	elif gridSize == 2:
-		params['nc'] = 200
-		params['nx'] = 100
-	elif gridSize == 3:
-		params['nc'] = 100
-		params['nx'] = 100
-	else:
-		raise Exception('Invalid entry')
+	params['nc'] = 150
+	params['nx'] = 150
 
 	params['adjustCost'] = 0
 	params['cal1_options'] = dict()
@@ -126,16 +113,16 @@ def load_calibration(index):
 		params['xMax'] = 50
 		params['discount_factor_grid'] = np.array([0.0])
 
-		params['xGridTerm1Wt'] = 0.05
+		params['xGridTerm1Wt'] = 0.01
 		params['xGridTerm1Curv'] = 0.8
 		params['xGridCurv'] = 0.2
 		params['borrowLim'] = 0
 
 		params['cMin'] = 1e-6
 		params['cMax'] = 5
-		params['cGridTerm1Wt'] = 0.05
-		params['cGridTerm1Curv'] = 0.9
-		params['cGridCurv'] = 0.15
+		params['cGridTerm1Wt'] = 0.01
+		params['cGridTerm1Curv'] = 0.8
+		params['cGridCurv'] = 0.2
 
 		params['name'] = 'Mean wealth target'
 
@@ -154,16 +141,16 @@ def load_calibration(index):
 		params['xMax'] = 50
 		params['discount_factor_grid'] = np.array([-0.032, 0, 0.032])
 
-		params['xGridTerm1Wt'] = 0.05
+		params['xGridTerm1Wt'] = 0.01
 		params['xGridTerm1Curv'] = 0.8
 		params['xGridCurv'] = 0.2
 		params['borrowLim'] = 0
 
 		params['cMin'] = 1e-6
 		params['cMax'] = 5
-		params['cGridTerm1Wt'] = 0.05
-		params['cGridTerm1Curv'] = 0.9
-		params['cGridCurv'] = 0.15
+		params['cGridTerm1Wt'] = 0.01
+		params['cGridTerm1Curv'] = 0.8
+		params['cGridCurv'] = 0.2
 		
 		params['name'] = 'Beta heterogeneity'
 		params['cal1_options']['run'] = 'beta heterogeneity'

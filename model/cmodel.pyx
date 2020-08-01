@@ -136,9 +136,8 @@ cdef class CModel:
 		xgrid[ix]
 		"""
 		cdef: 
-			double xWeights[2]
 			long xIndices[2]
-			double xval, assets, cash, Pytrans, sav
+			double xval, assets, cash, Pytrans, sav, w0
 			long nEntries_yP1, nEntries_yP2, nValid
 			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
 
@@ -169,8 +168,8 @@ cdef class CModel:
 							cash = assets + self.income.yPgrid[iyP2] * self.income.yTgrid[iyT] 
 
 							# EMAX associated with next period may be over adjusted grid
-							cfunctions.getInterpolationWeights(&self.xgrid_next[0],
-								cash, self.p.nx, &xIndices[0], &xWeights[0])
+							w0 = cfunctions.getInterpolationWeight(&self.xgrid_next[0],
+								cash, self.p.nx, &xIndices[0])
 
 							row = ix + nEntries_yP1
 							self.I[ii] = row
@@ -179,8 +178,8 @@ cdef class CModel:
 							self.J[ii] = xIndices[0] + nEntries_yP2
 							self.J[ii2] = xIndices[1] + nEntries_yP2
 
-							self.V[ii] = Pytrans * self.income.yTdist[iyT] * xWeights[0]
-							self.V[ii2] = Pytrans * self.income.yTdist[iyT] * xWeights[1]
+							self.V[ii] = Pytrans * self.income.yTdist[iyT] * w0
+							self.V[ii2] = Pytrans * self.income.yTdist[iyT] * (1 - w0)
 							ii += 2
 							ii2 += 2
 

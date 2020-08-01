@@ -47,30 +47,32 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void getInterpolationWeights(
-	double *grid, double pt, long nGrid, long *indices, double *weights) nogil:
+cdef double getInterpolationWeight(
+	double *grid, double pt, long nGrid, long *indices) nogil:
 	"""
 	This function finds the weights placed on the grid value below pt
 	and the grid value above pt when interpolating pt onto grid. Output
 	is 'indices' and 'weights'.
 	"""
+	cdef double w0
+
 	indices[1] = fastSearchSingleInput(grid, pt, nGrid)
 	indices[0] = indices[1] - 1
 
-	weights[0] = (grid[indices[1]] - pt) / (grid[indices[1]] - grid[indices[0]])
-	weights[0] = fmin(fmax(weights[0], 0), 1)
-	weights[1] = 1 - weights[0]
+	w0 = (grid[indices[1]] - pt) / (grid[indices[1]] - grid[indices[0]])
+	w0 = fmin(fmax(w0, 0), 1)
+	
+	return w0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil:
 	cdef:
 		long indices[2]
-		double weights[2]
-		double out
+		double w0, out
 
-	getInterpolationWeights(grid, pt, nGrid, &indices[0], &weights[0])
-	out = weights[0] * vals[indices[0]] + weights[1] * vals[indices[1]]
+	w0 = getInterpolationWeight(grid, pt, nGrid, &indices[0])
+	out = w0 * vals[indices[0]] + (1 - w0) * vals[indices[1]]
 
 	return out
 
