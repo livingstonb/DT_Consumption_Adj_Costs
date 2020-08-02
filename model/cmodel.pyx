@@ -274,7 +274,7 @@ cdef class CModel:
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void findInactionRegion(self):
+	def findInactionRegion(self):
 		"""
 		Computes the value function for not switching consumption.
 		"""
