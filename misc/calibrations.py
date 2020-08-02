@@ -99,8 +99,10 @@ def load_calibration(index):
 		params['name'] = 'Wealth constrained target'
 
 		params['cal1_options']['run'] = 'wealth constrained'
-		params['cal1_options']['x0'] = np.array([0.96773251])
+		params['cal1_options']['x0'] = np.array([0.96437992])
 		params['cal1_options']['step'] = np.array([0.000015])
+		params['cal1_options']['lbounds'] = [0.96]
+		params['cal1_options']['ubounds'] = [0.97]
 
 		params['cal2_options']['run'] = 'adjustCost'
 		params['cal2_options']['x0'] = np.array([0.001])
@@ -127,7 +129,9 @@ def load_calibration(index):
 		params['name'] = 'Mean wealth target'
 
 		params['cal1_options']['run'] = 'mean wealth'
-		params['cal1_options']['x0'] = np.array([0.996042])
+		params['cal1_options']['x0'] = np.array([0.99603041])
+		params['cal1_options']['lbounds'] = [0.99]
+		params['cal1_options']['ubounds'] = [0.999]
 
 		params['cal2_options']['run'] = 'adjustCost'
 		params['cal2_options']['x0'] = np.array([1.2848834846425829e-05])
@@ -154,7 +158,9 @@ def load_calibration(index):
 		
 		params['name'] = 'Beta heterogeneity'
 		params['cal1_options']['run'] = 'beta heterogeneity'
-		params['cal1_options']['x0'] = np.array([0.9983291460598163, 0.03207988])
+		params['cal1_options']['x0'] = np.array([0.9983143584275995, 0.03207988])
+		params['cal1_options']['lbounds'] = [0.998, 0.03]
+		params['cal1_options']['ubounds'] = [0.999, 0.034]
 
 		params['cal2_options']['run'] = 'adjustCost'
 

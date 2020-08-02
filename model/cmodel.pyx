@@ -4,7 +4,6 @@ cimport numpy as np
 
 cimport cython
 from cython.parallel cimport prange
-from cython.operator cimport dereference
 
 from misc import functions
 from misc cimport cfunctions
@@ -86,7 +85,8 @@ cdef class CModel:
 		"""
 		This method constructs the sparse matrix A such that
 		EMAX(x,c,z,yP) := E[V(R(x-c)+yP'*yT'+tau,c,z',yP')|z,yP] = A * V
-		where V is the flattened value function.
+		where V is the flattened value function, not to be confused with
+		self.V.
 		"""
 		cdef:
 			long ix, length
@@ -113,14 +113,15 @@ cdef class CModel:
 			long ix
 			object validCs
 
-		# xgrids adjusted for news of a future shock
+		# xgrids adjusted for news of a future shock, if applicable
 		self.xgrid_curr = self.grids.genAdjustedXGrid(self.borrLimCurr)
 		self.xgrid_next = self.grids.genAdjustedXGrid(self.borrLimNext)
 
 		self.mustSwitch = np.asarray(self.xgrid_curr)[:,None,None,None] \
-			- np.asarray(self.grids.c_wide) \
-			< self.borrLimCurr
+			- np.asarray(self.grids.c_wide) < self.borrLimCurr
 
+		# number of points on the consumption grid that are feasible for
+		# a given x
 		self.validConsumptionPts = np.zeros(self.p.nx, dtype=int)
 		cgrid_np = np.asarray(self.grids.c_flat);
 		for ix in range(self.p.nx):
@@ -138,24 +139,23 @@ cdef class CModel:
 		cdef: 
 			long xIndices[2]
 			double xval, assets, cash, Pytrans, sav, w0
-			long nEntries_yP1, nEntries_yP2, nValid
-			long ic, iz, iyP1, iyP2, iyT, ii, ii2, row
+			long row, nEntries_yP2, nValid
+			long ic, iz, iyP1, iyP2, iyT, ii
 
 		xval = self.xgrid_curr[ix]
 
 		ii = ix * 2 * self.p.nc * self.p.nz * self.p.nyP * self.p.nyP * self.p.nyT
-		ii2 = ii + 1
 
 		nValid = min(self.validConsumptionPts[ix]+1, self.p.nc)
 		for ic in range(nValid):
-			# If largest feasible c is less than x - borrLim, use s = borrLim
-			# for last point (nValid)
+			# If largest feasible c is less than x - borrLim, s = borrLim
+			# will be used for for last point (ic = nValid - 1)
 			sav = fmax(xval - self.grids.c_flat[ic], self.borrLimCurr)
 			assets = self.p.R * sav + self.nextMPCShock + self.p.govTransfer
 
 			for iz in range(self.p.nz):
 				for iyP1 in range(self.p.nyP):
-					nEntries_yP1 = self.p.nx * ic + self.p.nx * self.p.nc * iz \
+					row = ix + self.p.nx * ic + self.p.nx * self.p.nc * iz \
 						+ self.p.nx * self.p.nc * self.p.nz * iyP1
 					for iyP2 in range(self.p.nyP):
 						Pytrans = self.income.yPtrans[iyP1, iyP2]
@@ -171,17 +171,15 @@ cdef class CModel:
 							w0 = cfunctions.getInterpolationWeight(&self.xgrid_next[0],
 								cash, self.p.nx, &xIndices[0])
 
-							row = ix + nEntries_yP1
 							self.I[ii] = row
-							self.I[ii2] = row
+							self.I[ii+1] = row
 
 							self.J[ii] = xIndices[0] + nEntries_yP2
-							self.J[ii2] = xIndices[1] + nEntries_yP2
+							self.J[ii+1] = xIndices[1] + nEntries_yP2
 
 							self.V[ii] = Pytrans * self.income.yTdist[iyT] * w0
-							self.V[ii2] = Pytrans * self.income.yTdist[iyT] * (1 - w0)
+							self.V[ii+1] = Pytrans * self.income.yTdist[iyT] * (1 - w0)
 							ii += 2
-							ii2 += 2
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -191,11 +189,7 @@ cdef class CModel:
 		(1) Computing the value of switching via optimization over c.
 		(2) Computing the inaction region.
 		"""
-		self.temp_timeDiscount = self.p.timeDiscount
-		self.temp_riskAver = self.p.riskAver
-		self.temp_emaxVec = np.zeros(self.p.nc)
-		self.temp_cgrid = np.zeros(self.p.nc)
-
+		
 		if not final:
 			self.maximizeValueFromSwitching()
 		else:
@@ -213,6 +207,11 @@ cdef class CModel:
 			double[:] cVals, funVals, gssBounds
 			double[:] gssResults
 			long iOptimal
+
+		self.temp_timeDiscount = self.p.timeDiscount
+		self.temp_riskAver = self.p.riskAver
+		self.temp_emaxVec = np.zeros(self.p.nc)
+		self.temp_cgrid = np.zeros(self.p.nc)
 
 		gssBounds = np.zeros(self.p.nSectionsGSS+1)
 		cVals = np.zeros(self.p.nSectionsGSS+2)
@@ -272,7 +271,6 @@ cdef class CModel:
 
 		if (self.grids.c_flat[self.temp_ncValid-1] < maxAdmissibleC) & (self.temp_ncValid < self.p.nc):
 			self.temp_cgrid[self.temp_ncValid] = maxAdmissibleC
-
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)

@@ -21,10 +21,8 @@ class Model(CModel):
 
 	def makeValueGuess(self):
 		denom = 1 - self.p.timeDiscount * (1-self.p.deathProb)
-		valueGuess = functions.utilityMat(self.p.risk_aver_grid,
+		self.valueFunction = functions.utilityMat(self.p.risk_aver_grid,
 			self.grids.x_matrix) / np.maximum(denom, 1e-3)
-
-		self.valueFunction = valueGuess
 
 	def solve(self):
 		print('\nBeginning value function iteration...')
@@ -46,9 +44,7 @@ class Model(CModel):
 			self.iteration += 1
 
 		self.doComputations()
-
-		# find inaction region
-		self.evaluateSwitching(final=True)
+		self.findInactionRegion()
 
 		print(f'Value function converged after {self.iteration} iterations.')
 
@@ -60,7 +56,7 @@ class Model(CModel):
 		self.updateValueNoSwitch()
 
 		# update value function of switching
-		self.evaluateSwitching()
+		self.maximizeValueFromSwitching()
 
 		# compute V = max(VSwitch,VNoSwitch)
 		self.updateValueFunction()
@@ -133,10 +129,7 @@ class ModelWithNews(Model):
 	def solve(self):
 		self.iterateOnce()
 		self.doComputations()
-
-		# find inaction region
-		self.evaluateSwitching(final=True)
-
+		self.findInactionRegion()
 
 def checkProgress(vCurr, vPrev, iteration):
 	distance = np.abs(

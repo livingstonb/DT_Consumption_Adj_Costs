@@ -73,12 +73,12 @@ class EquilibriumSimulator(Simulator):
 		self.asim = 0.5 * np.ones((self.nSim,self.nCols))
 		self.csim = 0.1 * np.ones((self.nSim,self.nCols))
 
-		self.yPind = np.argmax(self.yPrand[:,self.randIndex,np.newaxis]
-					<= self.income.yPcumdistT,
-					axis=1)
-		yTind = np.argmax(self.yTrand[:,self.randIndex,np.newaxis]
-								<= self.income.yTcumdistT, 
-								axis=1)
+		self.yPind = np.argmax(
+			self.yPrand[:,self.randIndex,np.newaxis]
+				<= self.income.yPcumdistT, axis=1)
+		yTind = np.argmax(
+			self.yTrand[:,self.randIndex,np.newaxis]
+				<= self.income.yTcumdistT, axis=1)
 
 		if self.income.nyP == 1:
 			yPsim = self.income.yPgrid[0] * np.ones(self.nSim)
