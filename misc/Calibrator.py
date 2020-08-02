@@ -21,7 +21,7 @@ class Calibrator:
 				options={'eps': self.step, 'ftol': 1.0e-6})
 		else:
 			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-				method='L-BFGS-B', jac=None, 'ftol': 1.0e-6)
+				method='L-BFGS-B', jac=None, options={'ftol': 1.0e-6})
 
 	def simulate(self):
 		self.model.solve()

@@ -181,23 +181,23 @@ cdef class CModel:
 							self.V[ii+1] = Pytrans * self.income.yTdist[iyT] * (1 - w0)
 							ii += 2
 
-	@cython.boundscheck(False)
-	@cython.wraparound(False)
-	def evaluateSwitching(self, final=False):
-		"""
-		Constructs required objects for one of two tasks:
-		(1) Computing the value of switching via optimization over c.
-		(2) Computing the inaction region.
-		"""
+	# @cython.boundscheck(False)
+	# @cython.wraparound(False)
+	# def evaluateSwitching(self, final=False):
+	# 	"""
+	# 	Constructs required objects for one of two tasks:
+	# 	(1) Computing the value of switching via optimization over c.
+	# 	(2) Computing the inaction region.
+	# 	"""
 		
-		if not final:
-			self.maximizeValueFromSwitching()
-		else:
-			self.findInactionRegion()
+	# 	if not final:
+	# 		self.maximizeValueFromSwitching()
+	# 	else:
+	# 		self.findInactionRegion()
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cdef void maximizeValueFromSwitching(self):
+	def maximizeValueFromSwitching(self):
 		"""
 		Computes the value function for switching consumption.
 		"""

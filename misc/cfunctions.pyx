@@ -48,7 +48,7 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double getInterpolationWeight(
-	double grid, double pt, long nGrid, long *indices) nogil:
+	double *grid, double pt, long nGrid, long *indices) nogil:
 	"""
 	This function finds the weights placed on the grid value below pt
 	and the grid value above pt when interpolating pt onto grid. Output
