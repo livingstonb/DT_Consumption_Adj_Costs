@@ -108,8 +108,9 @@ cdef class Params:
 		elif name == 'timeDiscount':
 			self.discount_factor_grid = np.asarray(self.discount_factor_grid) \
 				+ value - self.timeDiscount
-			self.series['Discount factor (annualized)'] = value ** self.freq
-			self.series['Discount factor (quarterly)'] = value ** (self.freq/4)
+			mean_discount = self.discount_factor_grid.mean()
+			self.series['Discount factor (annualized)'] = mean_discount ** self.freq
+			self.series['Discount factor (quarterly)'] = mean_discount ** (self.freq/4)
 		elif name == 'riskAver':
 			self.risk_aver_grid = np.asarray(self.risk_aver_grid) \
 				+ value - self.riskAver

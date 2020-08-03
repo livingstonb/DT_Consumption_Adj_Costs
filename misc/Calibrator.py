@@ -18,10 +18,10 @@ class Calibrator:
 		if self.step is not None:
 			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
 				method='L-BFGS-B', jac=None,
-				options={'eps': self.step, 'ftol': 1.0e-6})
+				options={'eps': self.step, 'ftol': 1.0e-5})
 		else:
 			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-				method='L-BFGS-B', jac=None, options={'ftol': 1.0e-6})
+				method='L-BFGS-B', jac=None, options={'ftol': 1.0e-5})
 
 	def simulate(self):
 		self.model.solve()
@@ -75,7 +75,7 @@ class Calibrator3(Calibrator):
 		self.x0 = np.array([0.9985, 0.032])
 		
 		super().__init__(p, model, income, grids)
-		self.step = np.array([0.00002, 0.00005])
+		self.step = np.array([0.00002, 0.00002])
 
 	def optim_handle(self, x):
 		self.p.setParam('timeDiscount', x[0], True)

@@ -149,14 +149,20 @@ def main(paramIndex=None, runopts=None, replication=None):
 
 	model = Model(params, income, grids)
 
+	skip1 = params.cal1_options.get('skip', True)
+	skip2 = params.cal1_options.get('skip', True)
+	if skip1 & skip2:
+		Calibrate = False
+
 	if Calibrate:
 		# calibrator = Calibrator(*params.cal_options)
 		# opt_results = calibrator.calibrate(params, model, income, grids)
 		# calibrator = None
-		calibrator = getCalibrator(params, model, income, grids, params.cal1_options)
-		calibrator.calibrate()
+		if not params.cal1_options['skip']:
+			calibrator = getCalibrator(params, model, income, grids, params.cal1_options)
+			calibrator.calibrate()
 
-		if params['index'] % 2 == 1:
+		if params.index % 2 == 1:
 			# Calibrate to adjustment cost
 			calibrator = getCalibrator(params, model, income, grids, params.cal2_options)
 			calibrator.calibrate()

@@ -81,6 +81,7 @@ def load_calibration(index):
 	params = dict()
 	params['index'] = index
 
+	adjustCostOn = (index % 2 == 1)
 	index = index // 2
 
 	params['nc'] = 150
@@ -94,24 +95,28 @@ def load_calibration(index):
 		###########################################################
 		##### TARGET WEALTH < $1000 ###############################
 		###########################################################
-		params['timeDiscount'] = 0.9649236559422705  ** 4.0
+		params['timeDiscount'] = 0.96439492  ** 4.0
 		params['discount_factor_grid'] = np.array([0.0])
 		params['name'] = 'Wealth constrained target'
 
 		params['cal1_options']['run'] = 'wealth constrained'
-		params['cal1_options']['x0'] = np.array([0.96437992])
+		params['cal1_options']['x0'] = np.array([0.96439492])
 		params['cal1_options']['step'] = np.array([0.000015])
 		params['cal1_options']['lbounds'] = [0.96]
 		params['cal1_options']['ubounds'] = [0.97]
+		params['cal1_options']['skip'] = True
 
 		params['cal2_options']['run'] = 'adjustCost'
-		params['cal2_options']['x0'] = np.array([0.001])
+		params['cal2_options']['x0'] = np.array([0.01])
+		params['cal2_options']['lbounds'] = [2e-3]
+		params['cal2_options']['ubounds'] = [1]
+		params['cal2_options']['skip'] = not adjustCostOn
 
 	elif index == 1:
 		###########################################################
 		##### TARGET 3.2 MEAN WEALTH ##############################
 		###########################################################
-		params['timeDiscount'] = 0.996042 ** 4.0
+		params['timeDiscount'] = 0.99603041 ** 4.0
 		params['xMax'] = 50
 		params['discount_factor_grid'] = np.array([0.0])
 
@@ -132,18 +137,23 @@ def load_calibration(index):
 		params['cal1_options']['x0'] = np.array([0.99603041])
 		params['cal1_options']['lbounds'] = [0.99]
 		params['cal1_options']['ubounds'] = [0.999]
+		params['cal1_options']['skip'] = True
+
 
 		params['cal2_options']['run'] = 'adjustCost'
-		params['cal2_options']['x0'] = np.array([1.2848834846425829e-05])
+		params['cal2_options']['x0'] = np.array([0.001])
 		params['cal2_options']['step'] = np.array([5e-7])
-
+		params['cal2_options']['lbounds'] = [1e-5]
+		params['cal2_options']['ubounds'] = [1]
+		params['cal2_options']['skip'] = not adjustCostOn
+		
 	elif index == 2:
 		###########################################################
 		##### TARGET 3.2 MEAN WEALTH W/BETA HETEROGENEITY #########
 		###########################################################
-		params['timeDiscount'] = 0.9663253019078122 ** 4.0
+		params['timeDiscount'] = 0.9983143584037633 ** 4.0
 		params['xMax'] = 50
-		params['discount_factor_grid'] = np.array([-0.032, 0, 0.032])
+		params['discount_factor_grid'] = np.array([-2 * 0.03207988, -0.03207988, 0])
 
 		params['xGridTerm1Wt'] = 0.01
 		params['xGridTerm1Curv'] = 0.8
@@ -158,11 +168,17 @@ def load_calibration(index):
 		
 		params['name'] = 'Beta heterogeneity'
 		params['cal1_options']['run'] = 'beta heterogeneity'
-		params['cal1_options']['x0'] = np.array([0.9983143584275995, 0.03207988])
-		params['cal1_options']['lbounds'] = [0.998, 0.03]
-		params['cal1_options']['ubounds'] = [0.999, 0.034]
+		params['cal1_options']['x0'] = np.array([0.9983143584037633, 0.03207988])
+		params['cal1_options']['lbounds'] = [0.9981, 0.031]
+		params['cal1_options']['ubounds'] = [0.9985, 0.033]
+		params['cal1_options']['skip'] = False
 
 		params['cal2_options']['run'] = 'adjustCost'
+		params['cal2_options']['x0'] = np.array([0.01])
+		params['cal2_options']['lbounds'] = [1e-3]
+		params['cal2_options']['ubounds'] = [1]
+		params['cal2_options']['skip'] = not adjustCostOn
+
 
 	print(f"Selected parameterization: {params['name']}")
 
