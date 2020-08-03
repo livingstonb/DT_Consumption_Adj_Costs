@@ -10,6 +10,7 @@ class Calibrator:
 		self.income = income
 		self.grids = grids
 		self.step = None
+		self.ftol = 1.0e-5
 
 	def calibrate(self):
 		boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
@@ -18,10 +19,10 @@ class Calibrator:
 		if self.step is not None:
 			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
 				method='L-BFGS-B', jac=None,
-				options={'eps': self.step, 'ftol': 1.0e-5})
+				options={'eps': self.step, 'ftol': self.ftol})
 		else:
 			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-				method='L-BFGS-B', jac=None, options={'ftol': 1.0e-5})
+				method='L-BFGS-B', jac=None, options={'ftol': self.ftol})
 
 	def simulate(self):
 		self.model.solve()
@@ -101,6 +102,7 @@ class Calibrator4(Calibrator):
 
 		super().__init__(p, model, income, grids)
 		self.step = np.array([2.5e-6])
+		self.ftol = 1.0e-7
 
 	def optim_handle(self, x):
 		self.p.setParam('adjustCost', x[0], True)

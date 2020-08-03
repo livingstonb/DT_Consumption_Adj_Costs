@@ -150,7 +150,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 	model = Model(params, income, grids)
 
 	skip1 = params.cal1_options.get('skip', True)
-	skip2 = params.cal1_options.get('skip', True)
+	skip2 = params.cal2_options.get('skip', True)
 	if skip1 & skip2:
 		Calibrate = False
 
