@@ -13,16 +13,11 @@ class Calibrator:
 		self.ftol = 1.0e-5
 
 	def calibrate(self):
-		boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
-			keep_feasible=True)
+		bracket = [self.lbounds[0], self.ubounds[0]]
 
-		if self.step is not None:
-			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-				method='L-BFGS-B', jac=None,
-				options={'eps': self.step, 'ftol': self.ftol})
-		else:
-			optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-				method='L-BFGS-B', jac=None, options={'ftol': self.ftol})
+		optimize.root_scalar(
+			self.optim_handle, x0=self.x0, bracket=bracket,
+			)
 
 	def simulate(self):
 		self.model.solve()
@@ -48,7 +43,7 @@ class Calibrator1(Calibrator):
 
 		eqSimulator = self.simulate()
 
-		z = np.linalg.norm(eqSimulator.results['Mean wealth'] - 3.2)
+		z = eqSimulator.results['Mean wealth'] - 3.2
 		return z
 
 class Calibrator2(Calibrator):
@@ -67,7 +62,7 @@ class Calibrator2(Calibrator):
 
 		z = eqSimulator.results['Wealth <= $1000'] - 0.23
 		print(f'Wealth constrained = {z + 0.23}')
-		return np.linalg.norm(z)
+		return z
 
 class Calibrator3(Calibrator):
 	def __init__(self, p, model, income, grids):
@@ -79,8 +74,10 @@ class Calibrator3(Calibrator):
 		self.step = np.array([0.00002, 0.00002])
 
 	def optim_handle(self, x):
-		self.p.setParam('timeDiscount', x[0], True)
-		self.p.setParam('discount_factor_grid', np.array([x[0]- 2 * x[1], x[0] - x[1], x[0]]), True)
+		# self.p.setParam('timeDiscount', x[0], True)
+		# self.p.setParam('discount_factor_grid', np.array([x[0]- 2 * x[1], x[0] - x[1], x[0]]), True)
+		self.p.setParam('timeDiscount', x[2], True)
+		self.p.setParam('discount_factor_grid', np.array([x[0], x[1], x[2]]), True)
 		self.model.p = self.p
 
 		eqSimulator = self.simulate()
@@ -94,6 +91,31 @@ class Calibrator3(Calibrator):
 
 		return np.linalg.norm(z)
 
+	def calibrate(self):
+		# boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
+		# 	keep_feasible=True)
+
+		# if self.step is not None:
+		# 	optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
+		# 		method='L-BFGS-B', jac=None,
+		# 		options={'eps': self.step, 'ftol': self.ftol})
+		# else:
+		# 	optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
+		# 		method='L-BFGS-B', jac=None, options={'ftol': self.ftol})
+
+		A1 = np.array([[1, -2, 1]])
+		lb1 = np.array([0.0])
+		ub1 = np.array([0.0])
+		constraint1 = optimize.LinearConstraint(A1, lb1, ub1)
+
+		A2 = np.array([[0, 0, 1], [1, 0, 0]])
+		lb2 = np.array([0.998, 0.932])
+		ub2 = np.array([0.9986, np.inf])
+		constraint2 = optimize.LinearConstraint(A2, lb2, ub2, keep_feasible=True)
+
+		optimize.minimize(self.optim_handle, self.x0, method='trust-constr',
+			constraints=[constraint1, constraint2])
+
 class Calibrator4(Calibrator):
 	def __init__(self, p, model, income, grids):
 		self.lbounds = [1e-6]
@@ -105,7 +127,7 @@ class Calibrator4(Calibrator):
 		self.ftol = 1.0e-7
 
 	def optim_handle(self, x):
-		self.p.setParam('adjustCost', x[0], True)
+		self.p.setParam('adjustCost', x, True)
 		self.model.p = self.p
 
 		eqSimulator = self.simulate()
@@ -122,4 +144,4 @@ class Calibrator4(Calibrator):
 
 		print(f'P(MPC > 0) = {z + 0.2}')
 
-		return np.linalg.norm(z)
+		return z
