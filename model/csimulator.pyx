@@ -9,6 +9,7 @@ from cython.parallel cimport prange, parallel
 
 from Params cimport Params
 from Income cimport Income
+from Grid cimport Grid
 
 from libc.math cimport log, fabs, fmin, fmax
 from libc.stdlib cimport malloc, free
@@ -17,7 +18,7 @@ cdef class CSimulator:
 	cdef:
 		readonly Params p
 		readonly Income income
-		readonly object grids
+		readonly Grid grids
 		public double[:,:,:,:,:] inactionRegion, cSwitchingPolicy
 		public int nCols
 		readonly int periodsBeforeRedraw

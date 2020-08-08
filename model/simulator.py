@@ -37,8 +37,10 @@ class Simulator(CSimulator):
 			yPsim = np.asarray(self.income.yPgrid)[self.yPind]
 		else:
 			yPsim = self.income.yPgrid[0] * np.ones(self.nSim)
+
 		if self.income.nyT > 1:
 			yTsim = np.asarray(self.income.yTgrid)[yTind]
+
 		self.ysim = (yPsim * yTsim).reshape((-1,1))
 
 	def updateCash(self):
@@ -125,18 +127,20 @@ class EquilibriumSimulator(Simulator):
 			self.solveDecisions()
 
 			self.computeTransitionStatistics()
-
-			if self.randIndex < self.periodsBeforeRedraw - 1:
-				# use next column of random numbers
-				self.randIndex += 1
-			else:
-				# need to redraw
-				self.randIndex = 0
-				self.makeRandomDraws()
+			self.updateRandIndex()
 
 			self.t += 1
 
 		self.computeEquilibriumStatistics()
+
+	def updateRandIndex(self):
+		if self.randIndex < self.periodsBeforeRedraw - 1:
+			# use next column of random numbers
+			self.randIndex += 1
+		else:
+			# need to redraw
+			self.randIndex = 0
+			self.makeRandomDraws()
 
 	def computeTransitionStatistics(self):
 		"""
@@ -284,14 +288,7 @@ class MPCSimulator(Simulator):
 			self.solveDecisions()
 
 			self.computeTransitionStatistics()
-
-			if self.randIndex < self.periodsBeforeRedraw - 1:
-				# use next column of random numbers
-				self.randIndex += 1
-			else:
-				# need to redraw
-				self.randIndex = 0
-				self.makeRandomDraws()
+			self.updateRandIndex()
 
 			self.t += 1
 
