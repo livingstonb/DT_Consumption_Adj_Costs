@@ -92,7 +92,6 @@ class Model(CModel):
 		there is NOT news of a future shock. In the case of news, next
 		period's value function should be used.
 		"""
-		# self.updateEMAX_HTM()
 		self.EMAX = self.interpMat.dot(np.reshape(self.valueFunction,(-1,1),order='F')
 			).reshape(self.grids.matrixDim, order='F')
 
@@ -109,7 +108,7 @@ class ModelWithNews(Model):
 	"""
 	This class solves the model when a future shock is expected. The value function
 	used to compute EMAX should come from the solution to a model in which an
-	there is an immediate shock or if a future shock is expected.
+	there is an immediate shock or in whichs a future shock is expected.
 	"""
 	def __init__(self, params, income, grids, valueNext,
 		shock, periodsUntilShock):

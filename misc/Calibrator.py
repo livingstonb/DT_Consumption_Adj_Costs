@@ -92,17 +92,6 @@ class Calibrator3(Calibrator):
 		return np.linalg.norm(z)
 
 	def calibrate(self):
-		# boundsObj = optimize.Bounds(self.lbounds, self.ubounds,
-		# 	keep_feasible=True)
-
-		# if self.step is not None:
-		# 	optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-		# 		method='L-BFGS-B', jac=None,
-		# 		options={'eps': self.step, 'ftol': self.ftol})
-		# else:
-		# 	optimize.minimize(self.optim_handle, self.x0, bounds=boundsObj,
-		# 		method='L-BFGS-B', jac=None, options={'ftol': self.ftol})
-
 		A1 = np.array([[1, -2, 1]])
 		lb1 = np.array([0.0])
 		ub1 = np.array([0.0])

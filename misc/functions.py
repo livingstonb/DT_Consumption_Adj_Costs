@@ -24,6 +24,16 @@ def utilityMat(riskaver, con):
 	return u
 
 def computeAdjBorrLims(nextShock, ymin, borrowLim, R, nlags):
+	"""
+	Returns a list containing the news-adjusted borrowing limits. Only
+	applicable for news of a negative shock. The last element of the
+	list is the adjusted borrowing limit if the shock occurs nlags in the future.
+	The next-to-last is the adjusted borrowing limit for the period in which
+	the shock occurs nlags-1 in the future, etc...
+
+	For news of a positive shock, all elements of the list will equal
+	borrowLim.
+	"""
 	borrLims = [borrowLim]
 	nextLim = borrowLim - nextShock
 	for ii in range(nlags):
@@ -40,6 +50,10 @@ def replaceNumpyNan(arr, val):
 
 def constructCurvedGrid(lbound, ubound, curv, n,
 	term1_wt=0, term1_curv=1):
+	"""
+	Constructs a curved grid equal to the weighted
+	sum of two power-spaced grids.
+	"""
 	grid_out = np.linspace(0, 1, num=n)
 	grid_out = grid_out.reshape((n, 1))
 

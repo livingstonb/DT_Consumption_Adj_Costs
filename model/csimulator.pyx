@@ -71,6 +71,10 @@ cdef class CSimulator:
 	@cython.wraparound(False)
 	cdef void findIndividualPolicy(self, long i, long col, double *xgrid,
 		long modelNum, double blim) nogil:
+		"""
+		Simulates the consumption decision for a given simulated household
+		in a given model.
+		"""
 		cdef: 
 			long iyP, iz
 			long xIndices[2]
@@ -89,6 +93,7 @@ cdef class CSimulator:
 			# forced to switch consumption
 			switch = True
 		else:
+			# check if household wants to switch
 			inactionLow = w0 * self.inactionRegion[xIndices[0],0,iz,iyP,modelNum] \
 				+ (1-w0) * self.inactionRegion[xIndices[1],0,iz,iyP,modelNum]
 			inactionHigh = w0 * self.inactionRegion[xIndices[0],1,iz,iyP,modelNum] \
@@ -98,6 +103,8 @@ cdef class CSimulator:
 
 		if switch:
 			if cash <= xgrid[0]:
+				# act as if the household DID have enough cash to incur the loss (i.e.
+				# enough cash that we could use interpolation)
 				self.csim[i,col] = \
 					self.cSwitchingPolicy[0,0,iz,iyP,modelNum] \
 					- (xgrid[0] - cash)

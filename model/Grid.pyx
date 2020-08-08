@@ -38,6 +38,11 @@ cdef class Grid:
 		self.c_wide = cgrid.reshape((1,self.p.nc,1,1))
 
 	def genAdjustedXGrid(self, lb):
+		"""
+		Raises the cash-on-hand grid if the current lower bound is too low.
+		Returns a numpy array rather than modify any attributes of this class
+		instance.
+		"""
 		if lb > self.x_flat[0]:
 			new_grid = np.asarray(self.x_flat) + lb - self.x_flat[0] + 2 * self.p.cMin
 		else:

@@ -6,7 +6,7 @@ from model import Params, Income, Grid
 from misc import mpcsTable, functions, otherStatistics
 from misc.Calibrator import Calibrator1, Calibrator2, Calibrator3, Calibrator4
 from model.model import Model, ModelWithNews
-from misc.calibrations import load_replication, load_calibration
+from misc.calibrations import load_parameters
 from model import simulator
 from misc import plots
 
@@ -29,13 +29,19 @@ def create_objects(params, locIncome, PrintGrids):
 	return (grids, income)
 
 def getCalibrator(p, model, income, grids, cal_options):
+	"""
+	Instantiates and returns an object used to perform calibration
+	by iterating over the model/simulation.
+	"""
 	if cal_options['run'] == 'beta heterogeneity':
+		# calibrate to both mean wealth and wealth constrained
 		calibrator = Calibrator3(p, model, income, grids)
 	elif cal_options['run'] == 'mean wealth':
 		calibrator = Calibrator1(p, model, income, grids)
 	elif cal_options['run'] == 'wealth constrained':
 		calibrator = Calibrator2(p, model, income, grids)
 	else:
+		# calibrate adjustment cost to P(MPC > 0)
 		calibrator = Calibrator4(p, model, income, grids)
 
 	if 'lbounds' in cal_options:
@@ -133,9 +139,7 @@ def main(paramIndex=None, runopts=None, replication=None):
 	#---------------------------------------------------------------#
 	functions.printLine()
 	if replication is not None:
-		params_dict = load_replication(replication)
-	else:
-		params_dict = load_calibration(index=paramIndex)
+		params_dict = load_parameters(index=paramIndex, replication=replication)
 
 	functions.printLine()
 	params_dict['fastSettings'] = Fast
@@ -155,9 +159,6 @@ def main(paramIndex=None, runopts=None, replication=None):
 		Calibrate = False
 
 	if Calibrate:
-		# calibrator = Calibrator(*params.cal_options)
-		# opt_results = calibrator.calibrate(params, model, income, grids)
-		# calibrator = None
 		if not params.cal1_options['skip']:
 			calibrator = getCalibrator(params, model, income, grids, params.cal1_options)
 			calibrator.calibrate()

@@ -50,9 +50,12 @@ cdef long fastSearchSingleInput(double *grid, double val, long nGrid) nogil:
 cdef double getInterpolationWeight(
 	double *grid, double pt, long nGrid, long *indices) nogil:
 	"""
-	This function finds the weights placed on the grid value below pt
-	and the grid value above pt when interpolating pt onto grid. Output
-	is 'indices' and 'weights'.
+	This function finds the weights placed on the grid value directly at
+	or below the value of 'pt'. The weight placed on the grid value above
+	this point on the grid is equal to one minus the returned value. The
+	indices of the two grid points are returned in the 'indices' input.
+
+	See the function 'interpolate' for example usage.
 	"""
 	cdef double w0
 
@@ -67,6 +70,11 @@ cdef double getInterpolationWeight(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double interpolate(double *grid, double pt, double *vals, long nGrid) nogil:
+	"""
+	Performs gridded linear interpolation. Values outside of the input grid are assigned
+	values corresponding to either the bottom or the top of the grid, depending on the
+	value of 'pt' (i.e. there is no extrapolation).
+	"""
 	cdef:
 		long indices[2]
 		double w0, out
@@ -116,6 +124,9 @@ cpdef double gini(double[:] vals):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef void linspace(double lb, double ub, int num, double[:] out):
+	"""
+	Constructs a linearly spaced vector.
+	"""
 	cdef:
 		int i
 		double spacing

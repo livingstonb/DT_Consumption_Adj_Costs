@@ -6,8 +6,8 @@ import main
 #---------------------------------------------------------------#
 def set_from_cmd_arg(cmd_line_args):
 	"""
-	Returns the first integer-valued command-line
-	argument passed, if available.
+	Returns the first integer-valued command-line argument passed,
+	if available. Used to run code on the server.
 	"""
 	for arg in cmd_line_args:
 		try:
@@ -21,13 +21,13 @@ def set_from_cmd_arg(cmd_line_args):
 #      CHOOSE RUN OPTIONS                                       #
 #---------------------------------------------------------------#
 runOptions = dict()
-runOptions['Calibrate'] = True # not for replication materials
+runOptions['Calibrate'] = False # not for replication materials
 runOptions['Simulate'] = True
 runOptions['SimulateMPCs'] = True
 runOptions['MPCsNews'] = True
 runOptions['Fast'] = False # run w/small grids for debugging
-runOptions['PrintGrids'] = False
-runOptions['MakePlots'] = False
+runOptions['PrintGrids'] = False # prints the grids and terminates
+runOptions['MakePlots'] = False # may be out of date
 
 #---------------------------------------------------------------#
 #      CHOOSE REPLICATION                                       #
@@ -35,15 +35,16 @@ runOptions['MakePlots'] = False
 # If desired, choose a replication experiment
 # Redefine replication = None to ignore
 replication = dict()
-replication['target'] = 'mean_wealth' # Either 'mean_wealth' or 'wealth_lt_1000'
-replication['adjustCostOn'] = False # True or False
-replication['betaHeterogeneity'] = False # True or False
-replication = None
+replication['mode'] = 'beta_het' # 'mean_wealth', 'wealth_lt_1000', 'beta_het'
+replication['adjustCostOn'] = True # True or False
+# replication = None
 
 #---------------------------------------------------------------#
 #      OR CHOOSE AN INDEX                                       #
 #---------------------------------------------------------------#
-# Otherwise, choose a parameter number (overrided by the above)
+# Otherwise, choose a parameter number
+# Overridden by selecting a replication or passing an argument from
+# the command line
 paramIndex = 0
 
 #---------------------------------------------------------------#
