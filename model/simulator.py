@@ -8,7 +8,7 @@ import pandas as pd
 
 class Simulator(CSimulator):
 	"""
-	Base class for simulations
+	Base class for simulations.
 	"""
 	def __init__(self, params, income, grids, simPeriods):
 		super().__init__(params, income, grids, simPeriods)
@@ -46,7 +46,6 @@ class Simulator(CSimulator):
 
 	def updateAssets(self):
 		self.asim = self.p.R * (np.asarray(self.xsim) - np.asarray(self.csim))
-		# self.asim = np.minimum(self.asim, self.p.xMax)
 		
 		if (self.p.deathProb > 0) and (not self.p.Bequests):
 			self.asim[self.deathrand[:,self.randIndex]<self.p.deathProb,:] = 0
@@ -241,6 +240,11 @@ class EquilibriumSimulator(Simulator):
 		print(f"Mean wealth = {self.results['Mean wealth']}")
 
 class MPCSimulator(Simulator):
+	"""
+	Class for simulating MPCs. The first column of simulation variables (e.g. xsim) corresponds
+	with the first shock index passed, the second column corresponds with the second shock
+	index passed, etc. while the last column corresponds with the baseline, i.e. no shock.
+	"""
 	def __init__(self, params, income, grids, shockIndices):
 		super().__init__(params, income, grids, 4)
 
@@ -534,9 +538,7 @@ class MPCSimulatorNews_Loan(MPCSimulatorNews):
 			self.results[row] = np.nan
 
 		self.mpcs = dict()
-
 		self.switched = np.zeros((self.nSim,self.nCols),dtype=int)
-
 		self.initialized = True
 
 	def computeTransitionStatistics(self):

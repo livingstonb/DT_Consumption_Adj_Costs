@@ -1,6 +1,11 @@
 from model.Params import Params
 import numpy as np
 
+def load_custom():
+	params = dict()
+
+	return params
+
 def load_parameters(index=0, replication=None):
 	"""
 	This function sets the parameters, to be passed

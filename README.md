@@ -24,7 +24,6 @@ or Miniconda package manager to install the above prerequesites
 without too much trouble.
 GNU make and gcc are also required.
 
-
 ### Compiling with Cython
 
 In the terminal, navigate to the main directory, which should include the makefile,

@@ -38,6 +38,7 @@ cdef class Params:
 		self.n_discountFactor = self.discount_factor_grid.size
 		self.n_riskAver = self.risk_aver_grid.size
 		self.discount_factor_grid += self.timeDiscount
+		self.timeDiscount = np.mean(self.discount_factor_grid)
 		self.risk_aver_grid += self.riskAver
 
 		#-----------------------------------#
@@ -108,12 +109,16 @@ cdef class Params:
 		elif name == 'timeDiscount':
 			self.discount_factor_grid = np.asarray(self.discount_factor_grid) \
 				+ value - self.timeDiscount
-			mean_discount = self.discount_factor_grid.mean()
+			mean_discount = np.mean(self.discount_factor_grid)
 			self.series['Discount factor (annualized)'] = mean_discount ** self.freq
 			self.series['Discount factor (quarterly)'] = mean_discount ** (self.freq/4)
 		elif name == 'riskAver':
 			self.risk_aver_grid = np.asarray(self.risk_aver_grid) \
 				+ value - self.riskAver
+		elif name == 'discount_factor_grid':
+			self.timeDiscount = np.mean(value)
+			self.series['Discount factor (annualized)'] = self.timeDiscount ** self.freq
+			self.series['Discount factor (quarterly)'] = self.timeDiscount ** (self.freq/4)
 
 		if hasattr(self, name):
 			setattr(self, name, value)

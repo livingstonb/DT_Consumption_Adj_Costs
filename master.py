@@ -35,14 +35,14 @@ runOptions['MakePlots'] = False # may be out of date
 # If desired, choose a replication experiment
 # Redefine replication = None to ignore
 replication = dict()
-replication['mode'] = 'beta_het' # 'mean_wealth', 'wealth_lt_1000', 'beta_het'
+replication['mode'] = 'mean_wealth' # 'mean_wealth', 'wealth_lt_1000', 'beta_het'
 replication['adjustCostOn'] = True # True or False
 # replication = None
 
 #---------------------------------------------------------------#
 #      OR CHOOSE AN INDEX                                       #
 #---------------------------------------------------------------#
-# Otherwise, choose a parameter number
+# Otherwise, choose a parameterization by number
 # Overridden by selecting a replication or passing an argument from
 # the command line
 paramIndex = 0

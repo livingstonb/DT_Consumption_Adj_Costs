@@ -76,7 +76,7 @@ class Calibrator3(Calibrator):
 	def optim_handle(self, x):
 		# self.p.setParam('timeDiscount', x[0], True)
 		# self.p.setParam('discount_factor_grid', np.array([x[0]- 2 * x[1], x[0] - x[1], x[0]]), True)
-		self.p.setParam('timeDiscount', x[2], True)
+		# self.p.setParam('timeDiscount', x[2], True)
 		self.p.setParam('discount_factor_grid', np.array([x[0], x[1], x[2]]), True)
 		self.model.p = self.p
 
