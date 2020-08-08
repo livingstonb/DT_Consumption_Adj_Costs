@@ -6,7 +6,6 @@ from misc cimport cfunctions
 
 cimport cython
 from cython.parallel cimport prange, parallel
-from misc cimport spline
 
 from Params cimport Params
 from Income cimport Income

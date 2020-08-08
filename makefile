@@ -12,7 +12,10 @@ mac:
 run: all
 	python master.py
 
-.PHONY: clean
+readme:
+	-pandoc README.md -o README.pdf
+
+.PHONY: clean all mac run
 
 clean:
 	rm -f $(CFILES) $(OBJECTS)
